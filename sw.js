@@ -1,5 +1,5 @@
-/* Auditoría Final · funciona sin señal: guarda la app en el equipo y la abre desde ahí */
-const VERSION = 'af-v1';
+/* Calidad Samitex · funciona sin señal: guarda la app en el equipo y la abre desde ahí */
+const VERSION = 'cs-v2';
 const PROPIOS = ['./', './index.html', './config.js', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 const EXTERNOS = ['https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js'];
 self.addEventListener('install', e => {

@@ -1,7 +1,7 @@
 {
-  "name": "Auditoría Final · Samitex",
-  "short_name": "Auditoría Final",
-  "description": "Reporte de auditoría final SA-AC-PR-05.01 con muestreo AQL 2.5 / 4.0",
+  "name": "Calidad Samitex",
+  "short_name": "Calidad Samitex",
+  "description": "Procesos de control de calidad Samitex: Auditoría Final y más",
   "lang": "es-PE",
   "start_url": "./",
   "scope": "./",
