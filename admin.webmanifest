@@ -1,0 +1,18 @@
+{
+  "id": "./?admin",
+  "name": "Calidad Samitex ADM",
+  "short_name": "Samitex ADM",
+  "description": "Calidad Samitex · acceso de administradora",
+  "lang": "es-PE",
+  "start_url": "./?admin",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f3f4f8",
+  "theme_color": "#0a1f74",
+  "icons": [
+    { "src": "icon-adm-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-adm-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-adm-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
