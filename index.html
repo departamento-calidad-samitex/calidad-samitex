@@ -976,7 +976,7 @@ const FORMS={
   ["campos","Datos",[["cli","Cliente"],["oc","O/C"],["desc","Descripción"],["color","Color"],["art","Artículo"],["fecha","Fecha","fecha"],["aud","Auditor","aud"]]],
   ["tabla","Evaluación","ev",19,[["desc","Descripción"],["base","Bases"],["mue","Muestra +/-"],["est","Corr. / No corr.","cnc"],["obs","Observaciones"]]],
   ["campos","Reporte de medidas",[["ent","Entalle"],["talla","Talla"]]],
-  ["tabla","Medidas","md",9,[["desc","Descripción"],["tol","Tol +/-"],["base","Base","num"],["pre","Prenda","num"],["dif","Diferencia","auto"]]],
+  ["tabla","Medidas","md",9,[["desc","Descripción"],["tol","Tol +/-"],["base","Base","num"],["pre","Prenda (muestra)","num"],["dif","Diferencia","num"]]],
   ["obs","Observaciones","obs",3],["res","Resultado",["APROBADO","RECHAZADO","APROBADO CON OBSERVACIÓN"]],["firmas",[["A","Auditor"],["T","Analista de calidad"]]]]};
 
 /* ---- permisos por formato: L = solo lectura · E = ingreso de datos ---- */
@@ -991,10 +991,16 @@ function blankMF(mod){return{id:newId(),mod,sub:mod==="corte"?"cam":"",c:{fecha:
 function secs(f){return FORMS[f.mod]||[]}
 function ckItems(f,key){if(f.mod==="corte"){const c=CORTE[f.sub||"cam"];return key==="PZ"?c.pz:c.av}return key}
 function aqlN2(lote){const p=aql(lote);return p?{n:p.n,ac:p.acM,re:p.reM}:null}
+function numMed(v){v=String(v??"").trim().replace(",",".").replace(/^\+/,"");if(!v)return NaN;const m=v.match(/^(-?)(\d+)\s+(\d+)\/(\d+)$/);if(m)return(m[1]?-1:1)*(+m[2]+m[3]/m[4]);const f=v.match(/^(-?)(\d+)\/(\d+)$/);if(f)return(f[1]?-1:1)*(f[2]/f[3]);return/^-?\d*\.?\d+$/.test(v)?Number(v):NaN}
+function txMed(n){return String(Math.round(n*100)/100)}
 function autoFila(f,tk,r){const R=rowsDe(f,tk)[r]||{};
   if(f.mod==="avios"&&tk==="it"){const p=aqlN2(R.lote);R.mue=p?String(p.n):"";R.def=catNom(up(R.cod));if(!R.arM)R.ar=R.cd===""||R.cd==null||!p?"":(Number(R.cd)>=p.re?"R":"A")}
   if(f.mod==="corte"&&tk==="df")R.def=catNom(up(R.cod));
-  if(f.mod==="muestra"&&tk==="md"){const b=parseFloat(R.base),q=parseFloat(R.pre);R.dif=isNaN(b)||isNaN(q)?"":String(Math.round((q-b)*100)/100)}
+  if(f.mod==="muestra"&&tk==="md"){const b=numMed(R.base),q=numMed(R.pre),d=numMed(R.dif),t=numMed(R.tol);
+    if(R._ed==="dif"){if(!isNaN(b)&&!isNaN(d))R.pre=txMed(b+d);else if(!isNaN(q)&&!isNaN(d)&&isNaN(b))R.base=txMed(q-d)}
+    else if(!isNaN(b)&&!isNaN(q))R.dif=txMed(q-b);
+    else if(R._ed==="pre"&&isNaN(b)&&!isNaN(q)&&!isNaN(d))R.base=txMed(q-d);
+    const dd=numMed(R.dif);R.fuera=!isNaN(dd)&&!isNaN(t)&&Math.abs(dd)>Math.abs(t)+1e-9?1:0}
   return R}
 function mfMuestreo(f){const p=aql(f.c.lote);return p?{n:p.n,acM:p.acM,reM:p.reM,acm:p.acm,rem:p.rem}:null}
 function mfTot(f,tk,col){return rowsDe(f,tk).reduce((s,r)=>s+(Number(r&&r[col])||0),0)}
@@ -1005,6 +1011,7 @@ function mfSugerido(f){
   return""}
 function celda(f,tk,r,c){const [k,l,ty,cat]=c,R=rowsDe(f,tk)[r]||{},v=R[k]??"",a=`data-tk="${tk}" data-r="${r}" data-k="${k}"`;
   if(ty==="auto")return`<label class="fld"><span>${esc(l)}</span><input ${a} value="${esc(v)}" readonly tabindex="-1"></label>`;
+  if(k==="dif"&&f.mod==="muestra")return`<label class="fld"><span>${esc(l)} <small class="fueraTol"${R.fuera?"":" hidden"} style="color:var(--crit)">fuera de tolerancia</small></span><input ${a} value="${esc(v)}" inputmode="decimal"${R.fuera?' style="border-color:var(--crit);color:var(--crit)"':""}></label>`;
   if(ty==="ar"||ty==="cnc"){const o=ty==="ar"?[["A","A"],["R","R"]]:[["C","Corr."],["NC","No corr."]];return`<div class="fld"><span>${esc(l)}</span><span class="tri" ${a}>${o.map(([x,t])=>`<button type="button" data-v="${x}" aria-pressed="${v===x}">${t}</button>`).join("")}</span></div>`}
   if(ty==="def"||ty==="defs")return`<label class="fld${ty==="defs"?" full":""}"><span>${esc(l)}</span><input ${a} list="dl${cat}" value="${esc(v)}" autocapitalize="characters" placeholder="${cat}…"></label>`;
   return`<label class="fld"><span>${esc(l)}</span><input ${a} value="${esc(v)}"${ty==="num"?' inputmode="decimal"':""}></label>`}
@@ -1032,8 +1039,9 @@ function refreshMFbits(){const f=S.mf,p=$("mfPlan");if(p&&f.mod==="corte"){const
   const rs=document.querySelector("#mfBody [data-res]");if(rs&&!f.res){const sg=mfSugerido(f);rs.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===sg)));const n=rs.previousElementSibling;if(n&&n.tagName==="P")n.innerHTML=`Según los datos: <b>${sg}</b>`}}
 $("mfBody").addEventListener("input",e=>{const x=e.target,f=S.mf;if(!f)return;
   if(x.dataset.c){f.c[x.dataset.c]=x.value;if(x.dataset.c==="lote")refreshMFbits()}
-  else if(x.dataset.tk){const R=rowsDe(f,x.dataset.tk),r=+x.dataset.r;R[r]=R[r]||{};R[r][x.dataset.k]=x.value;autoFila(f,x.dataset.tk,r);
-    x.closest(".mrow").querySelectorAll("input[readonly][data-tk]").forEach(i=>i.value=R[r][i.dataset.k]??"");
+  else if(x.dataset.tk){const R=rowsDe(f,x.dataset.tk),r=+x.dataset.r;R[r]=R[r]||{};R[r][x.dataset.k]=x.value;R[r]._ed=x.dataset.k;autoFila(f,x.dataset.tk,r);
+    x.closest(".mrow").querySelectorAll("input[data-tk]").forEach(i=>{if(i!==x&&i.value!==String(R[r][i.dataset.k]??""))i.value=R[r][i.dataset.k]??""});
+    if(f.mod==="muestra"&&x.dataset.tk==="md"){const di=x.closest(".mrow").querySelector('input[data-k="dif"]'),fl=x.closest(".mrow").querySelector(".fueraTol");if(di){di.style.borderColor=R[r].fuera?"var(--crit)":"";di.style.color=R[r].fuera?"var(--crit)":""}if(fl)fl.hidden=!R[r].fuera}
     const t=x.closest(".mrow").querySelector(".tri[data-k=ar]");if(t)t.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===R[r].ar)));refreshMFbits()}
   else if(x.dataset.p){const P=f.p[x.dataset.p]=f.p[x.dataset.p]||{};P[x.dataset.f]=x.value}
   else if(x.dataset.o!=null){f.obs[x.dataset.o]=x.value}
@@ -1199,7 +1207,7 @@ function pdfMuestra(r,im){const f=r.f,c=f.c,E=rowsDe(f,"ev"),D=rowsDe(f,"md"),M=
   <tr><td class="q-k">DESCRIPCIÓN:</td><td class="q-v">${Q(c.desc)}</td><td class="q-k">COLOR:</td><td class="q-v">${Q(c.color)}</td><td class="q-k">ESTACIÓN:</td><td class="q-b">VERANO ${qBox(c.est==="VERANO")} INVIERNO ${qBox(c.est==="INVIERNO")}</td></tr>
   <tr><td class="q-k">ARTÍCULO:</td><td class="q-v">${Q(c.art)}</td><td class="q-k">FECHA:</td><td class="q-v">${dmy(c.fecha)}</td><td class="q-k">AUDITOR:</td><td class="q-v">${Q(r.aud)}</td></tr></table><div class="q-gap"></div>`;
  h+=`<table style="font-size:7pt"><colgroup><col style="width:27%"><col style="width:13%"><col style="width:10%"><col style="width:8%"><col style="width:8%"><col></colgroup><tr>${"DESCRIPCIÓN|BASES|MUESTRA +/-|CORR.|NO CORR.|OBSERVACIONES".split("|").map(x=>`<th style="background:#262626;color:#fff">${x}</th>`).join("")}</tr>${Array.from({length:19},(_,i)=>{const x=E[i]||{};return`<tr style="height:4.5mm"><td>${Q(x.desc)}</td><td>${Q(x.base)}</td><td>${Q(x.mue)}</td><td class="q-b">${x.est==="C"?"X":""}</td><td class="q-b">${x.est==="NC"?"X":""}</td><td>${Q(x.obs)}</td></tr>`}).join("")}</table>`;
- h+=`<div style="background:#262626;color:#fff;font-weight:bold;font-size:9pt;text-align:center;padding:1mm;margin-top:2mm">REPORTE DE MEDIDAS</div><table style="font-size:7pt;width:70%;margin:1.5mm 0 0 5%"><colgroup><col style="width:36%"><col style="width:12%"><col style="width:15%"><col style="width:17%"><col></colgroup><tr><th style="background:#262626;color:#fff">ENTALLE:</th><td>${Q(f.c.ent)}</td><th style="background:#262626;color:#fff">TALLA:</th><td colspan="2">${Q(f.c.talla)}</td></tr><tr>${"DESCRIPCIÓN|TOL +/-|BASE|PRENDA|DIFERENCIA".split("|").map(x=>`<th style="background:#262626;color:#fff">${x}</th>`).join("")}</tr>${Array.from({length:9},(_,i)=>{const x=D[i]||{};return`<tr style="height:4.3mm"><td>${Q(x.desc)}</td><td>${Q(x.tol)}</td><td>${Q(x.base)}</td><td>${Q(x.pre)}</td><td class="q-b">${Q(x.dif)}</td></tr>`}).join("")}</table>`;
+ h+=`<div style="background:#262626;color:#fff;font-weight:bold;font-size:9pt;text-align:center;padding:1mm;margin-top:2mm">REPORTE DE MEDIDAS</div><table style="font-size:7pt;width:70%;margin:1.5mm 0 0 5%"><colgroup><col style="width:36%"><col style="width:12%"><col style="width:15%"><col style="width:17%"><col></colgroup><tr><th style="background:#262626;color:#fff">ENTALLE:</th><td>${Q(f.c.ent)}</td><th style="background:#262626;color:#fff">TALLA:</th><td colspan="2">${Q(f.c.talla)}</td></tr><tr>${"DESCRIPCIÓN|TOL +/-|BASE|PRENDA|DIFERENCIA".split("|").map(x=>`<th style="background:#262626;color:#fff">${x}</th>`).join("")}</tr>${Array.from({length:9},(_,i)=>{const x=D[i]||{};return`<tr style="height:4.3mm"><td>${Q(x.desc)}</td><td>${Q(x.tol)}</td><td>${Q(x.base)}</td><td>${Q(x.pre)}</td><td class="q-b"${x.fuera?' style="color:#c00"':""}>${Q(x.dif)}</td></tr>`}).join("")}</table>`;
  h+=`<div class="q-b" style="font-size:8pt;margin-top:3mm">OBSERVACIONES:</div><table style="font-size:7pt">${Array.from({length:3},(_,i)=>`<tr style="height:5.5mm"><td class="q-l" style="border-left:0;border-right:0">${Q((f.obs||{})[i]||"")}</td></tr>`).join("")}</table>`;
  h+=`<table class="q-nb" style="margin-top:3mm;font-size:7.5pt"><tr><td class="q-b">APROBADO ${qBox(r.res==="APROBADO")}</td><td class="q-b">RECHAZADO ${qBox(r.res==="RECHAZADO")}</td><td class="q-b">APROBADO CON OBSERVACIÓN ${qBox(r.res==="APROBADO CON OBSERVACIÓN")}</td></tr></table>`;
  h+=qSig([["AUDITOR","A",r.aud],["ANALISTA DE CALIDAD","T"],["JEFE DE ASEG. DE LA CALIDAD","VB"]],im,qVB(r));
