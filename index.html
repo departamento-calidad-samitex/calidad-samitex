@@ -722,7 +722,7 @@ function renderTabs(){const t=tabsFor();if(!["gate","pend","adm","form","mod","v
   $("tabs").innerHTML=t.length>1?t.map(k=>`<button type="button" role="tab" data-t="${k}" aria-selected="${S.tab===k}"><svg viewBox="0 0 24 24">${ICON[k]}</svg>${TLAB[k]}</button>`).join(""):"";
   document.querySelector("nav.tabs").hidden=t.length<2}
 $("tabs").onclick=e=>{const b=e.target.closest("[data-t]");if(b)go(b.dataset.t)};
-function go(t){S.tab=t;document.querySelectorAll(".view").forEach(v=>{const on=v.id==="v-"+t;v.hidden=!on;v.style.display=on?"flex":"none"});
+function go(t,pop){if(!pop&&S.tab!==t&&(S.token||S.admin)&&!["gate","pend","adm"].includes(t))try{history.pushState({cs:t},"")}catch(x){}S.tab=t;document.querySelectorAll(".view").forEach(v=>{const on=v.id==="v-"+t;v.hidden=!on;v.style.display=on?"flex":"none"});
   $("hTitle").textContent=t==="form"&&S.editing?"Corregir reporte":HT[t];$("hSub").textContent=t==="form"?"Calidad Samitex · "+MODULOS.af.cod:"Calidad Samitex";renderTabs();
   if(t==="form")requestAnimationFrame(()=>{pads.sA.size();pads.sT.size();pads.sA.load(S.form.firmaA);pads.sT.load(S.form.firmaT)});
   if(t==="home"){cargarProcs();cargarCorr()}if(t==="dash")cargarTablero();if(t==="hist")cargarHist();if(t==="team"){cargarTeam();cargarAdmins()}if(t==="time")cargarTiempos();scrollTo(0,0)}
@@ -1301,6 +1301,14 @@ $("corrList").addEventListener("click",e=>{const a=e.target.closest("[data-ced]"
   if(a){const r=CORR.find(x=>x.id===a.dataset.ced);if(r){if((r.mod||"af")==="af")editRecord(r);else abrirMF(r.mod,r)}}});
 /* rol para todos los formatos de un auditor de una vez */
 $("teamList").addEventListener("change",e=>{const s=e.target.closest("[data-pmall]");if(!s||s.value==="-")return;const g=s.closest("[data-perm]");g.querySelectorAll("[data-pm]").forEach(x=>x.value=s.value);s.value="-";g.querySelector("[data-pm]").dispatchEvent(new Event("change",{bubbles:true}))});
+/* ---- botón Atrás del celular: vuelve a la pantalla anterior dentro de la app (no la cierra ni borra lo escrito) ---- */
+try{history.replaceState({cs:"root"},"")}catch(x){}
+let atrasT=0;
+addEventListener("popstate",e=>{if(!S.token&&!S.admin)return;const st=e.state&&e.state.cs;
+  if(S.tab==="form"&&S.editing){S.editing=null;S.editSrc=null;loadForm(ls.get("draft3",null)||blankForm());setEditUI()}
+  if(S.tab==="mod"&&S.mfEdit){S.mfEdit=null;S.mfSrc=null}
+  if(!st||st==="root"){if(Date.now()-atrasT<2500){history.back();return}atrasT=Date.now();try{history.pushState({cs:"home"},"")}catch(x){}if(S.tab!=="home")go("home",true);toast("Toca Atrás otra vez para salir de la app");return}
+  let t=st;if(!["form","mod","ver"].includes(t)&&!tabsFor().includes(t))t="home";go(t,true)});
 /* ================= inicio ================= */
 (async function init(){
   S.form=blankForm();renderCola();
