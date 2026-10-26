@@ -10,6 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 body{margin:0}
 /* Layout: app de una columna para celular — cabecera fija con marca, formulario por bloques como el formato SA-AC-PR-05.01, pestañas al pie */
@@ -169,6 +170,11 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 table.tt{border-collapse:collapse;width:100%;min-width:560px;font-size:13px}
 table.tt th{text-align:left;font:500 10.5px var(--font-mono);letter-spacing:.05em;text-transform:uppercase;color:var(--muted);padding:6px;border-bottom:1px solid var(--base)}
 table.tt td{padding:7px 6px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.mrow{border:1px solid var(--line);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:6px;background:var(--bg)}
+.mrow .num{font:600 12px var(--font-mono);color:var(--muted)}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;align-items:center}
+details.perm summary{cursor:pointer;font-size:13px;color:var(--accent);font-weight:600;padding:4px 0}
+details.perm .grid2{margin-top:6px}
 .ins{font-size:13.5px;color:var(--fg2);border-left:3px solid var(--gold);padding:2px 0 2px 10px}
 .ins.bad{border-left-color:var(--crit)}.ins.ok{border-left-color:var(--good)}
 .ins b{color:var(--fg)}
@@ -259,6 +265,23 @@ table.tt td{padding:7px 6px;border-bottom:1px solid var(--line);font-variant-num
       <button type="button" class="btn" id="procSave">Guardar menú</button>
     </div>
     <button type="button" class="btn ghost sm" id="salirHome" style="align-self:center" hidden>Salir de mi cuenta en este celular</button>
+  </section>
+
+  <!-- ===== FORMATOS DE CONTROL DE CALIDAD ===== -->
+  <section id="v-mod" class="view" hidden style="flex-direction:column;gap:14px">
+    <div class="row" style="justify-content:space-between"><div><h2 id="mfTitle"></h2><p class="sub" id="mfSub"></p></div><button type="button" class="btn ghost sm" id="mfVer">Ver reportes</button></div>
+    <div class="note" id="mfEditNote" hidden></div>
+    <form id="mfForm" novalidate style="display:flex;flex-direction:column;gap:14px">
+      <div id="mfBody" style="display:flex;flex-direction:column;gap:14px"></div>
+      <input type="file" id="mfFoto" accept="image/*" capture="environment" multiple hidden>
+      <div class="row" style="flex-wrap:nowrap"><button class="btn ghost" type="button" id="mfCancel" hidden>Cancelar</button><button class="btn block" type="submit" id="mfSave">Guardar reporte</button></div>
+      <p class="note err" id="mfErr" hidden></p><div class="note ok" id="mfDone" hidden></div>
+    </form>
+  </section>
+  <section id="v-ver" class="view" hidden style="flex-direction:column;gap:12px">
+    <div class="row" style="justify-content:space-between"><div><h2 id="verTitle"></h2><p class="sub" id="verSub"></p></div><button type="button" class="btn ghost sm" id="verRefresh">Actualizar</button></div>
+    <input type="search" id="verQ" placeholder="Buscar cliente, proveedor, OF, auditor…" aria-label="Buscar">
+    <div class="list" id="verList"></div>
   </section>
 
   <!-- ===== REPORTE DE AUDITORÍA FINAL ===== -->
@@ -628,7 +651,7 @@ $("fFoto").onchange=async e=>{const files=[...e.target.files].slice(0,6-S.form.f
 /* ---- guardar (con cola sin señal) ---- */
 function toRecord(f){const fe=f.fecha||today(),proc=up(f.proc);
   const d=Object.fromEntries(Object.entries(f.d).filter(([,x])=>x.M||x.m).map(([c,x])=>[c,{M:x.M||0,m:x.m||0}]));
-  return{id:f.id,fmt:"SA-AC-PR-01.01",tIni:S.editing?null:(f.tIni||null),tFin:S.editing?null:Date.now(),fecha:fe,proc,tipo:f.tipo,op:up(f.op),lin:up(f.lin),desc:String(f.desc||"").trim(),tal:up(f.tal)||(proc==="PLANTA"?"PLANTA":""),cli:up(f.cli),
+  return{id:f.id,fmt:"SA-AC-PR-05.01",tIni:S.editing?null:(f.tIni||null),tFin:S.editing?null:Date.now(),fecha:fe,proc,tipo:f.tipo,op:up(f.op),lin:up(f.lin),desc:String(f.desc||"").trim(),tal:up(f.tal)||(proc==="PLANTA"?"PLANTA":""),cli:up(f.cli),
     of:String(f.of||"").trim(),art:up(f.art),color:up(f.color),lote:Number(f.lote)||null,mue:Number(f.mue)||null,d,
     nombres:Object.fromEntries(Object.keys(d).map(c=>[c,DEFS.get(c)?.n||c])),grupos:Object.fromEntries(Object.keys(d).map(c=>[c,DEFS.get(c)?.gn||""])),prLista:FCAT.pr,
     pr:Object.fromEntries(Object.entries(f.pr).filter(([,x])=>x==="A"||x==="R")),ck:{...f.ck},
@@ -644,7 +667,7 @@ function renderCola(){const n=cola().length,b=$("cola");if(!b)return;b.hidden=!n
 let enviando=false;
 async function enviarCola(manual){if(enviando||!cola().length)return;enviando=true;let ok=0;
   try{for(const p of cola()){if(!S.token)break;
-      try{let r=await call("guardarReporte",S.token,p.rec,p.fotos,p.firmas);
+      try{let r=await call("guardarReporte",S.token,p.rec,p.fotos,p.firmas,p.pdf);
         if(!r.ok&&r.sesion){cerrarSesion("Tu acceso ya no está activo. Vuelve a ingresar con tu DNI para enviar los reportes guardados.");break}
         if(r.ok){setCola(cola().filter(x=>x.rec.id!==p.rec.id));ok++}else{toast(r.msg||"No se pudo enviar un reporte.");break}}
       catch(x){if(netErr(x))break;throw x}}}
@@ -656,9 +679,11 @@ $("f").addEventListener("submit",async e=>{e.preventDefault();const f=S.form,err
   if(!f.aud)miss.push("Auditor");
   if(miss.length){err.textContent="Completa: "+miss.join(", ")+".";err.hidden=false;return}
   if(!isSig(f.firmaA)&&!String(f.firmaA).startsWith("drive:")){err.textContent="Falta la firma del auditor.";err.hidden=false;return}
-  const p=payload(f),v=dictamen(f),bt=$("fSave");bt.disabled=true;bt.textContent="Guardando…";
+  const p=payload(f),v=dictamen(f),bt=$("fSave");bt.disabled=true;bt.textContent="Armando PDF…";
+  try{const im=await imgsDe(f,S.editing?f.id:null);p.pdf=await pdfDe({...p.rec,vb:S.editing&&S.editSrc?S.editSrc.vb:null},im)}catch(x){bt.disabled=false;bt.textContent=S.editing?"Guardar corrección":"Guardar reporte";err.textContent="No se pudo armar el PDF: "+(x&&x.message||x);err.hidden=false;return}
+  bt.textContent="Guardando…";
   const wasEdit=!!S.editing;let estado="ok",resp=null;
-  try{resp=await call("guardarReporte",S.token,p.rec,p.fotos,p.firmas);
+  try{resp=await call("guardarReporte",S.token,p.rec,p.fotos,p.firmas,p.pdf);
     if(!resp.ok&&resp.sesion){setCola([...cola().filter(c=>c.rec.id!==p.rec.id),p]);ls.set("draft3",null);cerrarSesion("Tu acceso ya no está activo. Tu reporte quedó guardado en el celular y se enviará cuando vuelvas a ingresar.");return}
     if(!resp.ok){err.textContent=resp.msg||"No se pudo guardar.";err.hidden=false;return}}
   catch(x){if(netErr(x)&&!wasEdit){setCola([...cola().filter(c=>c.rec.id!==p.rec.id),p]);estado="cola"}else{err.textContent="No se pudo guardar. Revisa tu conexión y vuelve a tocar Guardar; tus datos siguen aquí.";err.hidden=false;return}}
@@ -688,15 +713,15 @@ async function bajarPdf(id,btn){const t=btn&&btn.textContent;if(btn){btn.disable
 
 /* ================= pestañas ================= */
 const ICON={home:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',time:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/>',form:'<path d="M12 5v14M5 12h14"/>',dash:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',hist:'<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>',team:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/>'};
-const TLAB={home:"Inicio",form:"Auditoría",dash:"Tablero",hist:"Historial",time:"Tiempos",team:"Equipo"},HT={gate:"Ingreso",pend:"Ingreso",adm:"Administración",home:"Inicio",form:"Auditoría Final",dash:"Tablero",hist:"Historial",time:"Tiempos",team:"Equipo"};
+const TLAB={home:"Inicio",form:"Auditoría",dash:"Tablero",hist:"Historial",time:"Tiempos",team:"Equipo"},HT={gate:"Ingreso",pend:"Ingreso",adm:"Administración",home:"Inicio",form:"Auditoría Final",dash:"Tablero",hist:"Historial",time:"Tiempos",team:"Equipo",mod:"Formato",ver:"Reportes"};
 const histOk=()=>S.hasta>Date.now();
-function tabsFor(){if(["gate","pend","adm"].includes(S.tab))return[];return S.admin?["home","dash","hist","time","team"]:histOk()?["home","form","hist"]:["home","form"]}
-function renderTabs(){const t=tabsFor();if(!["gate","pend","adm","form"].includes(S.tab)&&!t.includes(S.tab))S.tab="home";
+function tabsFor(){if(["gate","pend","adm"].includes(S.tab))return[];return S.admin?["home","dash","hist","time","team"]:["home",...(puedeE("af")?["form"]:[]),...(histOk()?["hist"]:[])]}
+function renderTabs(){const t=tabsFor();if(!["gate","pend","adm","form","mod","ver"].includes(S.tab)&&!t.includes(S.tab))S.tab="home";
   $("tabs").innerHTML=t.length>1?t.map(k=>`<button type="button" role="tab" data-t="${k}" aria-selected="${S.tab===k}"><svg viewBox="0 0 24 24">${ICON[k]}</svg>${TLAB[k]}</button>`).join(""):"";
   document.querySelector("nav.tabs").hidden=t.length<2}
 $("tabs").onclick=e=>{const b=e.target.closest("[data-t]");if(b)go(b.dataset.t)};
 function go(t){S.tab=t;document.querySelectorAll(".view").forEach(v=>{const on=v.id==="v-"+t;v.hidden=!on;v.style.display=on?"flex":"none"});
-  $("hTitle").textContent=t==="form"&&S.editing?"Corregir reporte":HT[t];$("hSub").textContent=t==="form"?"Calidad Samitex · SA-AC-PR-01.01":"Calidad Samitex";renderTabs();
+  $("hTitle").textContent=t==="form"&&S.editing?"Corregir reporte":HT[t];$("hSub").textContent=t==="form"?"Calidad Samitex · "+MODULOS.af.cod:"Calidad Samitex";renderTabs();
   if(t==="form")requestAnimationFrame(()=>{pads.sA.size();pads.sT.size();pads.sA.load(S.form.firmaA);pads.sT.load(S.form.firmaT)});
   if(t==="home")cargarProcs();if(t==="dash")cargarTablero();if(t==="hist")cargarHist();if(t==="team"){cargarTeam();cargarAdmins()}if(t==="time")cargarTiempos();scrollTo(0,0)}
 
@@ -705,10 +730,10 @@ function go(t){S.tab=t;document.querySelectorAll(".view").forEach(v=>{const on=v
 $("toReq").onclick=()=>{$("gForm").hidden=true;$("sForm").hidden=false;$("sDni").value=$("gDni").value;$("gErr").hidden=true};
 $("toIn").onclick=()=>{$("gForm").hidden=false;$("sForm").hidden=true};
 async function reLogin(){return false}
-function setSesion(r){S.token=r.token;S.hasta=r.historialHasta||0;S.me={nombre:r.nombre};ls.set("af_ses",{tok:r.token,nombre:r.nombre,hasta:S.hasta});ls.set("af_pend",null);
+function setSesion(r){setPerm(r.permisos);S.token=r.token;S.hasta=r.historialHasta||0;S.me={nombre:r.nombre};ls.set("af_ses",{tok:r.token,nombre:r.nombre,hasta:S.hasta});ls.set("af_pend",null);
   $("role").textContent=title(r.nombre);loadForm(ls.get("draft3",null)||blankForm());go("home");banner();usoIni();enviarCola()}
 function cerrarSesion(msg){usoFin();usoBeacon(usoPend());ls.set(USO,[]);ls.set(USOA,null);ls.set("af_ses",null);S.token=null;S.me=null;S.hasta=0;$("gForm").hidden=false;$("sForm").hidden=true;go("gate");$("role").textContent="Auditor";if(msg){$("gErr").textContent=msg;$("gErr").hidden=false}}
-async function verificar(){try{const r=await call("estado",S.token);if(r.ok){S.hasta=r.historialHasta||0;S.me.nombre=r.nombre;ls.set("af_ses",{tok:S.token,nombre:r.nombre,hasta:S.hasta});renderTabs();banner()}
+async function verificar(){try{const r=await call("estado",S.token);if(r.ok){setPerm(r.permisos);renderHome();S.hasta=r.historialHasta||0;S.me.nombre=r.nombre;ls.set("af_ses",{tok:S.token,nombre:r.nombre,hasta:S.hasta});renderTabs();banner()}
   else cerrarSesion(r.estado==="BLOQUEADO"?"Tu acceso fue bloqueado por la jefatura de calidad.":r.estado==="PENDIENTE"?"Tu acceso está pendiente de aprobación.":"Este equipo ya no está autorizado. Vuelve a ingresar con tu DNI.")}catch(x){}}
 async function entrar(dni){const er=$("gErr");er.hidden=true;
   try{const r=await call("ingresar",dni);
@@ -753,14 +778,14 @@ async function cargarHist(){$("hiSub").textContent="Cargando…";
   catch(x){if(!S.admin)toast("Sin conexión.");HIS=[]}renderHist()}
 function renderHist(){if(S.tab!=="hist")return;const q=NORM($("hiQ").value);
   let T=HIS.slice();if(S.hiMode==="R")T=T.filter(r=>r.rej);
-  if(q)T=T.filter(r=>NORM([r.of,r.art,r.color,r.cli,r.tal,r.lin,r.aud,...(r.obs||[]).map(o=>o.t),...Object.keys(r.d||{}),...Object.values(r.nombres||{})].join(" ")).includes(q));
+  if(q)T=T.filter(r=>NORM([r.of,r.art,r.color,r.cli,r.tal,r.lin,r.aud,...(r.obs||[]).map(o=>o.t),...Object.keys(r.d||{}),...Object.values(r.nombres||{}),JSON.stringify(r.cab||[]),MODULOS[r.mod||"af"].n].join(" ")).includes(q));
   $("hiTitle").textContent=S.admin?"Reportes":"Mi historial";
   $("hiSub").textContent=S.admin?`${fmt(T.length)} reportes registrados en la app · PDF, fotos y firmas en tu Drive`:`Autorizado hasta el ${dt(S.hasta)} · ${fmt(T.length)} reportes de los últimos 60 días`;
   $("hiList").innerHTML=T.length?T.slice(0,200).map(r=>`<article class="item${r.rej?" rej":""}">
-    <div class="t"><b>OF ${esc(r.of||"—")} · ${esc(r.art||"—")}</b><span class="pill ${r.rej?"bad":"ok"}">${r.rej?"Rechazado":"Aprobado"}</span></div>
-    <div class="m">${dmy(r.fecha)} · ${esc(title(r.tipo||"Aud. final"))} · ${esc(title(r.op))} · ${esc(title(r.cli))} · ${esc(title(r.lin))} · ${esc(title(r.tal||r.proc))}</div>
+    <div class="t"><b>${(r.mod||"af")!=="af"?`<span class="pill wait">${esc(MODULOS[r.mod].n)}</span> `:""}${esc((r.mod||"af")==="af"?`OF ${r.of||"—"} · ${r.art||"—"}`:resumen(r))}</b><span class="pill ${r.rej?"bad":"ok"}">${esc(title(r.res||(r.rej?"Rechazado":"Aprobado")))}</span></div>
+    ${(r.mod||"af")!=="af"?`<div class="m">${dmy(r.fecha)} · Auditor ${esc(title(r.aud))}</div>`:`<div class="m">${dmy(r.fecha)} · ${esc(title(r.tipo||"Aud. final"))} · ${esc(title(r.op))} · ${esc(title(r.cli))} · ${esc(title(r.lin))} · ${esc(title(r.tal||r.proc))}</div>
     <div class="m">Auditor ${esc(title(r.aud))} · lote ${fmt(r.lote)} · muestra ${fmt(r.mue)} · ${fmt(r.may)} may. (≤${r.acM??"—"}) · ${fmt(r.men)} men. (≤${r.acm??"—"})</div>
-    ${Object.keys(r.d||{}).length?`<div class="d">${Object.entries(r.d).map(([c,x])=>`${esc(c)} ${esc(title((r.nombres||{})[c]||""))} (${(x.M||0)+(x.m||0)})`).join(" · ")}</div>`:""}
+    ${Object.keys(r.d||{}).length?`<div class="d">${Object.entries(r.d).map(([c,x])=>`${esc(c)} ${esc(title((r.nombres||{})[c]||""))} (${(x.M||0)+(x.m||0)})`).join(" · ")}</div>`:""}`}
     <div class="m">${r.editado?`<span class="pill wait">corregido</span> `:""}${r.vb?`<span class="pill ok">V°B° ${dt(r.vb)}</span> `:""}${(r.fotos||[]).length?`${r.fotos.length} foto${r.fotos.length>1?"s":""}`:""}</div>
     <div class="acts"><button type="button" class="btn gold sm" data-pdf="${esc(r.id)}">⬇ PDF</button><button type="button" class="btn ghost sm" data-ed="${esc(r.id)}">Corregir</button>${S.admin&&!r.vb?`<button type="button" class="btn sm" data-vb="${esc(r.id)}">Dar V°B°</button>`:""}${S.admin&&r.pdfId?`<a class="btn ghost sm" style="text-decoration:none;display:inline-flex;align-items:center" target="_blank" rel="noopener" href="https://drive.google.com/file/d/${encodeURIComponent(r.pdfId)}/view">Abrir en Drive</a>`:""}${S.admin?`<button type="button" class="btn danger sm" data-del="${esc(r.id)}">Eliminar</button>`:""}</div>
   </article>`).join(""):`<div class="empty">${S.admin?"Todavía no hay reportes registrados desde la app.":"No tienes reportes de los últimos 60 días."}</div>`}
@@ -769,11 +794,11 @@ $("hiA").onclick=()=>{S.hiMode="A";$("hiA").setAttribute("aria-pressed","true");
 $("hiR").onclick=()=>{S.hiMode="R";$("hiR").setAttribute("aria-pressed","true");$("hiA").setAttribute("aria-pressed","false");renderHist()};
 $("hiList").addEventListener("click",async e=>{const g=a=>e.target.closest(`[data-${a}]`);const find=id=>HIS.find(x=>x.id===id);
   if(g("pdf"))bajarPdf(g("pdf").dataset.pdf,g("pdf"));
-  if(g("ed")){const r=find(g("ed").dataset.ed);if(r)editRecord(r)}
+  if(g("ed")){const r=find(g("ed").dataset.ed);if(r){if((r.mod||"af")==="af")editRecord(r);else abrirMF(r.mod,r)}}
   if(g("del")){const b=g("del");
     if(b.dataset.arm!=="1"){b.dataset.arm="1";b.textContent="¿Eliminar? Toca otra vez";setTimeout(()=>{if(b.isConnected){b.dataset.arm="";b.textContent="Eliminar"}},4000);return}
     b.disabled=true;b.textContent="Eliminando…";try{const r=await admin("adminEliminar",b.dataset.del);if(r.ok){HIS=HIS.filter(x=>x.id!==b.dataset.del);TAB=null;TIM=null;renderHist();toast("Reporte eliminado")}else{toast(r.msg);b.disabled=false;b.textContent="Eliminar"}}catch(x){b.disabled=false;b.textContent="Eliminar"}}
-  if(g("vb")){const b=g("vb");b.disabled=true;b.textContent="Registrando…";try{const r=await admin("adminVB",b.dataset.vb);if(r.ok){toast("Visto bueno registrado");cargarHist()}else toast(r.msg)}catch(x){b.disabled=false}}});
+  if(g("vb")){const r=find(g("vb").dataset.vb);if(r)darVB(r,g("vb"))}});
 $("hiRefresh").onclick=()=>cargarHist();
 
 /* ---- auditores ---- */
@@ -790,7 +815,7 @@ function renderTeam(){if(S.tab!=="team")return;const now=Date.now(),ord={PENDIEN
     return`<div class="card"><div class="hd"><b style="font-size:16px">${esc(title(a.NOMBRE))}</b><span class="pill ${pill}">${esc(title(st))}</span></div>
      <div class="sub">DNI ${dni} · ${esc(title(a.CARGO||""))} · ${fmt(a.REPORTES||0)} reportes · ${st==="PENDIENTE"?"pidió acceso "+dt(Number(a.SOLICITADO)):"último ingreso "+dt(Number(a["ULTIMO INGRESO"]))}</div>
      ${h>now?`<span class="pill ok" style="align-self:flex-start">Historial y corrección autorizados hasta ${dt(h)}</span>`:""}
-     <div class="row">${acts}</div></div>`}).join(""):`<div class="empty">Aún no hay auditores. Cuando un auditor pida acceso aparecerá aquí, o regístralo tú abajo.</div>`;
+     <div class="row">${acts}</div>${st==="ACTIVO"?permCard(a):""}</div>`}).join(""):`<div class="empty">Aún no hay auditores. Cuando un auditor pida acceso aparecerá aquí, o regístralo tú abajo.</div>`;
   $("aqlTbl").innerHTML=`<tr>${["Lote","Muestra","May. Ac","May. Re","Men. Ac","Men. Re"].map(h=>`<th style="text-align:left;padding:6px;border-bottom:1px solid var(--base);color:var(--muted);font-size:11px">${h}</th>`).join("")}</tr>`+
     TABLA.map(([,n,aM,am],i)=>{const td=`style="padding:5px 6px;border-bottom:1px solid var(--line)"`,g=`style="padding:5px 6px;border-bottom:1px solid var(--line);color:var(--good)"`,c=`style="padding:5px 6px;border-bottom:1px solid var(--line);color:var(--crit)"`;return`<tr><td ${td}>${RANGO[i]}</td><td ${td}>${n}</td><td ${g}>${aM}</td><td ${c}>${aM+1}</td><td ${g}>${am}</td><td ${c}>${am+1}</td></tr>`}).join("")}
 $("teamList").addEventListener("click",async e=>{const b=e.target.closest("button[data-a]");if(!b)return;b.disabled=true;
@@ -803,22 +828,23 @@ function banner(){const b=$("banner");if(!S.admin&&S.me&&histOk()){b.className="
 
 
 /* ================= Calidad Samitex: inicio con procesos ================= */
-const PROC_DEF=[{id:"af",nombre:"Auditoría Final",desc:"Reporte SA-AC-PR-01.01 · muestreo AQL 2.5 / 4.0",url:"",activo:true,fijo:true}];
+const PROC_DEF=[{id:"af",nombre:"Auditoría Final",desc:"",url:"",activo:true,fijo:true}];
+function conModulos(L){L=JSON.parse(JSON.stringify(L||[]));const ids=new Set(L.map(p=>p.id));MOD_IDS.forEach(k=>{if(!ids.has(k))L.push({id:k,nombre:MODULOS[k].n,desc:"",url:"",activo:true})});return L}
 let PROCS=null,PED=null;
 const ini2=s=>String(s||"").trim().split(/\s+/).map(w=>w[0]||"").join("").slice(0,2).toUpperCase()||"·";
-async function cargarProcs(){PROCS=ls.get("af_procs",null)||PROC_DEF;if(!PED)PED=JSON.parse(JSON.stringify(PROCS));renderHome();
-  if(!S.token)return;try{const r=await call("procesos",S.token);if(Array.isArray(r)&&r.length){PROCS=r;ls.set("af_procs",r);PED=JSON.parse(JSON.stringify(r));renderHome()}}catch(x){}}
-function renderHome(){if(S.tab!=="home")return;const L=(PROCS||PROC_DEF).filter(p=>S.admin||p.activo);
+async function cargarProcs(){PROCS=conModulos(ls.get("af_procs",null)||PROC_DEF);if(!PED)PED=JSON.parse(JSON.stringify(PROCS));renderHome();
+  if(!S.token)return;try{const r=await call("procesos",S.token);if(Array.isArray(r)&&r.length){PROCS=conModulos(r);ls.set("af_procs",r);PED=JSON.parse(JSON.stringify(PROCS));renderHome()}}catch(x){}}
+function renderHome(){if(S.tab!=="home")return;const L=conModulos(PROCS||PROC_DEF).filter(p=>S.admin||(p.activo&&(!MODULOS[p.id]||puedeE(p.id)||puedeL(p.id))));
   const nom=S.me&&S.me.nombre?title(S.me.nombre).split(" ")[0]:"";$("homeHi").textContent=nom&&nom!=="—"?`Hola, ${nom}`:"Calidad Samitex";
   $("homeSub").textContent="Control de calidad · elige el proceso";
-  $("procList").innerHTML=L.length?L.map(p=>{const usable=p.id==="af"||!!p.url;return`<button type="button" class="proc${usable&&p.activo?"":" off"}" data-p="${esc(p.id)}"><span class="ic">${esc(ini2(p.nombre))}</span><span><b>${esc(p.nombre)}</b><small>${esc(p.desc||"")}${usable?"":(p.desc?" · ":"")+"En preparación"}${p.activo?"":" · oculto para auditores"}</small></span></button>`}).join(""):`<div class="empty">No hay procesos activos.</div>`;
+  $("procList").innerHTML=L.length?L.map(p=>{const bi=!!MODULOS[p.id],usable=bi||!!p.url;return`<button type="button" class="proc${usable&&p.activo?"":" off"}" data-p="${esc(p.id)}"><span class="ic">${esc(bi?MODULOS[p.id].ic:ini2(p.nombre))}</span><span><b>${esc(p.nombre)}</b><small>${esc(bi?MODULOS[p.id].cod+" · "+MODULOS[p.id].d:p.desc||"")}${bi&&!S.admin?" · "+(puedeE(p.id)?"ingreso de datos":"solo lectura"):""}${usable?"":(p.desc?" · ":"")+"En preparación"}${p.activo?"":" · oculto para auditores"}</small></span></button>`}).join(""):`<div class="empty">No hay procesos activos.</div>`;
   $("procAdm").hidden=!S.admin;$("salirHome").hidden=!!S.admin;if(S.admin)renderProcEd()}
 $("procList").onclick=e=>{const b=e.target.closest("[data-p]");if(!b)return;const p=(PROCS||PROC_DEF).find(x=>x.id===b.dataset.p);if(!p)return;
-  if(p.id==="af"){go("form");return}if(p.url){window.open(p.url,"_blank","noopener");return}toast("Este proceso aún está en preparación.")};
+  if(abrirModulo(p.id))return;if(p.url){window.open(p.url,"_blank","noopener");return}toast("Este proceso aún está en preparación.")};
 function renderProcEd(){$("procEd").innerHTML=PED.map((p,i)=>`<div class="pe" data-i="${i}">
    <div class="mv"><button type="button" data-mv="-1" aria-label="Subir" ${i?"":"disabled"}>↑</button><button type="button" data-mv="1" aria-label="Bajar" ${i<PED.length-1?"":"disabled"}>↓</button></div>
-   <div class="f"><input data-k="nombre" value="${esc(p.nombre)}" aria-label="Nombre del proceso"><input data-k="desc" value="${esc(p.desc||"")}" placeholder="Descripción" aria-label="Descripción">${p.fijo?"":`<input data-k="url" value="${esc(p.url||"")}" placeholder="Enlace https:// (opcional)" aria-label="Enlace">`}</div>
-   <div class="ops"><label class="sub" style="display:flex;gap:4px;align-items:center;white-space:nowrap"><input type="checkbox" data-k="activo" ${p.activo?"checked":""} style="width:auto">Visible</label>${p.fijo?`<span class="pill ok">Fijo</span>`:`<button type="button" class="btn danger sm" data-rm="1">Quitar</button>`}</div></div>`).join("")}
+   <div class="f"><input data-k="nombre" value="${esc(p.nombre)}" aria-label="Nombre del proceso"><input data-k="desc" value="${esc(p.desc||"")}" placeholder="Descripción" aria-label="Descripción">${p.fijo||MODULOS[p.id]?"":`<input data-k="url" value="${esc(p.url||"")}" placeholder="Enlace https:// (opcional)" aria-label="Enlace">`}</div>
+   <div class="ops"><label class="sub" style="display:flex;gap:4px;align-items:center;white-space:nowrap"><input type="checkbox" data-k="activo" ${p.activo?"checked":""} style="width:auto">Visible</label>${p.fijo||MODULOS[p.id]?`<span class="pill ok">Fijo</span>`:`<button type="button" class="btn danger sm" data-rm="1">Quitar</button>`}</div></div>`).join("")}
 $("procEd").addEventListener("input",e=>{const r=e.target.closest(".pe"),k=e.target.dataset.k;if(!r||!k)return;const p=PED[+r.dataset.i];p[k]=k==="activo"?e.target.checked:e.target.value});
 $("procEd").addEventListener("change",e=>{if(e.target.dataset.k==="activo"){const r=e.target.closest(".pe");PED[+r.dataset.i].activo=e.target.checked}});
 $("procEd").addEventListener("click",e=>{const r=e.target.closest(".pe");if(!r)return;const i=+r.dataset.i,mv=e.target.closest("[data-mv]");
@@ -896,6 +922,356 @@ $("admForm").addEventListener("submit",async e=>{e.preventDefault();const er=$("
 $("codForm").addEventListener("submit",async e=>{e.preventDefault();const er=$("codErr");er.hidden=true;const a=$("codAct").value,n=$("codNew").value;
   if(!/^\d{6,12}$/.test(n)){er.textContent="El código nuevo debe tener de 6 a 12 dígitos.";er.hidden=false;return}
   try{const r=await admin("adminCambiarCodigo",a,n);if(!r.ok){er.textContent=r.msg;er.hidden=false;return}$("codAct").value=$("codNew").value="";toast("Código cambiado")}catch(x){}});
+
+
+/* ================= Calidad Samitex v4: formatos de control de calidad ================= */
+const ELAB="Karina Uscubilca Aguilar",APROB="Maribel Ludeña";
+const MODULOS={
+ af:{n:"Auditoría Final",cod:"SA-AC-PR-05.01",ver:"V.03 - 23/12/2025",d:"Prenda terminada · AQL 2.5 / 4.0",ic:"AF"},
+ telas:{n:"Auditoría de Telas",cod:"SA-AC-PR-01.01",ver:"V.02 - 16/01/2026",d:"Rollos · pruebas y fallas de tela",ic:"TE",t:"REPORTE DE AUDITORIA DE CALIDAD - TELAS",land:1},
+ avios:{n:"Auditoría de Avíos",cod:"SA-AC-PR-002.02",ver:"V.02 - 29/12/2025",d:"Avíos · AQL 2.5 inspección general nivel II",ic:"AV",t:"REPORTE DE AUDITORIA DE CALIDAD - AVIOS"},
+ corte:{n:"Auditoría de Corte",cod:"SA-AC-PR-03.01",ver:"V.02 - 21/10/2026",d:"Camisería · sacos · pantalón y falda",ic:"CO",t:"REPORTE DE AUDITORIA DE CORTE"},
+ segundas:{n:"Reporte de Segundas",cod:"SA-AC-PR.02.01",ver:"V.01 - 16/01/2026",d:"Control de productos no conformes",ic:"SE",t:"REPORTE DE CONTROL DE PRODUCTOS NO CONFORMES",land:1},
+ muestra:{n:"Primera Muestra",cod:"SA-AC-PR-03.01",ver:"V.02 - 16/01/2026",d:"Evaluación de prototipo / muestra",ic:"PM",t:"REPORTE DE EVALUACIÓN DE PROTOTIPO/MUESTRA - VARIOS"}};
+const MOD_IDS=Object.keys(MODULOS);
+const seqCat=(p,s)=>s.split("|").map((n,i)=>[p+String(i+1).padStart(2,"0"),n]);
+const CATS={
+ MT:seqCat("MT","AGUJA ROTA|ANILLADO|AUREOLAS|BAJA ADHESION|BARRADURA|CALAMINADO|CASCARILLA|CLAROS|COLOR INCORRECTO|CONTAMINACIÓN (ORIGEN MATERIAL)|CONTAMINADO (ENTRETEJIDO)|COSTURA / REMALLE|DATO DE EMPAQUE INCORRECTO|DEGRADE|DESAGUJADO|DIFERENCIA EN ANCHO DE ORILLOS|DISEÑO DE TELA INCORRECTO|EMPALME|ENGROSAMIENTO|FALLA DE AGUJA|FUGA|HILO CONTAMINADO|HILO CORRIDO|HILO DEBIL|HILO DOBLE|HILO FLOJO|HILO GRUESO|HILO IRREGULAR|HILO MONTADO|HILO ROTO|HILO SALTADO|HILO SOLEADO|HILO SUCIO|HILO SUELTO|HILO TENSO/TEMPLADO|HUECO/PICADO|JALADURA|LÍNEAS HORIZONTALES|LINEAS VERTICALES (FRICCIÓN)|LYCRA QUEMADA|LYCRA ROTA|MAL ALINEADO|MAL PASE DE PEINE|MALA IGUALACIÓN DE TEÑIDO|MANCHAS (ORIGEN MATERIAL)|MANCHAS AMARILLAS|MANCHAS CLARAS|MANCHAS DE ACEITE|MANCHAS DE COLOR|MANCHAS DE ÓXIDO|MANCHAS DE TINTE|MANCHAS POR HONGO|MARCA DE ARRANQUE (TEJEDURIA)|MARCA DE CRAYOLA|MARCA DE DALO|MARCA DE PEINE / RAYAS|MARCA DE TEMPLADOR|MATERIAL DAÑADO|MATERIAL INCORRECTO|MEDIDA DE RAPPORT INCORRECTO|MEZCLA DE LOTES|MIGRACION (TIENDE A MANCHAR)|MOIRE (DISTORCIÓN VISUAL)|MOTAS|NEPS|NUDO|ORILLO ENTRADO|ORILLO FLOJO Y/O TEMPLADO|ORILLO MAL TEJIDO|ORILLO ROTO|ORILLO TORCIDO|PARADA DE MAQUINA (ACABADO)|PLIEGUES / MORDEDURA|QUEBRADURA|RASPADURA|TACTO ACARTONADO|TACTO ÁSPERO|TACTO INCORRECTO|TACTO RESECO|TEJIDO IRREGULAR|TONO INCORRECTO VS STD|TRAMA DOBLE|TRAMA FLOJA|TRAMA GRUESA|TRAMA INCLINADA|TRAMA IRREGULAR|TRAMA METIDA|TRAMA ROTA|TRAMA SALTADA|VARIACIÓN DE TONO EN UN ROLLO|VARIACION DE TONO ENTRE ROLLOS|VETEADURA"),
+ AV:seqCat("AV","ARRUGADO/QUEBRADO|AVIO DE COSTURA DAÑADO|AVIO DE COSTURA FALLADO|AVIO DE EMBALAJE DAÑADO|AVIO DE EMBALAJE FALLADO|AVIOS DE EMPAQUE DAÑADO|AVIOS DE EMPAQUE FALLADO|BORDES CORTANTES/ASPEROS|COLOR IRREGULAR|COLOR/TONO INCORRECTO|CONTAMINADO|DENSIDAD INCORRECTA|DESCOLORIDO|DESHILACHADO|DISEÑO INCORRECTO|DOBLEZ INCORRECTO|ETIQUETA FALLADA|FORMA INCORRECTA|HANG TAG FALLADO|HUECO|IMPRESIÓN INCOMPLETA|MAL ACABADO|MAL DELETREADO|MALA DIFINICION|MALA IMPRESIÓN|MALA SOLIDEZ DEL COLOR|MANCHA|MARCAS DE GOMA|MATERIAL INCORRECTO|MEDIDA INCORRECTA|PELADO|PREFORMADO INCORRECTO|SOPLADO|TEXTO INCORRECTO|*OTRAS FALLAS DE AVIOS"),
+ CR:seqCat("CR","ANGULO CURVO|ANGULO ASIMETRICO|ANGULO FUERA DE MEDIDA|CORTE INCOMPLETO|CORTE INCORRECTO|DESALINEADO|DESCASADO|DESHERMANADO|ENSANCHE INCORRECTO|ENTRETELA INCORRECTA|ESCALADO INCORRECTO|FUSIONADO MAL AFINADO|HUECO|MAL APLOMADO|MAL BLOQUEADO|MAL CAMBIO DE PIEZA|MAL EMPALME|MAL ENUMERADO|MAL HABILITADO|MAL REBAJE|MAL TENDIDO|MANCHAS (ORIGEN CORTE)|MARCAS DE GOMA|MARGEN INCORRECTO|MATCHING INCORRECTO|MEDIDA INCORRECTA x MAL CORTE|MEDIDA INCORRECTA x MOLDE EQUIV.|MOLDE INCORRECTO|PIEZA ASIMETRICA|PIEZA DEFORME|PIEZA FALTANTE|PIEZA INCORRECTA|PIEZA MAL FUSIONADA|PIEZA SIN ENUMERAR|PIEZA SIN FUSIONAR|PIEZAS CON ORILLO|PIQUETE FUERA DE MEDIDA|PIQUETE FUERA DE POSICION|PUNTO SUCIO|SENTIDO DE TELA INVERTIDO|SESGADO|SIN BLOQUEAR|SIN PERFORACION|SIN PIQUETE|SIN VARIANTE|SOPLADO|TAJO FUERA DE MEDIDA|TENDIDO TENSIONADO|TIZADO INCOMPLETO|TIZADO INCORRECTO|TIZADO MONTADO|TONO ENTRE PIEZAS|VARIANTE INCORRECTO")};
+const catNom=c=>{for(const k in CATS){const x=CATS[k].find(y=>y[0]===c);if(x)return x[1]}return""};
+const lst=s=>s.split("|").map(x=>{const [n,a]=x.split("/");return[n,a||""]});
+const CORTE={
+ cam:{t:"CAMISERÍA",cod:"SA-AC-PR-03.01",tp:"TIPO DE PRENDA",leg:"B = Blusa · C = Camisa · B/C = ambas",
+  pz:lst("CANESÚ INTERIOR/C|CANESÚ EXTERIOR/C|ESPALDA/B-C|DELANTERO DERECHO/B-C|DELANTERO IZQUIERDO/B-C|COSTADO DELANTERO 1/B|COSTADO DELANTERO 2/B|COSTADO ESPALDA 1/B|COSTADO ESPALDA 2/B|MANGA LARGA DERECHA/B-C|MANGA LARGA IZQUIERDA/B-C|CUELLO EXTERIOR/B-C|CUELLO INTERIOR/B-C|PIE DE CUELLO EXTERIOR/B-C|PIE DE CUELLO INTERIOR/B-C|COMPLEMENTO DE CUELLO/C|YUGO CORRIDO/B-C|TACHÓN SOBREPUESTO/B-C|PUÑO EXTERIOR/B-C|PUÑO INTERIOR/B-C|BOLSILLO/C|HOMBRERAS/B"),
+  av:lst("HILO/B-C|BOTÓN/B-C|ETIQ. DE TRAZABILIDAD/B-C|ETIQ. DE MARCA/B-C|ETIQ. DE TALLA/B-C|ETIQ. DE DESCRIPCIÓN/B-C|BARBILLA/C")},
+ sac:{t:"SACO DAMA Y CABALLERO",cod:"SA-AC-PR-03.02",tp:"TIPO DE SACO",leg:"D = Dama · C = Caballero · D/C = ambos",
+  pz:lst("DELANTERO/D-C|COSTADO DELANTERO 1/D|COSTADO DELANTERO 2/D|COSTADILLO/C|ESPALDA/D-C|COSTADO ESPALDA 1/D|COSTADO ESPALDA 2/D|MANGA MAYOR/D-C|MANGA MENOR/D-C|VUELTA DELANTERO/D-C|CUELLO EXTERIOR - SUPERIOR/D-C|CUELLO INTERIOR/D|PIE DE CUELLO/C|COGOTERA/D|TAPA BLOQUEADA/C|TAPAS EXTERNAS/D|CONTRATAPAS/D|VISTA DE CARTERA/C|BOLSILLO CARTERA/C|PAÑUELO DE CARTERA/C|VIVO BOLSILLO DE TELA/C|VIVOS EXTERNOS/D|VIVOS INTERNOS/D|VIVO PORTADOCUMENTOS/C|VIVO CIGARRERA/C|VIVO DE VUELTA/C|OJALILLO DE TELA/D-C|FAJILLA/D|VISTA EXTERNA/D|VISTA INTERNA/D|SOBAQUERA/C|SESGO SOBAQUERA/C|TRIÁNGULO/C|CHORRERA/D-C|FORRO DELANTERO/D|FORRO DELANTERO DERECHO/C|FORRO DELANTERO IZQUIERDO/C|FORRO COSTADO DELANTERO 1/D|FORRO COSTADO DELANTERO 2/D|FORRO DE COSTADILLO/C|FORRO ESPALDA/D|FORRO ESPALDA DERECHA/C|FORRO ESPALDA IZQUIERDA/C|FORRO COSTADO ESPALDA 1/D|FORRO COSTADO ESPALDA 2/D|FORRO MANGA MAYOR/D-C|FORRO MANGA MENOR/D-C|FORRO VUELTA/D|TAPA INFERIOR FORRO/C|BOLSA DE CARTERA/C|BOLSA CIGARRERA/C|BOLSA BOLSILLO INTERIOR/C|BOLSA DELANTERO DERECHO/C|BOLSA DELANTERO IZQUIERDO/C|BOLSAS EXTERNAS/D|BOLSAS INTERNAS/D|FIELTRO PARA CUELLO/C|PLASTRÓN/C"),
+  av:lst("HILO/D-C|BOTÓN/D-C|ETIQ. DE TRAZABILIDAD/D-C|ETIQ. DE MARCA/D-C|ETIQ. DE TALLA/D-C|ETIQ. DE DESCRIPCIÓN/D-C|COLA DE RATA/D-C|HILO CONTRASTE/D-C")},
+ pan:{t:"PANTALÓN Y FALDA",cod:"SA-AC-PR-03.03",tp:"TIPO DE PRENDA",leg:"P = Pantalón · F = Falda · P/F = ambos",
+  pz:lst("DELANTERO DERECHO/P|DELANTERO IZQUIERDO/P|FUNDILLO/P|VISTA DELANTERO/P|VUELTA DELANTERO/P|VISTA FUNDILLO/P|VIVO FUNDILLO/P|SECRETA/P|RELOJERA/P|ROMBO/P|BOLSILLO INTERIOR FUNDILLO/P|BOLSILLO EXTERIOR FUNDILLO/P|BOL. DEL. DERECHO INTERIOR/P|BOL. DEL. DERECHO EXTERIOR/P|BOL. DEL. IZQUIERDO INTERIOR/P|BOL. DEL. IZQUIERDO EXTERIOR/P|PRETINA DERECHA/P-F|PRETINA IZQUIERDA/P-F|GARETA/P-F|GARETÓN/P-F|FORRO DE GARETÓN/P-F|PRESILLA EMBOLSADA/P-F|DELANTERO/F|ESPALDA DERECHA/F|ESPALDA IZQUIERDA/F|VISTA CINTURA DELANTERA/F|VISTA CINTURA ESPALDA/F|VISTA DE ABERTURA - TAJO/F|FORRO DELANTERO/F|FORRO ESPALDA/F"),
+  av:lst("HILO/P-F|BOTÓN/P-F|ETIQ. DE TRAZABILIDAD/P-F|ETIQ. DE MARCA/P-F|ETIQ. DE TALLA/P-F|ETIQ. DE DESCRIPCIÓN/P-F|CINTA PRETINA/P|CORCHETES/P-F|CIERRE/P-F|CIERRE INVISIBLE/F")}};
+const apl=a=>a.replace("-","/");
+/* secciones de cada formulario: [tipo, título, ...] */
+const FORMS={
+ telas:[["campos","Datos del ingreso",[["cli","Cliente"],["prov","Proveedor"],["mat","Descripción del material"],["art","Artículo / proyecto"],["gr","Guía de remisión"],["ing","N° de ingreso"],["oc","Orden de compra"],["fecha","Fecha","fecha"],["aud","Auditor","aud"]]],
+  ["pruebas","Pruebas","pr",[["den","Densidad","+/- 5%",1],["fro","Solidez al frote (seco y húmedo)","SEC: 4.0 · HÚM: 3.0",1],["enc","% Encogimiento","T.PLANA: 3% · T.PUNTO: 7%",1],["rev","Revirado","T.PLANA: 3% · T. PUNTO: 5%",0],["lav","Solidez al lavado","TRANS COL: 4 · CAMB COL: 4",0]]],
+  ["tabla","Rollos auditados","rol",25,[["n","N° rollo"],["color","Color"],["ancho","Ancho útil"],["mr","Metraje real","num"],["mg","Metraje guía","num"],["fal","Tipo de falla (códigos MT)","defs","MT"],["pts","Puntos","num"],["ptj","Puntaje","num"],["ar","A/R","ar"],["tono","Tono / lote"]]],
+  ["fotos","Muestras (foto 1 y 2)",2],["obs","Observaciones","obs",6],["firmas",[["A","Auditor de calidad"],["T","Proveedor"]]]],
+ avios:[["campos","Datos del ingreso",[["cli","Cliente"],["prov","Proveedor"],["mat","Descripción material"],["gr","Guía de remisión"],["ing","N° ingreso"],["oc","Orden de compra"],["uso","Proyecto / uso"],["fecha","Fecha","fecha"],["aud","Auditor","aud"]]],
+  ["tabla","Ítems auditados","it",18,[["art","Artículo"],["desc","Descrip. material"],["lote","Lote aud.","num"],["mue","Cant. muestra","auto"],["cd","Cant. defectos","num"],["cod","Cód. defecto","def","AV"],["def","Defecto","auto"],["ar","A/R","ar"]]],
+  ["check","Checklist de tests","tst",lst("SOLIDEZ AL FROTE|SOLIDEZ AL LAVADO|PRUEBA DE ENCOGIMIENTO|RESISTENCIA - FUNCIONALIDAD|PRUEBA DE OXIDO")],
+  ["obs","Observaciones","obs",5],["fotos","Muestras de defectos",6],["res","Resultado",["APROBADO","RECHAZADO"]],["firmas",[["A","Auditor de calidad"],["T","Proveedor"]]]],
+ corte:[["sub","Tipo de corte",{cam:"Camisería",sac:"Sacos dama y caballero",pan:"Pantalón y falda"}],
+  ["campos","Datos del corte",[["cli","Cliente"],["prov","Proveedor"],["desc","Descripción"],["tp","Tipo de prenda"],["of","O.F / OC"],["art","Artículo"],["color","Color"],["ent","Entalle"],["fecha","Fecha","fecha"],["aud","Auditor","aud"],["comp","Composición"],["tallas","Tallas"]]],
+  ["tabla","Defectos encontrados","df",12,[["cod","Cód. defecto","def","CR"],["def","Defecto","auto"],["cant","Cant. defecto","num"],["obs","Observaciones"]]],
+  ["check","Checklist de piezas de prenda","pz","PZ"],["check","Checklist de avíos","av","AV"],
+  ["muestreo","Muestreo · AQL 2.5 mayor / 4.0 menor"],["res","Resultado",["APROBADO","RECHAZADO"]],["obs","Comentarios","obs",5],["firmas",[["A","Auditor de calidad"],["T","Jefe de corte"]]]],
+ segundas:[["campos","Datos",[["fecha","Fecha","fecha"],["lin","Línea"],["aud","Auditor","aud"],["proc","Procedencia"]]],["op","Origen","org",["PLANTA","SERVICIO EXTERNO"]],
+  ["tabla","Prendas de segunda","sg",29,[["art","Artículo"],["marca","Marca"],["oc","O/C"],["cant","Cant. total","num"],["color","Color"],["talla","Talla"],["cos","Costura","num"],["tel","Telas","num"],["man","Mancha","num"],["obs","Observación"],["zona","Zona"]]],
+  ["firmas",[["A","Auditor de aseg. de calidad"]]]],
+ muestra:[["op","Canal comercial","canal",["I.PRIV.","I.PUB.","EXP.","OTROS"]],["op","Tipo de muestra","tipo",["LICITACIÓN","PRODUCCIÓN"]],["op","Origen","org",["PLANTA","EXTERNO"]],["op","Estación","est",["VERANO","INVIERNO"]],
+  ["campos","Datos",[["cli","Cliente"],["oc","O/C"],["desc","Descripción"],["color","Color"],["art","Artículo"],["fecha","Fecha","fecha"],["aud","Auditor","aud"]]],
+  ["tabla","Evaluación","ev",19,[["desc","Descripción"],["base","Bases"],["mue","Muestra +/-"],["est","Corr. / No corr.","cnc"],["obs","Observaciones"]]],
+  ["campos","Reporte de medidas",[["ent","Entalle"],["talla","Talla"]]],
+  ["tabla","Medidas","md",9,[["desc","Descripción"],["tol","Tol +/-"],["base","Base","num"],["pre","Prenda","num"],["dif","Diferencia","auto"]]],
+  ["obs","Observaciones","obs",3],["res","Resultado",["APROBADO","RECHAZADO","APROBADO CON OBSERVACIÓN"]],["firmas",[["A","Auditor"],["T","Analista de calidad"]]]]};
+
+/* ---- permisos por formato: L = solo lectura · E = ingreso de datos ---- */
+S.perm=ls.get("af_perm",{af:"E"});
+const permDe=id=>S.admin?"LE":(S.perm&&S.perm[id])||"";
+const puedeE=id=>permDe(id).includes("E"),puedeL=id=>permDe(id).includes("L");
+function setPerm(p){if(p){S.perm=p;ls.set("af_perm",p)}}
+
+/* ---- formulario genérico de los formatos ---- */
+const rowsDe=(f,k)=>(f.t[k]=f.t[k]||[]);
+function blankMF(mod){return{id:newId(),mod,sub:mod==="corte"?"cam":"",c:{fecha:today()},t:{},p:{},ck:{},obs:{},fotos:[],firmaA:"",firmaT:"",res:"",n:{}}}
+function secs(f){return FORMS[f.mod]||[]}
+function ckItems(f,key){if(f.mod==="corte"){const c=CORTE[f.sub||"cam"];return key==="PZ"?c.pz:c.av}return key}
+function aqlN2(lote){const p=aql(lote);return p?{n:p.n,ac:p.acM,re:p.reM}:null}
+function autoFila(f,tk,r){const R=rowsDe(f,tk)[r]||{};
+  if(f.mod==="avios"&&tk==="it"){const p=aqlN2(R.lote);R.mue=p?String(p.n):"";R.def=catNom(up(R.cod));if(!R.arM)R.ar=R.cd===""||R.cd==null||!p?"":(Number(R.cd)>=p.re?"R":"A")}
+  if(f.mod==="corte"&&tk==="df")R.def=catNom(up(R.cod));
+  if(f.mod==="muestra"&&tk==="md"){const b=parseFloat(R.base),q=parseFloat(R.pre);R.dif=isNaN(b)||isNaN(q)?"":String(Math.round((q-b)*100)/100)}
+  return R}
+function mfMuestreo(f){const p=aql(f.c.lote);return p?{n:p.n,acM:p.acM,reM:p.reM,acm:p.acm,rem:p.rem}:null}
+function mfTot(f,tk,col){return rowsDe(f,tk).reduce((s,r)=>s+(Number(r&&r[col])||0),0)}
+function mfSugerido(f){
+  if(f.mod==="avios"){const r=rowsDe(f,"it").some(x=>x&&x.ar==="R")||Object.values(f.ck.tst||{}).includes("X");return r?"RECHAZADO":"APROBADO"}
+  if(f.mod==="corte"){const p=mfMuestreo(f),t=mfTot(f,"df","cant");return p&&t>=p.reM?"RECHAZADO":"APROBADO"}
+  if(f.mod==="telas"){const r=rowsDe(f,"rol").some(x=>x&&x.ar==="R")||Object.values(f.p).some(x=>x&&x.ar==="R");return r?"RECHAZADO":"APROBADO"}
+  return""}
+function celda(f,tk,r,c){const [k,l,ty,cat]=c,R=rowsDe(f,tk)[r]||{},v=R[k]??"",a=`data-tk="${tk}" data-r="${r}" data-k="${k}"`;
+  if(ty==="auto")return`<label class="fld"><span>${esc(l)}</span><input ${a} value="${esc(v)}" readonly tabindex="-1"></label>`;
+  if(ty==="ar"||ty==="cnc"){const o=ty==="ar"?[["A","A"],["R","R"]]:[["C","Corr."],["NC","No corr."]];return`<div class="fld"><span>${esc(l)}</span><span class="tri" ${a}>${o.map(([x,t])=>`<button type="button" data-v="${x}" aria-pressed="${v===x}">${t}</button>`).join("")}</span></div>`}
+  if(ty==="def"||ty==="defs")return`<label class="fld${ty==="defs"?" full":""}"><span>${esc(l)}</span><input ${a} list="dl${cat}" value="${esc(v)}" autocapitalize="characters" placeholder="${cat}…"></label>`;
+  return`<label class="fld"><span>${esc(l)}</span><input ${a} value="${esc(v)}"${ty==="num"?' inputmode="decimal"':""}></label>`}
+function renderMF(){const f=S.mf,M=MODULOS[f.mod];let h="";
+  $("mfTitle").textContent=M.n+(f.mod==="corte"?" · "+title(CORTE[f.sub||"cam"].t):"");$("mfSub").textContent=`${f.mod==="corte"?CORTE[f.sub||"cam"].cod:M.cod} · ${M.ver} · Elaborado: ${ELAB}`;
+  secs(f).forEach((s,si)=>{const [ty]=s;
+   if(ty==="sub")h+=`<div class="card"><h3>${s[1]}</h3><div class="seg wide" data-sub="1">${Object.entries(s[2]).map(([k,t])=>`<button type="button" data-v="${k}" aria-pressed="${f.sub===k}">${t}</button>`).join("")}</div></div>`;
+   if(ty==="campos")h+=`<div class="card"><h3>${s[1]}</h3><div class="grid2">${s[2].map(([k,l,t])=>`<label class="fld${t==="aud"?"":(l.length>16?" full":"")}"><span>${esc(k==="tp"&&f.mod==="corte"?title(CORTE[f.sub||"cam"].tp):l)}</span><input data-c="${k}" ${t==="fecha"?'type="date"':""} ${t==="aud"?"readonly":""} value="${esc(t==="aud"?title(f.c.aud||(S.me&&S.me.nombre)||""):f.c[k]??"")}"${k==="tp"&&f.mod==="corte"?` placeholder="${esc(CORTE[f.sub||"cam"].leg)}"`:""}></label>`).join("")}</div></div>`;
+   if(ty==="op")h+=`<div class="card"><h3>${s[1]}</h3><div class="seg wide" data-op="${s[2]}">${s[3].map(o=>`<button type="button" data-v="${esc(o)}" aria-pressed="${f.c[s[2]]===o}">${esc(title(o))}</button>`).join("")}</div></div>`;
+   if(ty==="pruebas")h+=`<div class="card"><h3>${s[1]}</h3><p class="sub">Dos lecturas por prueba · A = aprobado · R = rechazado</p>${s[3].map(([k,l,std,rq])=>`<div class="mrow"><b>${esc(l)}</b><span class="sub">STD ${esc(std)}</span>${[0,1].map(i=>{const P=f.p[k+i]||{};return`<div class="grid3">${rq?`<input data-p="${k+i}" data-f="req" value="${esc(P.req||"")}" placeholder="Requer. ${i+1}">`:"<span></span>"}<input data-p="${k+i}" data-f="res" value="${esc(P.res||"")}" placeholder="Resultado ${i+1}"><span class="tri" data-p="${k+i}" data-f="ar">${["A","R"].map(x=>`<button type="button" data-v="${x}" aria-pressed="${P.ar===x}">${x}</button>`).join("")}</span></div>`}).join("")}</div>`).join("")}</div>`;
+   if(ty==="tabla"){const [,l,tk,max,cols]=s,R=rowsDe(f,tk),n=Math.min(max,Math.max(f.n[tk]||0,R.filter(x=>x&&Object.values(x).some(v=>v!==""&&v!=null)).length+1,1));f.n[tk]=n;
+    h+=`<div class="card"><div class="hd"><h3>${l}</h3><span class="sub">${n} de ${max} filas</span></div>${Array.from({length:n},(_,r)=>{autoFila(f,tk,r);return`<div class="mrow"><span class="num">${r+1}</span><div class="grid2">${cols.map(c=>celda(f,tk,r,c)).join("")}</div></div>`}).join("")}${n<max?`<button type="button" class="btn ghost sm" data-addrow="${tk}">+ Agregar fila</button>`:""}${tk==="df"||tk==="sg"?`<p class="sub">Total: <b id="tot_${tk}">${fmt(mfTot(f,tk,tk==="df"?"cant":"cant"))}</b></p>`:""}</div>`}
+   if(ty==="check"){const [,l,key,src]=s,it=ckItems(f,src);f.ck[key]=f.ck[key]||{};
+    h+=`<div class="card"><div class="hd"><h3>${l}</h3><span class="sub">✔ conforme · ✘ no conforme · N/A</span></div>${f.mod==="corte"?`<p class="sub">${esc(CORTE[f.sub||"cam"].leg)}</p>`:""}${it.map(([n,a],i)=>`<div class="trow"><span class="nm"><small>${i+1}</small>${esc(title(n))}${a?` <small>(${apl(a)})</small>`:""}</span><span class="tri" data-ck="${key}" data-i="${i}">${[["C","✔"],["X","✘"],["NA","N/A"]].map(([x,t])=>`<button type="button" data-v="${x}" aria-pressed="${f.ck[key][i]===x}">${t}</button>`).join("")}</span></div>`).join("")}</div>`}
+   if(ty==="muestreo"){const p=mfMuestreo(f);h+=`<div class="card"><h3>${s[1]}</h3><div class="grid2"><label class="fld"><span>Cant. de corte</span><input data-c="cc" inputmode="numeric" value="${esc(f.c.cc||"")}"></label><label class="fld"><span>Lote auditado</span><input data-c="lote" inputmode="numeric" value="${esc(f.c.lote||"")}"></label></div><div class="plan" id="mfPlan">${p?`<div><b>${p.n}</b><span>Muestra</span></div><div><b>${p.acM}/${p.reM}</b><span>Mayor Ac/Re</span></div><div><b>${p.acm}/${p.rem}</b><span>Menor Ac/Re</span></div><div><b>${fmt(mfTot(f,"df","cant"))}</b><span>Defectos</span></div>`:`<span class="cap">Escribe el lote auditado para calcular la muestra.</span>`}</div></div>`}
+   if(ty==="obs"){const [,l,k,n]=s;h+=`<div class="card"><h3>${l}</h3>${Array.from({length:n},(_,i)=>`<div class="obsrow"><span class="i">${i+1}</span><input data-o="${i}" value="${esc(f.obs[i]||"")}" aria-label="${esc(l)} ${i+1}"></div>`).join("")}</div>`}
+   if(ty==="fotos")h+=`<div class="card"><h3>${s[1]}</h3><p class="sub">Hasta ${s[2]} fotos con la cámara del celular.</p><div class="photos" id="mfPhotos" data-max="${s[2]}"></div></div>`;
+   if(ty==="res"){const sg=mfSugerido(f);h+=`<div class="card"><h3>${s[1]}</h3>${sg?`<p class="sub">Según los datos: <b>${sg}</b></p>`:""}<div class="seg wide" data-res="1">${s[2].map(o=>`<button type="button" data-v="${esc(o)}" aria-pressed="${(f.res||sg)===o}">${esc(title(o))}</button>`).join("")}</div></div>`}
+   if(ty==="firmas")h+=`<div class="card"><h3>Firmas</h3>${s[1].map(([k,l])=>`<div class="sig"><div class="row"><b>${esc(l)}</b><button type="button" class="btn ghost sm" data-mclr="${k}">Borrar</button></div><canvas id="mf${k}" aria-label="Firma ${esc(l)}"></canvas></div>`).join("")}<p class="sub">El V°B° de la jefatura se da desde el historial de la administradora.</p></div>`});
+  $("mfBody").innerHTML=h;renderMFPhotos();
+  requestAnimationFrame(()=>{["A","T"].forEach(k=>{if($("mf"+k)){mpads[k]=mpads[k]&&mpads[k].cv===$("mf"+k)?mpads[k]:MPad(k);mpads[k].size();mpads[k].load(S.mf["firma"+k])}})})}
+function saveMF(){const f=S.mf;if(!f||S.mfEdit)return;if(!f.tIni)f.tIni=Date.now();ls.set("mf_"+f.mod,f)}
+function refreshMFbits(){const f=S.mf,p=$("mfPlan");if(p&&f.mod==="corte"){const m=mfMuestreo(f);p.innerHTML=m?`<div><b>${m.n}</b><span>Muestra</span></div><div><b>${m.acM}/${m.reM}</b><span>Mayor Ac/Re</span></div><div><b>${m.acm}/${m.rem}</b><span>Menor Ac/Re</span></div><div><b>${fmt(mfTot(f,"df","cant"))}</b><span>Defectos</span></div>`:`<span class="cap">Escribe el lote auditado para calcular la muestra.</span>`}
+  ["df","sg"].forEach(k=>{const e=$("tot_"+k);if(e)e.textContent=fmt(mfTot(f,k,"cant"))});
+  const rs=document.querySelector("#mfBody [data-res]");if(rs&&!f.res){const sg=mfSugerido(f);rs.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===sg)));const n=rs.previousElementSibling;if(n&&n.tagName==="P")n.innerHTML=`Según los datos: <b>${sg}</b>`}}
+$("mfBody").addEventListener("input",e=>{const x=e.target,f=S.mf;if(!f)return;
+  if(x.dataset.c){f.c[x.dataset.c]=x.value;if(x.dataset.c==="lote")refreshMFbits()}
+  else if(x.dataset.tk){const R=rowsDe(f,x.dataset.tk),r=+x.dataset.r;R[r]=R[r]||{};R[r][x.dataset.k]=x.value;autoFila(f,x.dataset.tk,r);
+    x.closest(".mrow").querySelectorAll("input[readonly][data-tk]").forEach(i=>i.value=R[r][i.dataset.k]??"");
+    const t=x.closest(".mrow").querySelector(".tri[data-k=ar]");if(t)t.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===R[r].ar)));refreshMFbits()}
+  else if(x.dataset.p){const P=f.p[x.dataset.p]=f.p[x.dataset.p]||{};P[x.dataset.f]=x.value}
+  else if(x.dataset.o!=null){f.obs[x.dataset.o]=x.value}
+  saveMF()});
+$("mfBody").addEventListener("click",e=>{const f=S.mf;if(!f)return;const b=e.target.closest("button");if(!b)return;const g=b.parentElement;
+  if(b.dataset.addrow){f.n[b.dataset.addrow]=(f.n[b.dataset.addrow]||1)+1;renderMF();saveMF();return}
+  if(b.dataset.mclr){mpads[b.dataset.mclr].clear();saveMF();return}
+  if(g.dataset.sub){f.sub=b.dataset.v;f.ck={};renderMF();saveMF();return}
+  if(g.dataset.op){f.c[g.dataset.op]=b.dataset.v}
+  else if(g.dataset.res){f.res=b.dataset.v}
+  else if(g.dataset.ck){f.ck[g.dataset.ck]=f.ck[g.dataset.ck]||{};f.ck[g.dataset.ck][g.dataset.i]=b.dataset.v}
+  else if(g.dataset.tk){const R=rowsDe(f,g.dataset.tk),r=+g.dataset.r;R[r]=R[r]||{};R[r][g.dataset.k]=b.dataset.v;if(g.dataset.k==="ar")R[r].arM=1}
+  else if(g.dataset.p){const P=f.p[g.dataset.p]=f.p[g.dataset.p]||{};P.ar=b.dataset.v}
+  else return;
+  g.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));refreshMFbits();saveMF()});
+/* firmas del formulario genérico */
+const mpads={};
+function MPad(k){const cv=$("mf"+k);let ctx,drawing=false,dirty=false,last=null;
+  function size(){const r=cv.getBoundingClientRect();if(!r.width)return;const img=dirty?cv.toDataURL():null;cv.width=Math.round(r.width*2);cv.height=Math.round(r.height*2);ctx=cv.getContext("2d");ctx.lineWidth=4;ctx.lineCap="round";ctx.lineJoin="round";ctx.strokeStyle="#0b1030";if(img)paint(img)}
+  function paint(src){const i=new Image();i.onload=()=>{ctx.clearRect(0,0,cv.width,cv.height);ctx.drawImage(i,0,0,cv.width,cv.height)};i.src=src}
+  const pos=e=>{const r=cv.getBoundingClientRect();return[(e.clientX-r.left)*cv.width/r.width,(e.clientY-r.top)*cv.height/r.height]};
+  cv.addEventListener("pointerdown",e=>{if(!ctx)size();drawing=true;dirty=true;last=pos(e);cv.setPointerCapture(e.pointerId);ctx.beginPath();ctx.arc(last[0],last[1],2,0,7);ctx.fill()});
+  cv.addEventListener("pointermove",e=>{if(!drawing)return;const p=pos(e);ctx.beginPath();ctx.moveTo(...last);ctx.lineTo(...p);ctx.stroke();last=p});
+  const end=()=>{if(!drawing)return;drawing=false;const o=document.createElement("canvas");o.width=480;o.height=Math.round(480*cv.height/cv.width);o.getContext("2d").drawImage(cv,0,0,o.width,o.height);S.mf["firma"+k]=o.toDataURL("image/png");saveMF()};
+  cv.addEventListener("pointerup",end);cv.addEventListener("pointercancel",end);
+  return{cv,size,clear(){if(!ctx)size();ctx&&ctx.clearRect(0,0,cv.width,cv.height);dirty=false;S.mf["firma"+k]=""},load(src){if(!ctx)size();if(!ctx)return;ctx.clearRect(0,0,cv.width,cv.height);dirty=false;if(isSig(src)){dirty=true;paint(src)}}}}
+addEventListener("resize",()=>{Object.values(mpads).forEach(p=>p.cv.isConnected&&p.size())});
+function renderMFPhotos(){const el=$("mfPhotos");if(!el)return;const fs=S.mf.fotos,max=+el.dataset.max;
+  el.innerHTML=fs.map((f,i)=>`<div class="ph">${f.b64?`<img src="data:image/jpeg;base64,${f.b64}" alt="Foto ${i+1}">`:f.src?`<img src="${f.src}" alt="Foto ${i+1}">`:`<div style="display:flex;align-items:center;justify-content:center;height:100%;font:600 12px var(--font-mono);color:var(--muted)">En Drive</div>`}<button type="button" data-mx="${i}" aria-label="Quitar foto">×</button></div>`).join("")+(fs.length<max?`<button type="button" class="addph" id="mfAddph"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Tomar foto</button>`:"");
+  const a=$("mfAddph");if(a)a.onclick=()=>$("mfFoto").click()}
+document.addEventListener("click",e=>{const x=e.target.closest("[data-mx]");if(x&&S.mf){S.mf.fotos.splice(+x.dataset.mx,1);renderMFPhotos();saveMF()}});
+$("mfFoto").onchange=async e=>{const max=+($("mfPhotos")||{dataset:{max:6}}).dataset.max,files=[...e.target.files].slice(0,max-S.mf.fotos.length);e.target.value="";
+  for(const file of files){try{S.mf.fotos.push({b64:await shrink(file)})}catch(x){toast("No se pudo leer la foto.")}}renderMFPhotos();saveMF()};
+function abrirMF(mod,rec){S.mfEdit=rec?rec.id:null;S.mfSrc=rec||null;
+  S.mf=rec?{...blankMF(mod),...JSON.parse(JSON.stringify(rec.f||{})),id:rec.id,fotos:(rec.fotos||[]).map(id=>({id})),firmaA:rec.firmaA?"drive:"+rec.firmaA:"",firmaT:rec.firmaT?"drive:"+rec.firmaT:""}:(ls.get("mf_"+mod,null)||blankMF(mod));
+  if(!S.mf.c.aud||!rec)S.mf.c.aud=rec?rec.aud:(S.admin?S.mf.c.aud||"":S.me&&S.me.nombre);
+  go("mod");$("hTitle").textContent=MODULOS[mod].n;$("mfVer").hidden=!puedeL(mod);renderMF();$("mfEditNote").hidden=!rec;$("mfCancel").hidden=!rec;$("mfSave").textContent=rec?"Guardar corrección":"Guardar reporte";
+  if(rec)$("mfEditNote").innerHTML=`Corrigiendo el reporte del <b>${dmy(rec.fecha)}</b>. Las firmas y fotos guardadas se mantienen si no las cambias.`;$("mfDone").hidden=true;$("mfErr").hidden=true}
+$("mfCancel").onclick=()=>{S.mfEdit=null;S.mfSrc=null;go(S.admin?"hist":"home")};
+$("mfVer").onclick=()=>abrirLista(S.mf.mod);
+
+/* ---- registro de un formato genérico: datos, cabecera para la hoja y filas ---- */
+function mfRecord(f){const M=MODULOS[f.mod],cab=[],ss=secs(f),c=f.c;
+  ss.forEach(s=>{if(s[0]==="campos")s[2].forEach(([k,l])=>cab.push([up(k==="tp"&&f.mod==="corte"?CORTE[f.sub].tp:l),k==="aud"?"":up(c[k])]));if(s[0]==="op")cab.push([up(s[1]),c[s[2]]||""])});
+  if(f.mod==="corte"){const p=mfMuestreo(f);cab.unshift(["TIPO DE CORTE",CORTE[f.sub].t]);cab.push(["CANT. DE CORTE",c.cc||""],["LOTE AUDITADO",c.lote||""],["CANT. DE MUESTRA",p?p.n:""],["TOTAL DEFECTOS",mfTot(f,"df","cant")],["PIEZAS NO CONFORMES",Object.values(f.ck.pz||{}).filter(v=>v==="X").length],["AVÍOS NO CONFORMES",Object.values(f.ck.av||{}).filter(v=>v==="X").length])}
+  if(f.mod==="telas")[["den","DENSIDAD"],["fro","SOLIDEZ AL FROTE"],["enc","% ENCOGIMIENTO"],["rev","REVIRADO"],["lav","SOLIDEZ AL LAVADO"]].forEach(([k,l])=>[0,1].forEach(i=>{const P=f.p[k+i]||{};if(P.res||P.req||P.ar)cab.push([l+" "+(i+1),[P.req,P.res,P.ar].filter(Boolean).join(" · ")])}));
+  if(f.mod==="avios")cab.push(["TESTS NO CONFORMES",Object.entries(f.ck.tst||{}).filter(([,v])=>v==="X").map(([i])=>FORMS.avios[2][3][i][0]).join(" | ")]);
+  const ob=Object.values(f.obs||{}).filter(Boolean);if(ob.length)cab.push(["OBSERVACIONES",ob.join(" | ")]);
+  const tb=ss.find(s=>s[0]==="tabla"),lin={cols:[],filas:[]};
+  if(tb){const cols=tb[4];lin.cols=cols.map(c=>up(c[1]));lin.filas=rowsDe(f,tb[2]).filter(r=>r&&cols.some(c=>r[c[0]]!==""&&r[c[0]]!=null)).map(r=>cols.map(c=>{const v=r[c[0]];return c[2]==="num"&&v!==""&&!isNaN(Number(v))?Number(v):up(v)}))}
+  const res=f.mod==="segundas"?"REGISTRADO":(f.res||mfSugerido(f)||""),rej=/RECHAZ/.test(res)?1:0;
+  return{id:f.id,mod:f.mod,fmt:f.mod==="corte"?CORTE[f.sub].cod:M.cod,fecha:c.fecha||today(),sub:f.sub,aud:up(c.aud),f:JSON.parse(JSON.stringify({...f,fotos:undefined,firmaA:undefined,firmaT:undefined})),
+    cli:up(c.cli),prov:up(c.prov),art:up(c.art),of:up(c.of),oc:up(c.oc),gr:up(c.gr),lin:lin,cab,res,rej,tIni:S.mfEdit?null:(f.tIni||null),tFin:S.mfEdit?null:Date.now(),esCorreccion:!!S.mfEdit,fotosKeep:f.fotos.filter(x=>x.id).map(x=>x.id)}}
+/* ---- imágenes para el PDF (firmas y fotos guardadas en Drive) ---- */
+async function imgsDe(f,id){const need=String(f.firmaA).startsWith("drive:")||String(f.firmaT).startsWith("drive:")||f.fotos.some(x=>x.id&&!x.src);let srv=null;
+  if(need&&id){try{srv=await call("imagenes",S.token,id)}catch(x){}}
+  const g=k=>isSig(f[k])?f[k]:(srv&&srv.ok?srv[k]:"");
+  return{firmaA:g("firmaA"),firmaT:g("firmaT"),fotos:f.fotos.map(x=>x.b64?"data:image/jpeg;base64,"+x.b64:x.src||(srv&&srv.ok?((srv.fotos||[]).find(y=>y.id===x.id)||{}).src:"")||"").filter(Boolean)}}
+/* ---- guardar formato genérico (con cola sin señal) ---- */
+$("mfForm").addEventListener("submit",async e=>{e.preventDefault();const f=S.mf,err=$("mfErr");err.hidden=true;$("mfDone").hidden=true;
+  const req={telas:[["prov","Proveedor"],["fecha","Fecha"]],avios:[["prov","Proveedor"],["fecha","Fecha"]],corte:[["cli","Cliente"],["fecha","Fecha"],["lote","Lote auditado"]],segundas:[["fecha","Fecha"],["lin","Línea"]],muestra:[["cli","Cliente"],["fecha","Fecha"]]}[f.mod]||[];
+  const miss=req.filter(([k])=>!String(f.c[k]||"").trim()).map(([,l])=>l);if(!f.c.aud)miss.push("Auditor");
+  if(miss.length){err.textContent="Completa: "+miss.join(", ")+".";err.hidden=false;return}
+  if(!isSig(f.firmaA)&&!String(f.firmaA).startsWith("drive:")){err.textContent="Falta la firma del auditor.";err.hidden=false;return}
+  const bt=$("mfSave");bt.disabled=true;bt.textContent="Armando PDF…";const wasEdit=!!S.mfEdit;let estado="ok",resp=null;
+  try{const rec=mfRecord(f),im=await imgsDe(f,wasEdit?f.id:null);if(wasEdit&&S.mfSrc){rec.vb=S.mfSrc.vb||null}
+    const pdf=await pdfDe(rec,im);bt.textContent="Guardando…";
+    const sig=s=>isSig(s)?s.split(",")[1]:"",p={rec,fotos:f.fotos.filter(x=>x.b64).map(x=>x.b64),firmas:{A:sig(f.firmaA),T:sig(f.firmaT)},pdf};
+    try{resp=await call("guardarReporte",S.token,p.rec,p.fotos,p.firmas,p.pdf);
+      if(!resp.ok&&resp.sesion){setCola([...cola().filter(c=>c.rec.id!==rec.id),p]);ls.set("mf_"+f.mod,null);cerrarSesion("Tu acceso ya no está activo. El reporte quedó guardado en el celular.");return}
+      if(!resp.ok){err.textContent=resp.msg||"No se pudo guardar.";err.hidden=false;return}}
+    catch(x){if(netErr(x)&&!wasEdit){setCola([...cola().filter(c=>c.rec.id!==rec.id),p]);estado="cola"}else{err.textContent="No se pudo guardar. Revisa tu conexión y vuelve a tocar Guardar; tus datos siguen aquí.";err.hidden=false;return}}
+    ls.set("mf_"+f.mod,null);const keep={c:{fecha:f.c.fecha,cli:f.c.cli,prov:f.c.prov,lin:f.c.lin}};S.mfEdit=null;S.mfSrc=null;
+    if(wasEdit){toast("Corrección guardada");go("hist");return}
+    S.mf={...blankMF(f.mod),sub:f.sub,c:{...blankMF(f.mod).c,...keep.c}};renderMF();scrollTo(0,0);
+    const dn=$("mfDone");dn.className="note "+(estado==="cola"?"":"ok");dn.innerHTML=estado==="cola"?"Sin señal: el reporte quedó guardado en el celular y se enviará solo al volver la conexión.":`Reporte guardado · <b>${esc(rec.res)}</b>.${puedeL(f.mod)?` <button type="button" class="btn gold sm" id="mfLastPdf">⬇ PDF</button>`:""}`;dn.hidden=false;
+    const lp=$("mfLastPdf");if(lp)lp.onclick=()=>bajarPdf(rec.id,lp);toast(estado==="cola"?"Guardado en el celular":"Reporte guardado")}
+  catch(x){err.textContent="No se pudo armar el PDF: "+(x&&x.message||x);err.hidden=false}
+  finally{bt.disabled=false;bt.textContent=S.mfEdit?"Guardar corrección":"Guardar reporte"}});
+
+/* ================= PDF con el diseño de cada formato (se arma en el celular) ================= */
+const LOGO=()=>(document.querySelector(".top .logo img")||{}).src||"";
+const Q=s=>esc(s==null?"":s);
+const QCSS=`.q{font-family:Arial,Helvetica,sans-serif;color:#000;background:#fff;width:100%;height:100%;padding:7mm;box-sizing:border-box;display:flex;flex-direction:column}
+.q *{box-sizing:border-box}.q table{border-collapse:collapse;width:100%;table-layout:fixed}
+.q td,.q th{border:1px solid #000;padding:0 1mm;text-align:center;vertical-align:middle;font-weight:normal;overflow:hidden;white-space:nowrap;line-height:1.15}
+.q th{font-weight:bold;background:#d9d9d9;white-space:normal;line-height:1.05}.q .q-b{font-weight:bold}.q .q-l{text-align:left}.q .q-r{text-align:right}.q table.q-nb>tbody>tr>td,.q td.q-nb{border:0}
+.q .q-hd td{height:5.6mm;font-size:8pt}.q .q-tt{font-size:12.5pt;font-weight:bold;line-height:1.3;white-space:normal}.q .q-tt span{font-size:8.5pt}
+.q table.q-inf{table-layout:auto}.q .q-inf td{border:0;font-size:8pt;height:5.4mm;vertical-align:bottom;padding:0 1mm;overflow:visible}.q .q-inf .q-k{font-weight:bold;text-align:right;white-space:nowrap}.q .q-inf .q-v{border-bottom:1px solid #000;text-align:center}
+.q .q-sig td{border:0;font-size:8pt;font-weight:bold;vertical-align:bottom;text-align:center;padding:0 5mm}.q .q-sig .q-ln{border-top:1px solid #000;padding-top:.6mm}.q .q-sig img{height:12mm;max-width:100%}
+.q .q-box{display:inline-block;width:4.4mm;height:3.6mm;border:1px solid #000;vertical-align:middle;line-height:3.4mm;text-align:center;font-weight:bold;margin:0 1.5mm}
+.q .q-g{background:#fff3c4}.q .q-gap{height:2mm}`;
+function qHead(titulo,cod,ver,sub){return`<table class="q-hd"><colgroup><col style="width:24%"><col><col style="width:13%"><col style="width:17%"></colgroup>
+ <tr><td rowspan="4"><img src="${LOGO()}" style="height:12mm"></td><td rowspan="4" class="q-tt">${Q(titulo)}<br><span>${Q(sub||"DPTO. DE GESTIÓN DE CALIDAD")}</span></td><td class="q-r q-b">CÓDIGO:</td><td>${Q(cod)}</td></tr>
+ <tr><td class="q-r q-b">VERSIÓN/FECHA:</td><td>${Q(ver)}</td></tr><tr><td class="q-r q-b">ELABORADO:</td><td style="font-size:7pt">${Q(ELAB)}</td></tr><tr><td class="q-r q-b">APROBACIÓN:</td><td>${Q(APROB)}</td></tr></table>`}
+function qInf(rows){const n=rows[0].length;return`<table class="q-inf">${rows.map(r=>`<tr>${r.map(([k,v])=>`<td class="q-k" style="width:1%">${Q(k)}</td><td class="q-v" style="width:${Math.floor(88/n)}%">${Q(v)}</td>`).join("")}</tr>`).join("")}</table>`}
+function qSig(list,im,vb){return`<table class="q-sig" style="margin-top:auto"><tr>${list.map(([l,k,nm])=>`<td>${k==="A"&&im.firmaA?`<img src="${im.firmaA}">`:k==="T"&&im.firmaT?`<img src="${im.firmaT}">`:k==="VB"&&vb?`<div style="height:12mm;line-height:12mm;color:#0b7a2a">V°B° ${Q(vb)}</div>`:`<div style="height:12mm"></div>`}<div class="q-ln">${Q(l)}</div><div style="font-weight:normal;font-size:7pt">${Q(nm||"")}</div></td>`).join("")}</tr></table>`}
+const qBox=b=>`<span class="q-box">${b?"X":""}</span>`;
+const qVB=r=>r.vb?new Date(r.vb).toLocaleString("es-PE",{dateStyle:"short",timeStyle:"short"}):"";
+function qFotos(r,im,titulo){return im.fotos.length?`<div class="q-b" style="font-size:11pt;margin-bottom:3mm">${Q(titulo)} · ${Q(MODULOS[r.mod].n)} · ${dmy(r.fecha)}</div><div style="display:flex;flex-wrap:wrap;gap:3mm">${im.fotos.map(s=>`<img src="${s}" style="width:90mm;max-height:120mm;object-fit:contain;border:1px solid #999">`).join("")}</div>`:""}
+function pagina(html,land){return`<div class="q" style="font-size:7pt;min-height:${land?210:297}mm">${html}</div>`}
+/* ---- TELAS ---- */
+function pdfTelas(r,im){const f=r.f,c=f.c,R=rowsDe(f,"rol"),P=f.p,n=25;
+ const pr=(k,i,rq)=>{const x=P[k+i]||{};return(rq?`<td>${Q(x.req)}</td>`:"")+`<td>${Q(x.res)}</td><td class="q-b">${Q(x.ar)}</td>`};
+ const std=(k,i,t)=>`<td style="font-size:5.4pt;white-space:normal;line-height:1.1">${Q(t)}</td>`;
+ let h=qHead(MODULOS.telas.t,MODULOS.telas.cod,MODULOS.telas.ver)+'<div class="q-gap"></div>'+qInf([[["CLIENTE:",c.cli,9],["GUÍA DE REMISIÓN:",c.gr,13],["FECHA:",dmy(c.fecha),8]],[["PROVEEDOR:",c.prov,9],["NUM. DE INGRESO:",c.ing,13],["AUDITOR:",r.aud,8]],[["DESCRIP. MAT:",c.mat,9],["ORDEN DE COMPRA:",c.oc,13],["ARTÍCULO/PROY:",c.art,8]]])+'<div class="q-gap"></div>';
+ h+=`<table style="font-size:6.5pt"><tr><th colspan="4">DENSIDAD</th><th colspan="4">SOLIDEZ AL FROTE (SECO Y HÚMEDO)</th><th colspan="4">% ENCOGIMIENTO</th><th colspan="3">REVIRADO</th><th colspan="3">SOLIDEZ AL LAVADO</th></tr>
+  <tr>${"REQUER|STD|RESULT|A/R|REQUER|STD (GRAL.)|RESULT|A/R|REQUER|STD (NO LAV.)|RESULT|A/R|STD|RESULT|A/R|STD|RESULT|A/R".split("|").map(x=>`<th style="font-size:6pt">${x}</th>`).join("")}</tr>
+  ${[0,1].map(i=>`<tr style="height:5.6mm">${pr("den",i,1).replace(/^(<td>[^<]*<\/td>)/,"$1"+std("den",i,"+/- 5%"))}${pr("fro",i,1).replace(/^(<td>[^<]*<\/td>)/,"$1"+std("fro",i,"SEC: 4.0 · HÚM: 3.0"))}${pr("enc",i,1).replace(/^(<td>[^<]*<\/td>)/,"$1"+std("enc",i,"T.PLANA: 3% · T.PUNTO: 7%"))}${std("rev",i,"T.PLANA: 3% · T.PUNTO: 5%")}${pr("rev",i,0)}${std("lav",i,"TRANS COL: 4 · CAMB COL: 4")}${pr("lav",i,0)}</tr>`).join("")}</table><div class="q-gap"></div>`;
+ const fs=Array.from({length:n},(_,i)=>R[i]||{});
+ h+=`<div style="display:flex;gap:1.5mm"><table style="font-size:6.8pt;flex:1"><colgroup><col style="width:6%"><col style="width:9%"><col style="width:6%"><col style="width:6%"><col style="width:6%">${Array.from({length:9},()=>'<col style="width:3.9%">').join("")}<col style="width:5%"><col style="width:5.5%"><col style="width:4%"><col style="width:10%"></colgroup>
+  <tr><th rowspan="2">N° ROLLO</th><th rowspan="2">COLOR</th><th rowspan="2">ANCHO UTIL</th><th rowspan="2">METRAJE REAL</th><th rowspan="2">METRAJE GUÍA</th><th colspan="9">TIPO DE FALLA</th><th rowspan="2">PUNTOS</th><th rowspan="2">PUNTAJE</th><th rowspan="2">A/R</th><th rowspan="2">TONO / LOTE</th></tr><tr>${Array.from({length:9},(_,i)=>`<th style="font-size:5.5pt">${i+1}</th>`).join("")}</tr>
+  ${fs.map(x=>{const fl=String(x.fal||"").toUpperCase().split(/[\s,;]+/).filter(Boolean);return`<tr style="height:3.6mm"><td>${Q(x.n)}</td><td>${Q(x.color)}</td><td>${Q(x.ancho)}</td><td>${Q(x.mr)}</td><td>${Q(x.mg)}</td>${Array.from({length:9},(_,i)=>`<td style="font-size:6pt">${Q(fl[i]||"")}</td>`).join("")}<td>${Q(x.pts)}</td><td>${Q(x.ptj)}</td><td class="q-b">${Q(x.ar)}</td><td>${Q(x.tono)}</td></tr>`}).join("")}</table>
+  <table style="width:24%;font-size:7pt"><tr><th style="height:9.2mm">MUESTRA 1</th></tr><tr><td style="height:40mm">${im.fotos[0]?`<img src="${im.fotos[0]}" style="max-width:100%;max-height:38mm">`:""}</td></tr><tr><th style="height:4.6mm">MUESTRA 2</th></tr><tr><td style="height:40mm">${im.fotos[1]?`<img src="${im.fotos[1]}" style="max-width:100%;max-height:38mm">`:""}</td></tr></table></div><div class="q-gap"></div>`;
+ const mt=CATS.MT,per=16;h+=`<table style="font-size:5.4pt"><colgroup>${'<col style="width:4%"><col style="width:12.6%">'.repeat(6)}</colgroup><tr><th colspan="12">MATERIAL TELA (MT)</th></tr><tr>${Array.from({length:6},()=>"<th>COD.</th><th>DEFECTO</th>").join("")}</tr>${Array.from({length:per},(_,i)=>`<tr style="height:2.5mm">${Array.from({length:6},(_,j)=>{const x=mt[j*per+i];return x?`<td style="width:4%">${x[0]}</td><td style="width:12.6%">${Q(x[1])}</td>`:"<td></td><td></td>"}).join("")}</tr>`).join("")}</table><div class="q-gap"></div>`;
+ h+=`<table style="font-size:7pt"><tr><th class="q-l">OBSERVACIONES:</th></tr>${Array.from({length:6},(_,i)=>`<tr style="height:3.6mm"><td class="q-l">${Q((f.obs||{})[i]||"")}</td></tr>`).join("")}</table>`;
+ h+=qSig([["AUDITOR DE CALIDAD","A",r.aud],["PROVEEDOR","T",c.prov],["JEF. CALIDAD/GER. DE PRODUCCIÓN","VB"]],im,qVB(r));
+ return[pagina(h,1)]}
+/* ---- AVÍOS ---- */
+function pdfAvios(r,im){const f=r.f,c=f.c,R=rowsDe(f,"it"),ck=f.ck.tst||{};
+ let h=qHead(MODULOS.avios.t,MODULOS.avios.cod,MODULOS.avios.ver)+'<div class="q-gap"></div>'+qInf([[["CLIENTE:",c.cli,10],["GUIA DE REMISIÓN:",c.gr,13],["PROYECTO/USO:",c.uso,11]],[["PROVEEDOR:",c.prov,10],["NUM. INGRESO:",c.ing,13],["FECHA:",dmy(c.fecha),11]],[["DESCRIP. MATERIAL:",c.mat,10],["ORDEN DE COMPRA:",c.oc,13],["AUDITOR:",r.aud,11]]])+'<div class="q-gap"></div>';
+ h+=`<table style="font-size:7pt"><colgroup><col style="width:4%"><col style="width:12%"><col style="width:22%"><col style="width:9%"><col style="width:7%"><col style="width:7%"><col style="width:9%"><col><col style="width:5%"></colgroup><tr><th>IT</th><th>ARTICULO</th><th>DESCRIP. MATERIAL</th><th>LOTE AUD.</th><th style="white-space:normal">CANT. MUESTRA</th><th style="white-space:normal">CANT. DEFECTOS</th><th style="white-space:normal">COD. DEFECTO</th><th>DEFECTO</th><th>A/R</th></tr>
+  ${Array.from({length:18},(_,i)=>{const x=R[i]||{};return`<tr style="height:5mm"><td>${i+1}</td><td>${Q(x.art)}</td><td>${Q(x.desc)}</td><td>${Q(x.lote)}</td><td>${Q(x.mue)}</td><td>${Q(x.cd)}</td><td>${Q(up(x.cod))}</td><td style="font-size:6.5pt">${Q(x.def)}</td><td class="q-b">${Q(x.ar)}</td></tr>`}).join("")}</table><div class="q-gap"></div>`;
+ h+=`<table style="font-size:7pt"><tr><th style="width:4%">IT</th><th class="q-l">OBSERVACIONES</th></tr>${Array.from({length:5},(_,i)=>`<tr style="height:5mm"><td>${i+1}</td><td class="q-l">${Q((f.obs||{})[i]||"")}</td></tr>`).join("")}</table><div class="q-gap"></div>`;
+ h+=`<table style="font-size:7pt"><tr><th>MUESTRAS DE DEFECTOS</th></tr><tr><td style="height:40mm">${im.fotos.slice(0,4).map(s=>`<img src="${s}" style="max-height:38mm;max-width:24%;margin:0 1mm">`).join("")}</td></tr></table><div class="q-gap"></div>`;
+ const av=CATS.AV,per=12;h+=`<div style="display:flex;gap:2mm;align-items:flex-start"><table style="font-size:4.8pt;width:47%"><colgroup>${'<col style="width:6%"><col style="width:27.3%">'.repeat(3)}</colgroup><tr><th colspan="6">AVIOS (AV)</th></tr><tr>${"<th>COD.</th><th>DEFECTO</th>".repeat(3)}</tr>${Array.from({length:per},(_,i)=>`<tr style="height:3.2mm">${[0,1,2].map(j=>{const x=av[j*per+i];return x?`<td style="width:5.5%">${x[0]}</td><td style="width:27.8%">${Q(x[1])}</td>`:"<td></td><td></td>"}).join("")}</tr>`).join("")}</table>
+  <table style="font-size:5.2pt;width:21%"><tr><th colspan="5" style="white-space:normal">TABLA AQL 2.5 - INSPECCIÓN GENERAL NIVEL II</th></tr><tr><th>LOTE</th><th>COD.</th><th>MUESTRA</th><th>AC</th><th>RE</th></tr>${TABLA.map(([,n,a],i)=>`<tr style="height:3mm"><td>${RANGO[i]}</td><td>${"ABCDEFGHJKLMN"[i]}</td><td>${n}</td><td>${a}</td><td>${a+1}</td></tr>`).join("")}</table>
+  <table style="font-size:6pt;width:19%"><colgroup><col style="width:9%"><col><col style="width:13%"><col style="width:13%"></colgroup><tr><th colspan="2">CHECKLIST DE TESTS</th><th>☑</th><th>☒</th></tr>${FORMS.avios[2][3].map(([n],i)=>`<tr style="height:4.4mm"><td>${i+1}</td><td style="font-size:4.9pt">${Q(n)}</td><td class="q-b">${ck[i]==="C"?"X":""}</td><td class="q-b">${ck[i]==="X"?"X":""}</td></tr>`).join("")}</table>
+  <table class="q-nb" style="width:13%;font-size:6.5pt"><tr><td class="q-b" style="height:7mm;overflow:visible">APROBADO ${qBox(r.res==="APROBADO")}</td></tr><tr><td class="q-b" style="height:7mm;overflow:visible">RECHAZADO ${qBox(r.res==="RECHAZADO")}</td></tr></table></div>`;
+ h+=qSig([["AUDITOR DE CALIDAD","A",r.aud],["PROVEEDOR","T",c.prov],["JEFE CALIDAD/GERENCIA PRODUCCIÓN","VB"]],im,qVB(r));
+ const pg=[pagina(h)];if(im.fotos.length>4)pg.push(pagina(qFotos(r,{fotos:im.fotos.slice(4)},"MUESTRAS DE DEFECTOS")));return pg}
+
+/* ---- CORTE ---- */
+function pdfCorte(r,im){const f=r.f,c=f.c,C=CORTE[f.sub||"cam"],R=rowsDe(f,"df"),pz=f.ck.pz||{},av=f.ck.av||{},p=mfMuestreo(f);
+ let h=qHead("REPORTE DE AUDITORIA DE CORTE - "+C.t,C.cod,MODULOS.corte.ver)+'<div class="q-gap"></div>'+qInf([[["CLIENTE:",c.cli,10],["O.F / OC:",c.of,9],["FECHA:",dmy(c.fecha),10]],[["PROVEEDOR:",c.prov,10],["ARTÍCULO:",c.art,9],["AUDITOR:",r.aud,10]],[["DESCRIPCIÓN:",c.desc,10],["COLOR:",c.color,9],["COMPOSICIÓN:",c.comp,10]],[[C.tp+":",c.tp,10],["ENTALLE:",c.ent,9],["TALLAS:",c.tallas,10]]])+'<div class="q-gap"></div>';
+ h+=`<table style="font-size:7pt"><colgroup><col style="width:9%"><col style="width:23%"><col style="width:9%"><col></colgroup><tr><th>COD. DEFECTO</th><th>DEFECTO</th><th>CANT. DEFECTO</th><th>OBSERVACIONES</th></tr>${Array.from({length:12},(_,i)=>{const x=R[i]||{};return`<tr style="height:4.4mm"><td>${Q(up(x.cod))}</td><td style="font-size:6.5pt">${Q(x.def)}</td><td>${Q(x.cant)}</td><td>${Q(x.obs)}</td></tr>`}).join("")}<tr style="height:4.6mm"><td colspan="2" class="q-b q-r">TOTAL DEFECTOS</td><td class="q-b">${fmt(mfTot(f,"df","cant"))}</td><td class="q-nb"></td></tr></table><div class="q-gap"></div>`;
+ const rows=40,cel=(it,i,st)=>{const x=it[i];return x?`<td>${i+1}</td><td style="font-size:5.6pt">${Q(x[0])}</td><td>${apl(x[1])}</td><td class="q-b">${st[i]==="C"?"✔":st[i]==="X"?"✘":st[i]==="NA"?"N/A":""}</td>`:`<td>${i+1}</td><td></td><td></td><td></td>`};
+ const pzt=`<table style="font-size:6pt"><colgroup><col style="width:5%"><col style="width:30%"><col style="width:8%"><col style="width:7%"><col style="width:5%"><col style="width:30%"><col style="width:8%"><col style="width:7%"></colgroup><tr><th colspan="8">CHECK LIST DE PIEZAS DE PRENDA</th></tr><tr><th>N°</th><th>PIEZA</th><th>APLICA</th><th>☒☑</th><th>N°</th><th>PIEZA</th><th>APLICA</th><th>☒☑</th></tr>${Array.from({length:rows},(_,i)=>`<tr style="height:3.3mm">${cel(C.pz,i,pz)}${cel(C.pz,i+rows,pz)}</tr>`).join("")}</table>`;
+ const avt=`<table style="font-size:6pt"><colgroup><col style="width:12%"><col><col style="width:18%"><col style="width:14%"></colgroup><tr><th colspan="4">CHECK LIST DE AVÍOS</th></tr><tr><th>N°</th><th>AVÍO</th><th>APLICA</th><th>☒☑</th></tr>${Array.from({length:14},(_,i)=>`<tr style="height:3.3mm">${cel(C.av,i,av)}</tr>`).join("")}</table>
+  <table class="q-inf" style="margin-top:2mm;font-size:6.5pt"><tr><td class="q-k">CANT. DE CORTE:</td><td class="q-v">${Q(c.cc)}</td></tr><tr><td class="q-k">LOTE AUDITADO:</td><td class="q-v">${Q(c.lote)}</td></tr><tr><td class="q-k">CANT. DE MUESTRA:</td><td class="q-v">${p?p.n:""}</td></tr><tr><td class="q-k">AC / RE MAYOR:</td><td class="q-v">${p?p.acM+" / "+p.reM:""}</td></tr><tr><td class="q-k">AC / RE MENOR:</td><td class="q-v">${p?p.acm+" / "+p.rem:""}</td></tr></table>
+  <table class="q-nb" style="margin-top:2mm;font-size:7.5pt"><tr><td class="q-b" style="height:7mm">APROBADO ${qBox(r.res==="APROBADO")}</td></tr><tr><td class="q-b" style="height:7mm">RECHAZADO ${qBox(r.res==="RECHAZADO")}</td></tr></table>`;
+ const cr=CATS.CR,per=27,mt=`<table style="font-size:5.6pt"><tr><th colspan="5" style="white-space:normal">TABLA DE MUESTREO DE PRENDAS</th></tr><tr><th>LOTE</th><th>MUESTRA</th><th>AC/RE MAY.</th><th>AC/RE MEN.</th></tr>${TABLA.slice(0,11).map(([,n,a,b],i)=>`<tr style="height:3mm"><td>${RANGO[i]}</td><td>${n}</td><td>${a} / ${a+1}</td><td>${b} / ${b+1}</td></tr>`).join("")}</table>
+  <table style="font-size:5.2pt;margin-top:1.5mm"><colgroup><col style="width:13%"><col style="width:37%"><col style="width:13%"><col style="width:37%"></colgroup><tr><th colspan="4">CORTE (CR)</th></tr><tr><th>COD.</th><th>DEFECTO</th><th>COD.</th><th>DEFECTO</th></tr>${Array.from({length:per},(_,i)=>`<tr style="height:2.95mm">${[0,1].map(j=>{const x=cr[j*per+i];return x?`<td style="width:13%">${x[0]}</td><td style="font-size:4.8pt">${Q(x[1])}</td>`:"<td></td><td></td>"}).join("")}</tr>`).join("")}</table>`;
+ h+=`<div style="display:flex;gap:1.5mm;align-items:flex-start"><div style="width:47%">${pzt}</div><div style="width:21%">${avt}</div><div style="width:32%">${mt}</div></div><div class="q-gap"></div>`;
+ h+=`<table style="font-size:7pt"><tr><th style="width:6%">IT</th><th>COMENTARIOS</th></tr>${Array.from({length:5},(_,i)=>`<tr style="height:4.6mm"><td>${i+1}.</td><td class="q-l">${Q((f.obs||{})[i]||"")}</td></tr>`).join("")}</table>`;
+ h+=qSig([["AUDITOR DE CALIDAD","A",r.aud],["JEFE DE CORTE","T"],["JEFATURA DE CALIDAD","VB"],["GERENCIA PRODUCCIÓN",""]],im,qVB(r));
+ return[pagina(h)]}
+/* ---- SEGUNDAS ---- */
+function pdfSegundas(r,im){const f=r.f,c=f.c,R=rowsDe(f,"sg"),M=MODULOS.segundas;
+ let h=qHead(M.t,M.cod,M.ver,"SAMITEX · GESTIÓN DE CALIDAD")+'<div class="q-gap"></div>';
+ h+=`<table class="q-inf"><tr><td class="q-k" style="width:9%">FECHA:</td><td class="q-v" style="width:16%">${dmy(c.fecha)}</td><td class="q-k" style="width:8%">LINEA:</td><td class="q-v" style="width:22%">${Q(c.lin)}</td><td class="q-b" style="text-align:center">${qBox(c.org==="PLANTA")} PLANTA</td><td class="q-b" style="text-align:center">${qBox(c.org==="SERVICIO EXTERNO")} SERVICIO EXTERNO</td></tr>
+  <tr><td class="q-k">CONDICIÓN:</td><td class="q-v q-b">SEGUNDAS</td><td class="q-k">AUDITOR:</td><td class="q-v">${Q(r.aud)}</td><td class="q-k">PROCEDENCIA:</td><td class="q-v">${Q(c.proc)}</td></tr></table><div class="q-gap"></div>`;
+ const cols=[["art","ARTÍCULO",8],["marca","MARCA",7],["oc","O/C",7],["cant","CANT. TOTAL",7],["color","COLOR",8],["talla","TALLA",5],["cos","COSTURA",6],["tel","TELAS",5],["man","MANCHA",6],["obs","OBSERVACIÓN",24],["zona","ZONA",17]];
+ h+=`<table style="font-size:7pt"><colgroup>${cols.map(x=>`<col style="width:${x[2]}%">`).join("")}</colgroup><tr>${cols.map(x=>`<th style="background:#000;color:#fff">${x[1]}</th>`).join("")}</tr>${Array.from({length:29},(_,i)=>{const x=R[i]||{};return`<tr style="height:4.3mm">${cols.map(([k])=>`<td>${Q(x[k])}</td>`).join("")}</tr>`}).join("")}</table>`;
+ h+=`<table class="q-inf" style="width:24%;margin-top:2mm"><tr><td class="q-k">TOTAL:</td><td class="q-v q-b">${fmt(mfTot(f,"sg","cant"))}</td></tr></table>`;
+ h+=qSig([["AUDITOR DE ASEG. DE CALIDAD","A",r.aud],["VB JEFE DE ASEG. DE CALIDAD","VB"],["GERENTE DE PRODUCCIÓN",""]],im,qVB(r));
+ return[pagina(h,1)]}
+/* ---- PRIMERA MUESTRA ---- */
+function pdfMuestra(r,im){const f=r.f,c=f.c,E=rowsDe(f,"ev"),D=rowsDe(f,"md"),M=MODULOS.muestra;
+ let h=qHead("DPTO. DE ASEGURAMIENTO DE CALIDAD",M.cod,M.ver,"CALIDAD SAMITEX")+`<div style="background:#262626;color:#fff;font-weight:bold;font-size:11pt;text-align:center;padding:1.2mm;margin-top:1.5mm">${Q(M.t)}</div><div class="q-gap"></div>`;
+ h+=`<table class="q-inf"><tr><td class="q-k" style="width:15%">CANAL COMERCIAL:</td><td colspan="3" style="text-align:left">${["I.PRIV.","I.PUB.","EXP.","OTROS"].map(o=>`<span style="border:1px solid #000;padding:.5mm 2mm;margin-right:1mm;${c.canal===o?"background:#000;color:#fff;":""}font-weight:bold">${o}</span>`).join("")}</td><td class="q-k">TIPO DE MUESTRA:</td><td class="q-b">LICITACIÓN ${qBox(c.tipo==="LICITACIÓN")} PRODUCCIÓN ${qBox(c.tipo==="PRODUCCIÓN")}</td></tr>
+  <tr><td class="q-k">CLIENTE:</td><td class="q-v">${Q(c.cli)}</td><td class="q-k" style="width:7%">O/C:</td><td class="q-v">${Q(c.oc)}</td><td class="q-k">ORIGEN:</td><td class="q-b">PLANTA ${qBox(c.org==="PLANTA")} EXTERNO ${qBox(c.org==="EXTERNO")}</td></tr>
+  <tr><td class="q-k">DESCRIPCIÓN:</td><td class="q-v">${Q(c.desc)}</td><td class="q-k">COLOR:</td><td class="q-v">${Q(c.color)}</td><td class="q-k">ESTACIÓN:</td><td class="q-b">VERANO ${qBox(c.est==="VERANO")} INVIERNO ${qBox(c.est==="INVIERNO")}</td></tr>
+  <tr><td class="q-k">ARTÍCULO:</td><td class="q-v">${Q(c.art)}</td><td class="q-k">FECHA:</td><td class="q-v">${dmy(c.fecha)}</td><td class="q-k">AUDITOR:</td><td class="q-v">${Q(r.aud)}</td></tr></table><div class="q-gap"></div>`;
+ h+=`<table style="font-size:7pt"><colgroup><col style="width:27%"><col style="width:13%"><col style="width:10%"><col style="width:8%"><col style="width:8%"><col></colgroup><tr>${"DESCRIPCIÓN|BASES|MUESTRA +/-|CORR.|NO CORR.|OBSERVACIONES".split("|").map(x=>`<th style="background:#262626;color:#fff">${x}</th>`).join("")}</tr>${Array.from({length:19},(_,i)=>{const x=E[i]||{};return`<tr style="height:4.5mm"><td>${Q(x.desc)}</td><td>${Q(x.base)}</td><td>${Q(x.mue)}</td><td class="q-b">${x.est==="C"?"X":""}</td><td class="q-b">${x.est==="NC"?"X":""}</td><td>${Q(x.obs)}</td></tr>`}).join("")}</table>`;
+ h+=`<div style="background:#262626;color:#fff;font-weight:bold;font-size:9pt;text-align:center;padding:1mm;margin-top:2mm">REPORTE DE MEDIDAS</div><table style="font-size:7pt;width:70%;margin:1.5mm 0 0 5%"><colgroup><col style="width:36%"><col style="width:12%"><col style="width:15%"><col style="width:17%"><col></colgroup><tr><th style="background:#262626;color:#fff">ENTALLE:</th><td>${Q(f.c.ent)}</td><th style="background:#262626;color:#fff">TALLA:</th><td colspan="2">${Q(f.c.talla)}</td></tr><tr>${"DESCRIPCIÓN|TOL +/-|BASE|PRENDA|DIFERENCIA".split("|").map(x=>`<th style="background:#262626;color:#fff">${x}</th>`).join("")}</tr>${Array.from({length:9},(_,i)=>{const x=D[i]||{};return`<tr style="height:4.3mm"><td>${Q(x.desc)}</td><td>${Q(x.tol)}</td><td>${Q(x.base)}</td><td>${Q(x.pre)}</td><td class="q-b">${Q(x.dif)}</td></tr>`}).join("")}</table>`;
+ h+=`<div class="q-b" style="font-size:8pt;margin-top:3mm">OBSERVACIONES:</div><table style="font-size:7pt">${Array.from({length:3},(_,i)=>`<tr style="height:5.5mm"><td class="q-l" style="border-left:0;border-right:0">${Q((f.obs||{})[i]||"")}</td></tr>`).join("")}</table>`;
+ h+=`<table class="q-nb" style="margin-top:3mm;font-size:7.5pt"><tr><td class="q-b">APROBADO ${qBox(r.res==="APROBADO")}</td><td class="q-b">RECHAZADO ${qBox(r.res==="RECHAZADO")}</td><td class="q-b">APROBADO CON OBSERVACIÓN ${qBox(r.res==="APROBADO CON OBSERVACIÓN")}</td></tr></table>`;
+ h+=qSig([["AUDITOR","A",r.aud],["ANALISTA DE CALIDAD","T"],["JEFE DE ASEG. DE LA CALIDAD","VB"]],im,qVB(r));
+ return[pagina(h)]}
+
+/* ---- AUDITORÍA FINAL (SA-AC-PR-05.01) ---- */
+function afDer(r){const p=aql(r.lote),s={may:0,men:0};Object.values(r.d||{}).forEach(x=>{s.may+=x.M||0;s.men+=x.m||0});const mue=Number(r.mue)||(p?p.n:0),def=s.may+s.men;
+  const prR=Object.entries(r.pr||{}).filter(([,v])=>v==="R").length;return{...r,may:s.may,men:s.men,def,mue,acM:p?p.acM:"",reM:p?p.reM:"",acm:p?p.acm:"",rem:p?p.rem:"",fallas:mue?Math.round(def/mue*10000)/100:0,rej:(p&&(s.may>=p.reM||s.men>=p.rem))||prR?1:0}}
+const AFCSS=`.q-af td,.q-af th{font-size:5.2pt;height:2.16mm;line-height:2.05mm;padding:0 .6mm}.q .q-inf td{font-size:7.5pt;height:4.8mm}.q-af .q-gt{background:#d9d9d9;font-size:6.6pt;height:3mm;font-weight:bold}.q-af th{font-size:4.8pt;background:#f0f0f0}.q-af .q-cd{font-size:5pt}.q-af .q-dn{font-size:4.7pt}.q-af .q-mm{font-size:6pt;font-weight:bold}`;
+function pdfAF(r0,im){const r=afDer(r0),D=r.d||{},G={};FCAT.def.forEach(g=>G[g.k]=g.items);const cs=G.CS,i43=cs.findIndex(x=>x[0]==="CS43")+1;
+ const known=new Set(FCAT.def.flatMap(g=>g.items.map(x=>x[0]))),EX={};Object.keys(D).forEach(c=>{if(!known.has(c)){const k=c.slice(0,2).toUpperCase();(EX[k]=EX[k]||[]).push(c)}});
+ const V=c=>{const x=D[c]||{},g=x.M||x.m?' style="background:#fff3c4"':"";return`<td class="q-mm"${g}>${x.M||""}</td><td class="q-mm"${g}>${x.m||""}</td>`};
+ const X=(k,i)=>{const c=(EX[k]||[])[i];return c?`<tr><td class="q-cd">${Q(c)}</td><td class="q-dn">${Q((r.nombres||{})[c]||"")}</td>${V(c)}</tr>`:`<tr><td class="q-cd">${k}__</td><td></td><td></td><td></td></tr>`};
+ const BLK=(t,items,k,bl)=>`<table class="q-af" style="margin-bottom:.8mm"><colgroup><col style="width:7.5mm"><col><col style="width:9mm"><col style="width:9mm"></colgroup><tr><th colspan="4" class="q-gt">${t}</th></tr><tr><th>COD</th><th>DEFECTO</th><th>MAYOR</th><th>MENOR</th></tr>${items.map(([c,n])=>`<tr><td class="q-cd">${c}</td><td class="q-dn">${Q(n)}</td>${V(c)}</tr>`).join("")}${Array.from({length:bl},(_,i)=>X(k,i)).join("")}</table>`;
+ const P=c=>{const v=(r.pr||{})[c];return v==="A"?"APROBADO":v==="R"?'<span style="color:#c00">RECHAZADO</span>':""};
+ const PRB=`<table class="q-af" style="margin-bottom:.8mm"><colgroup><col style="width:7.5mm"><col><col style="width:15mm"></colgroup><tr><th colspan="3" class="q-gt">PRUEBAS TEXTILES (PR)</th></tr><tr><th>COD</th><th>DEFECTO</th><th>APROB/RECHA</th></tr>${FCAT.pr.map(([c,n])=>`<tr><td class="q-cd">${c}</td><td class="q-dn">${Q(n)}</td><td class="q-mm" style="font-size:5pt">${P(c)}</td></tr>`).join("")}</table>`;
+ const ck=r.ck||{},M=MODULOS.af;
+ let h=qHead("REPORTE DE AUDITORIA FINAL",M.cod,M.ver);
+ h+=`<table class="q-nb" style="margin:2mm 0 1.5mm;font-size:6.8pt;font-weight:bold"><tr><td>PLANTA${qBox(r.proc==="PLANTA")}SERVICIO${qBox(r.proc!=="PLANTA")}</td><td>AUD. FINAL${qBox(r.tipo!=="REAUDITORIA")}REAUDITORIA${qBox(r.tipo==="REAUDITORIA")}</td><td>COSTURA${qBox(r.op==="COSTURA")}ACABADO${qBox(r.op==="ACABADO")}</td></tr></table>`;
+ h+=qInf([[["CLIENTE:",r.cli,10],["OF / OC:",r.of,9],["FECHA:",dmy(r.fecha),8]],[["PROVEEDOR:",r.tal,10],["ARTICULO:",r.art,9],["AUDITOR:",r.aud,8]],[["DESCRIPCIÓN:",[r.lin,r.desc].filter(Boolean).join(" · "),10],["COLOR:",r.color,9],["FECHA:","",8]]]);
+ const plan=`<div style="text-align:center;font-weight:bold;font-size:6.4pt;letter-spacing:.1em;margin-top:1.5mm">PLAN DE MUESTREO : AQL 2.5 ESTÁNDAR.</div><table style="width:74%;margin:.8mm auto 0;font-size:6pt"><colgroup><col style="width:56%"><col></colgroup>${[["LOTE:",r.lote],["MUESTRA:",r.mue],["DEF. MAYORES:",r.may],["DEF. MENORES:",r.men],["TOTAL DEFECTOS:",r.def],["% FALLAS:",r.fallas+"%"]].map(([k,v])=>`<tr style="height:3.4mm"><td class="q-r q-b" style="border-right:0">${k}</td><td class="q-b" style="font-size:7pt">${Q(v)}</td></tr>`).join("")}</table><div style="text-align:center;font-size:5.6pt;margin-top:.6mm">Mayor 2.5 Ac/Re: ${r.acM}/${r.reM} · Menor 4.0 Ac/Re: ${r.acm}/${r.rem}</div>
+  <table style="width:84%;margin:1.2mm auto 0;font-size:5.6pt"><colgroup><col style="width:7%"><col><col style="width:10%"><col style="width:10%"><col style="width:12%"></colgroup><tr><td colspan="2" class="q-b" style="border:0">CHECKLIST</td><td style="border:0" class="q-b">☑</td><td style="border:0" class="q-b">☒</td><td style="border:0" class="q-b">OBS</td></tr>${CHECK.map((n,i)=>{const v=ck[i];return`<tr style="height:3mm"><td>${i+1}</td><td>${Q(n)}:</td><td class="q-b">${v==="OK"?"X":""}</td><td class="q-b">${v==="X"?"X":""}</td><td class="q-b">${v==="OBS"?"X":""}</td></tr>`}).join("")}</table>
+  <table style="width:84%;margin:1.6mm auto 0;font-size:7pt"><colgroup><col><col style="width:5%"><col style="width:22%"></colgroup><tr style="height:4mm"><td class="q-b">APROBADO</td><td style="border:0"></td><td class="q-b" style="font-size:9pt">${r.rej?"":"X"}</td></tr><tr style="height:4mm"><td class="q-b">RECHAZADO</td><td style="border:0"></td><td class="q-b" style="font-size:9pt">${r.rej?"X":""}</td></tr></table>`;
+ h+=`<table class="q-nb" style="margin-top:1.5mm"><colgroup><col style="width:32%"><col style="width:34%"><col style="width:34%"></colgroup><tr><td style="vertical-align:top;padding:0 .8mm">${BLK("MATERIAL TELA (MT)",G.MT,"MT",2)+BLK("AVIOS (AV)",G.AV,"AV",2)+plan}</td>
+  <td style="vertical-align:top;padding:0 .8mm">${BLK("COSTURA (CS)",cs.slice(0,i43),"CS",0)+BLK("ACABADOS (AC)",G.AC,"AC",2)+BLK("LAVANDERIA (LV)",G.LV,"LV",0)}</td>
+  <td style="vertical-align:top;padding:0 .8mm">${BLK("COSTURA (CS)",cs.slice(i43),"CS",2)+BLK("LOGOS (LG)",G.LG,"LG",2)+PRB+BLK("CONFORMIDAD FICHA TEC. (FT)",G.FT,"FT",0)}</td></tr></table>`;
+ const ob=r.obs||[];h+=`<table class="q-nb" style="margin-top:1mm"><colgroup><col style="width:68%"><col></colgroup><tr><td style="vertical-align:top;padding:0"><table style="font-size:6.4pt"><colgroup><col style="width:8mm"><col></colgroup><tr><th></th><th class="q-l">OBSERVACIÓN:</th></tr>${Array.from({length:6},(_,i)=>`<tr style="height:3.1mm"><td>${i+1}</td><td>${Q((ob[i]||{}).t)}</td></tr>`).join("")}</table></td>
+  <td style="vertical-align:top;padding:0 0 0 2mm"><table style="font-size:6.4pt"><tr><th>REQ. FICHA TECNICA</th><th>PRENDA FÍSICA</th></tr>${Array.from({length:6},(_,i)=>`<tr style="height:3.1mm"><td>${Q((ob[i]||{}).ft)}</td><td>${Q((ob[i]||{}).pf)}</td></tr>`).join("")}</table></td></tr></table>`;
+ h+=qSig([["AUDITOR DE CALIDAD","A",r.aud],["TALLER","T",r.talResp||r.tal],["JEFE DE CALIDAD/GER. DE PRODUCCIÓN","VB"]],im,qVB(r));
+ const pg=[pagina(h)];if(im.fotos.length)pg.push(pagina(qFotos(r,im,"FOTOS DEL DEFECTO · OF "+(r.of||""))));return pg}
+/* ---- arma el PDF: cada página se dibuja a tamaño A4 y se guarda como imagen ---- */
+function paginasDe(r,im){const m=r.mod||"af";return m==="af"?pdfAF(r,im):m==="telas"?pdfTelas(r,im):m==="avios"?pdfAvios(r,im):m==="corte"?pdfCorte(r,im):m==="segundas"?pdfSegundas(r,im):pdfMuestra(r,im)}
+async function pdfDe(r,im){if(!window.html2canvas||!window.jspdf)throw new Error("faltan las librerías del PDF; abre la app una vez con internet");
+  const land=!!MODULOS[r.mod||"af"].land,W=land?297:210,H=land?210:297,pages=paginasDe(r,im.fotos?im:{...im,fotos:[]});
+  const host=document.createElement("div");host.style.cssText=`position:fixed;left:-20000px;top:0;width:${W}mm;background:#fff;z-index:-1`;document.body.appendChild(host);
+  const doc=new jspdf.jsPDF({orientation:land?"l":"p",unit:"mm",format:"a4",compress:true});
+  try{for(let i=0;i<pages.length;i++){host.innerHTML=`<style>${QCSS}${AFCSS}</style><div style="width:${W}mm;min-height:${H}mm;background:#fff">${pages[i]}</div>`;
+      await Promise.all([...host.querySelectorAll("img")].map(g=>g.complete?0:new Promise(ok=>{g.onload=g.onerror=ok})));
+      const cv=await html2canvas(host.lastElementChild,{scale:2,backgroundColor:"#ffffff",logging:false,useCORS:true});
+      if(i)doc.addPage("a4",land?"l":"p");const k=Math.min(1,(H/W)/(cv.height/cv.width)),w=W*k,h=w*cv.height/cv.width;doc.addImage(cv.toDataURL("image/jpeg",.84),"JPEG",(W-w)/2,0,w,Math.min(H,h))}}
+  finally{host.remove()}
+  return doc.output("datauristring").split(",")[1]}
+
+/* ---- listas de códigos para buscar defectos ---- */
+document.body.insertAdjacentHTML("beforeend",Object.entries(CATS).map(([k,v])=>`<datalist id="dl${k}">${v.map(([c,n])=>`<option value="${c}">${esc(n)}</option>`).join("")}</datalist>`).join(""));
+/* ---- abrir un formato desde Inicio ---- */
+function abrirModulo(id){if(!MODULOS[id])return false;
+  if(!puedeE(id)){if(puedeL(id)){abrirLista(id);return true}toast("No tienes acceso a este formato. Pide acceso a la jefatura de calidad.");return true}
+  if(id==="af"){go("form");return true}abrirMF(id);return true}
+/* ---- reportes de un formato (solo lectura) ---- */
+let VER=[];
+async function abrirLista(mod){S.verMod=mod;go("ver");$("verTitle").textContent=MODULOS[mod].n;$("verSub").textContent="Cargando…";$("verList").innerHTML="";
+  try{const r=S.admin?{ok:true,rows:(await admin("adminReportes")).filter(x=>(x.mod||"af")===mod)}:await call("verModulo",S.token,mod);
+    if(!r.ok){$("verSub").textContent=r.msg;return}VER=r.rows||[];renderLista()}catch(x){$("verSub").textContent="Sin conexión. Inténtalo otra vez."}}
+function resumen(r){const m=r.mod||"af";if(m==="af")return`OF ${r.of||"—"} · ${r.art||"—"} · ${title(r.cli)} · ${title(r.tal||r.proc)}`;
+  const c=(r.f&&r.f.c)||{};return[m==="corte"?title(CORTE[r.sub||"cam"].t):"",c.cli||c.prov,c.of||c.oc||c.art||c.gr,c.lin].filter(Boolean).map(x=>title(String(x))).join(" · ")||"—"}
+function renderLista(){const q=NORM($("verQ").value),T=VER.filter(r=>!q||NORM(JSON.stringify(r.cab||[])+" "+resumen(r)+" "+r.aud).includes(q));
+  $("verSub").textContent=`${fmt(T.length)} reportes · solo lectura`;
+  $("verList").innerHTML=T.length?T.slice(0,200).map(r=>`<article class="item${r.rej?" rej":""}"><div class="t"><b>${esc(resumen(r))}</b><span class="pill ${r.rej?"bad":"ok"}">${esc(title(r.res||(r.rej?"Rechazado":"Aprobado")))}</span></div>
+    <div class="m">${dmy(r.fecha)} · Auditor ${esc(title(r.aud))}${r.vb?` · V°B° ${dt(r.vb)}`:""}</div><div class="acts"><button type="button" class="btn gold sm" data-vpdf="${esc(r.id)}">⬇ PDF</button></div></article>`).join(""):`<div class="empty">Aún no hay reportes de este formato.</div>`}
+$("verQ").oninput=()=>renderLista();
+$("verList").addEventListener("click",e=>{const b=e.target.closest("[data-vpdf]");if(b)bajarPdf(b.dataset.vpdf,b)});
+$("verRefresh").onclick=()=>abrirLista(S.verMod);
+/* ---- V°B° con el PDF del formato armado otra vez ---- */
+async function darVB(r,b){b.disabled=true;b.textContent="Armando PDF…";
+  try{const srv=await admin("imagenes",r.id),im={firmaA:srv.firmaA||"",firmaT:srv.firmaT||"",fotos:(srv.fotos||[]).map(x=>x.src).filter(Boolean)};
+    const pdf=await pdfDe({...r,vb:Date.now()},im);b.textContent="Registrando…";const x=await admin("adminVB",r.id,pdf);if(x.ok){toast("Visto bueno registrado");cargarHist()}else{toast(x.msg);b.disabled=false;b.textContent="Dar V°B°"}}
+  catch(x){toast("No se pudo registrar el V°B°.");b.disabled=false;b.textContent="Dar V°B°"}}
+/* ---- permisos de cada auditor por formato (administradora) ---- */
+const PERM_OP=[["","Sin acceso"],["L","Solo lectura"],["E","Ingreso de datos"],["LE","Lectura e ingreso"]];
+function permCard(a){let p={af:"E"};try{if(a.PERMISOS)p=JSON.parse(a.PERMISOS)}catch(x){}
+  return`<details class="perm"><summary>Accesos por formato · ${MOD_IDS.filter(k=>p[k]).length} de ${MOD_IDS.length}</summary><div class="grid2" data-perm="${esc(a.DNI)}">${MOD_IDS.map(k=>`<label class="fld"><span>${esc(MODULOS[k].n)}</span><select data-pm="${k}">${PERM_OP.map(([v,t])=>`<option value="${v}"${(p[k]||"")===v?" selected":""}>${t}</option>`).join("")}</select></label>`).join("")}</div></details>`}
+$("teamList").addEventListener("change",async e=>{const s=e.target.closest("[data-pm]");if(!s)return;const g=s.closest("[data-perm]"),p={};g.querySelectorAll("[data-pm]").forEach(x=>{if(x.value)p[x.dataset.pm]=x.value});
+  try{const r=await admin("adminPermisos",g.dataset.perm,p);toast(r.ok?"Accesos guardados":r.msg);const a=TEAM.find(x=>x.DNI===g.dataset.perm);if(a&&r.ok){a.PERMISOS=JSON.stringify(r.permisos);const sm=g.parentElement.querySelector("summary");if(sm)sm.textContent=`Accesos por formato · ${Object.keys(r.permisos).length} de ${MOD_IDS.length}`}}catch(x){}});
 
 /* ================= inicio ================= */
 (async function init(){
