@@ -451,6 +451,7 @@ details.perm .grid2{margin-top:6px}
     </div>
     <div class="card"><h3>Tabla de muestreo de prendas</h3><p class="sub">Mayor: AQL 2.5 · Menor: AQL 4.0</p><div style="overflow-x:auto"><table id="aqlTbl" style="border-collapse:collapse;width:100%;font:500 13px var(--font-mono);min-width:320px"></table></div></div>
   </section>
+  <p class="sub" style="text-align:center;font-size:12px;margin:18px 0 4px;opacity:.85">App Calidad Samitex · desarrollada por <b>Karina Uscubilca Aguilar</b></p>
 </main>
 <nav class="tabs" aria-label="Secciones" hidden><div class="in" id="tabs" role="tablist"></div></nav>
 <div class="toast" id="toast" hidden role="status"></div>
@@ -1142,7 +1143,7 @@ function qSig(list,im,vb){return`<table class="q-sig" style="margin-top:auto"><t
 const qBox=b=>`<span class="q-box">${b?"X":""}</span>`;
 const qVB=r=>r.vb?new Date(r.vb).toLocaleString("es-PE",{dateStyle:"short",timeStyle:"short"}):"";
 function qFotos(r,im,titulo){return im.fotos.length?`<div class="q-b" style="font-size:11pt;margin-bottom:3mm">${Q(titulo)} · ${Q(MODULOS[r.mod].n)} · ${dmy(r.fecha)}</div><div style="display:flex;flex-wrap:wrap;gap:3mm">${im.fotos.map(s=>`<img src="${s}" style="width:90mm;max-height:120mm;object-fit:contain;border:1px solid #999">`).join("")}</div>`:""}
-function pagina(html,land){return`<div class="q" style="font-size:7pt;min-height:${land?210:297}mm">${html}</div>`}
+function pagina(html,land){return`<div class="q" style="font-size:7pt;min-height:${land?210:297}mm">${html}<div style="text-align:center;font-size:5.6pt;color:#555;margin-top:1.5mm">Formato digital desarrollado por ${Q(ELAB)} · Calidad Samitex</div></div>`}
 /* ---- TELAS ---- */
 function pdfTelas(r,im){const f=r.f,c=f.c,R=rowsDe(f,"rol"),P=f.p,n=25;
  const pr=(k,i,rq)=>{const x=P[k+i]||{};return(rq?`<td>${Q(x.req)}</td>`:"")+`<td>${Q(x.res)}</td><td class="q-b">${Q(x.ar)}</td>`};
