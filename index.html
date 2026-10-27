@@ -253,6 +253,19 @@ details.perm .grid2{margin-top:6px}
   <section id="v-home" class="view" hidden style="flex-direction:column;gap:14px">
     <div><h2 id="homeHi">Calidad Samitex</h2><p class="sub" id="homeSub">Control de calidad · elige el proceso</p></div>
     <div class="procs" id="procList"></div>
+    <div class="card" id="asisCard" hidden>
+      <div class="hd"><h3>Asistencia Auditoría Talleres</h3><span class="sub" id="asisHoy"></span></div>
+      <div class="list" id="asisMis"></div>
+      <span class="sub"><b>Jornada</b></span>
+      <div class="row" style="flex-wrap:nowrap"><button type="button" class="btn block" data-asis="INGRESO" id="asisIn">Ingreso</button><button type="button" class="btn ghost block" data-asis="SALIDA" id="asisOut">Salida</button></div>
+      <span class="sub"><b>Almuerzo</b></span>
+      <div class="row" style="flex-wrap:nowrap"><button type="button" class="btn ghost block" data-asis="ALMUERZO_SALIDA">Salida a almuerzo</button><button type="button" class="btn ghost block" data-asis="ALMUERZO_REGRESO">Regreso de almuerzo</button></div>
+      <span class="sub"><b>Talleres</b> <span id="asisEn"></span></span>
+      <label class="fld full"><span>Taller</span><input id="asisTaller" list="lTal" autocapitalize="characters" placeholder="Nombre del taller"></label>
+      <div class="row" style="flex-wrap:nowrap"><button type="button" class="btn ghost block" data-asis="TALLER_LLEGADA" id="asisLleg">Llegada a taller</button><button type="button" class="btn ghost block" data-asis="TALLER_SALIDA" id="asisSalT">Salida de taller</button></div>
+      <p class="sub" id="asisMsg">Cada marca toma una foto con la cámara frontal, tu ubicación y la hora. El ingreso después de las 8:30 a. m. queda como tardanza.</p>
+      <input type="file" id="asisFoto" accept="image/*" capture="user" hidden>
+    </div>
     <div class="card" id="corrCard" hidden><div class="hd"><h3>Correcciones autorizadas</h3><span class="sub">La jefatura de calidad te habilitó estos reportes</span></div><div class="list" id="corrList"></div></div>
     <div class="card" id="procAdm" hidden>
       <div class="hd"><h3>Procesos del menú</h3><span class="sub">Ordena con ↑ ↓ · lo ven todos los auditores</span></div>
@@ -404,6 +417,13 @@ details.perm .grid2{margin-top:6px}
       <div class="seg" role="group" aria-label="Estado"><button type="button" id="hiA" aria-pressed="true">Todas</button><button type="button" id="hiR" aria-pressed="false">Rechazadas</button></div>
     </div>
     <div class="list" id="hiList"></div>
+  </section>
+
+  <section id="v-asis" class="view" hidden style="flex-direction:column;gap:12px">
+    <div class="row" style="justify-content:space-between"><div><h2>Asistencia</h2><p class="sub" id="asSub">Ingreso puntual hasta las 8:30 a. m.</p></div><button type="button" class="btn ghost sm" id="asRefresh">Actualizar</button></div>
+    <div class="row" style="flex-wrap:nowrap"><button type="button" class="btn ghost sm" id="asPrev" aria-label="Día anterior">‹</button><input type="date" id="asFecha" aria-label="Fecha" style="flex:1;min-width:0"><button type="button" class="btn ghost sm" id="asNext" aria-label="Día siguiente">›</button></div>
+    <section class="kpis" id="asKpis"></section>
+    <div class="list" id="asList"></div>
   </section>
 
   <section id="v-time" class="view" hidden style="flex-direction:column;gap:12px">
@@ -682,7 +702,7 @@ $("f").addEventListener("submit",async e=>{e.preventDefault();const f=S.form,err
   if(!f.aud)miss.push("Auditor");
   if(miss.length){err.textContent="Completa: "+miss.join(", ")+".";err.hidden=false;return}
   if(!isSig(f.firmaA)&&!String(f.firmaA).startsWith("drive:")){err.textContent="Falta la firma del auditor.";err.hidden=false;return}
-  const p=payload(f),v=dictamen(f),bt=$("fSave");bt.disabled=true;bt.textContent="Armando PDF…";
+  const p=payload(f),v=dictamen(f),bt=$("fSave");bt.disabled=true;bt.textContent="Armando PDF…";p.rec.geo=S.editing&&S.editSrc?(S.editSrc.geo||null):await geoForm();
   try{const im=await imgsDe(f,S.editing?f.id:null);p.pdf=await pdfDe({...p.rec,vb:S.editing&&S.editSrc?S.editSrc.vb:null},im)}catch(x){bt.disabled=false;bt.textContent=S.editing?"Guardar corrección":"Guardar reporte";err.textContent="No se pudo armar el PDF: "+(x&&x.message||x);err.hidden=false;return}
   bt.textContent="Guardando…";
   const wasEdit=!!S.editing;let estado="ok",resp=null;
@@ -715,10 +735,10 @@ async function bajarPdf(id,btn){const t=btn&&btn.textContent;if(btn){btn.disable
   finally{if(btn){btn.disabled=false;btn.textContent=t}}}
 
 /* ================= pestañas ================= */
-const ICON={home:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',time:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/>',form:'<path d="M12 5v14M5 12h14"/>',dash:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',hist:'<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>',team:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/>'};
-const TLAB={home:"Inicio",form:"Auditoría",dash:"Tablero",hist:"Historial",time:"Tiempos",team:"Equipo"},HT={gate:"Ingreso",pend:"Ingreso",adm:"Administración",home:"Inicio",form:"Auditoría Final",dash:"Tablero",hist:"Historial",time:"Tiempos",team:"Equipo",mod:"Formato",ver:"Reportes"};
+const ICON={asis:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4M8 15l3 3 5-6"/>',home:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',time:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/>',form:'<path d="M12 5v14M5 12h14"/>',dash:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',hist:'<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>',team:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/>'};
+const TLAB={asis:"Asistencia",home:"Inicio",form:"Auditoría",dash:"Tablero",hist:"Historial",time:"Tiempos",team:"Equipo"},HT={asis:"Asistencia",gate:"Ingreso",pend:"Ingreso",adm:"Administración",home:"Inicio",form:"Auditoría Final",dash:"Tablero",hist:"Historial",time:"Tiempos",team:"Equipo",mod:"Formato",ver:"Reportes"};
 const histOk=()=>S.hasta>Date.now();
-function tabsFor(){if(["gate","pend","adm"].includes(S.tab))return[];return S.admin?["home","dash","hist","time","team"]:["home",...(puedeE("af")?["form"]:[]),...(histOk()?["hist"]:[])]}
+function tabsFor(){if(["gate","pend","adm"].includes(S.tab))return[];return S.admin?["home","dash","hist","asis","time","team"]:["home",...(puedeE("af")?["form"]:[]),...(histOk()?["hist"]:[])]}
 function renderTabs(){const t=tabsFor();if(!["gate","pend","adm","form","mod","ver"].includes(S.tab)&&!t.includes(S.tab))S.tab="home";
   $("tabs").innerHTML=t.length>1?t.map(k=>`<button type="button" role="tab" data-t="${k}" aria-selected="${S.tab===k}"><svg viewBox="0 0 24 24">${ICON[k]}</svg>${TLAB[k]}</button>`).join(""):"";
   document.querySelector("nav.tabs").hidden=t.length<2}
@@ -726,7 +746,7 @@ $("tabs").onclick=e=>{const b=e.target.closest("[data-t]");if(b)go(b.dataset.t)}
 function go(t,pop){if(!pop&&S.tab!==t&&(S.token||S.admin)&&!["gate","pend","adm"].includes(t))try{history.pushState({cs:t},"")}catch(x){}S.tab=t;document.querySelectorAll(".view").forEach(v=>{const on=v.id==="v-"+t;v.hidden=!on;v.style.display=on?"flex":"none"});
   $("hTitle").textContent=t==="form"&&S.editing?"Corregir reporte":HT[t];$("hSub").textContent=t==="form"?"Calidad Samitex · "+MODULOS.af.cod:"Calidad Samitex";renderTabs();
   if(t==="form")requestAnimationFrame(()=>{pads.sA.size();pads.sT.size();pads.sA.load(S.form.firmaA);pads.sT.load(S.form.firmaT)});
-  if(t==="home"){cargarProcs();cargarCorr()}if(t==="dash")cargarTablero();if(t==="hist")cargarHist();if(t==="team"){cargarTeam();cargarAdmins()}if(t==="time")cargarTiempos();scrollTo(0,0)}
+  if(t==="home"){cargarProcs();cargarCorr();cargarAsis()}if(t==="asis")cargarAsisAdm();if(t==="dash")cargarTablero();if(t==="hist")cargarHist();if(t==="team"){cargarTeam();cargarAdmins()}if(t==="time")cargarTiempos();scrollTo(0,0)}
 
 /* ================= ingreso de auditores ================= */
 ["gDni","sDni","rDni"].forEach(id=>$(id)&&$(id).addEventListener("input",e=>{e.target.value=e.target.value.replace(/\D/g,"").slice(0,8)}));
@@ -789,7 +809,7 @@ function renderHist(){if(S.tab!=="hist")return;const q=NORM($("hiQ").value);
     ${(r.mod||"af")!=="af"?`<div class="m">${dmy(r.fecha)} · Auditor ${esc(title(r.aud))}</div>`:`<div class="m">${dmy(r.fecha)} · ${esc(title(r.tipo||"Aud. final"))} · ${esc(title(r.op))} · ${esc(title(r.cli))} · ${esc(title(r.lin))} · ${esc(title(r.tal||r.proc))}</div>
     <div class="m">Auditor ${esc(title(r.aud))} · lote ${fmt(r.lote)} · muestra ${fmt(r.mue)} · ${fmt(r.may)} may. (≤${r.acM??"—"}) · ${fmt(r.men)} men. (≤${r.acm??"—"})</div>
     ${Object.keys(r.d||{}).length?`<div class="d">${Object.entries(r.d).map(([c,x])=>`${esc(c)} ${esc(title((r.nombres||{})[c]||""))} (${(x.M||0)+(x.m||0)})`).join(" · ")}</div>`:""}`}
-    <div class="m">${autPill(r)}${r.editado?`<span class="pill wait">corregido${r.corrPor?" por "+esc(title(r.corrPor)):""}</span> `:""}${r.vb?`<span class="pill ok">V°B° ${dt(r.vb)}</span> `:""}${(r.fotos||[]).length?`${r.fotos.length} foto${r.fotos.length>1?"s":""}`:""}</div>
+    <div class="m">${r.geo?`<a class="pill ok" style="text-decoration:none" target="_blank" rel="noopener" href="https://www.google.com/maps?q=${encodeURIComponent(r.geo.lat+","+r.geo.lng)}">Ver ubicación</a> `:""}${autPill(r)}${r.editado?`<span class="pill wait">corregido${r.corrPor?" por "+esc(title(r.corrPor)):""}</span> `:""}${r.vb?`<span class="pill ok">V°B° ${dt(r.vb)}</span> `:""}${(r.fotos||[]).length?`${r.fotos.length} foto${r.fotos.length>1?"s":""}`:""}</div>
     <div class="acts"><button type="button" class="btn gold sm" data-pdf="${esc(r.id)}">⬇ PDF</button>${puedoCorregir(r)?`<button type="button" class="btn ghost sm" data-ed="${esc(r.id)}">Corregir</button>`:""}${S.admin?autCtl(r):""}${S.admin&&!r.vb?`<button type="button" class="btn sm" data-vb="${esc(r.id)}">Dar V°B°</button>`:""}${S.admin&&r.pdfId?`<a class="btn ghost sm" style="text-decoration:none;display:inline-flex;align-items:center" target="_blank" rel="noopener" href="https://drive.google.com/file/d/${encodeURIComponent(r.pdfId)}/view">Abrir en Drive</a>`:""}${S.admin?`<button type="button" class="btn danger sm" data-del="${esc(r.id)}">Eliminar</button>`:""}</div>
   </article>`).join(""):`<div class="empty">${S.admin?"Todavía no hay reportes registrados desde la app.":"No tienes reportes de los últimos 60 días."}</div>`}
 $("hiQ").oninput=()=>renderHist();
@@ -1108,7 +1128,7 @@ $("mfForm").addEventListener("submit",async e=>{e.preventDefault();const f=S.mf,
   if(miss.length){err.textContent="Completa: "+miss.join(", ")+".";err.hidden=false;return}
   if(!isSig(f.firmaA)&&!String(f.firmaA).startsWith("drive:")){err.textContent="Falta la firma del auditor.";err.hidden=false;return}
   const bt=$("mfSave");bt.disabled=true;bt.textContent="Armando PDF…";const wasEdit=!!S.mfEdit;let estado="ok",resp=null;
-  try{const rec=mfRecord(f),im=await imgsDe(f,wasEdit?f.id:null);if(wasEdit&&S.mfSrc){rec.vb=S.mfSrc.vb||null}
+  try{const rec=mfRecord(f),im=await imgsDe(f,wasEdit?f.id:null);if(wasEdit&&S.mfSrc){rec.vb=S.mfSrc.vb||null}rec.geo=wasEdit&&S.mfSrc?(S.mfSrc.geo||null):await geoForm();
     const pdf=await pdfDe(rec,im);bt.textContent="Guardando…";
     const sig=s=>isSig(s)?s.split(",")[1]:"",p={rec,fotos:f.fotos.filter(x=>x.b64).map(x=>x.b64),firmas:{A:sig(f.firmaA),T:sig(f.firmaT)},pdf};
     try{resp=await call("guardarReporte",S.token,p.rec,p.fotos,p.firmas,p.pdf);
@@ -1310,6 +1330,67 @@ $("corrList").addEventListener("click",e=>{const a=e.target.closest("[data-ced]"
   if(a){const r=CORR.find(x=>x.id===a.dataset.ced);if(r){if((r.mod||"af")==="af")editRecord(r);else abrirMF(r.mod,r)}}});
 /* rol para todos los formatos de un auditor de una vez */
 $("teamList").addEventListener("change",e=>{const s=e.target.closest("[data-pmall]");if(!s||s.value==="-")return;const g=s.closest("[data-perm]");g.querySelectorAll("[data-pm]").forEach(x=>x.value=s.value);s.value="-";g.querySelector("[data-pm]").dispatchEvent(new Event("change",{bubbles:true}))});
+/* ---- v6: asistencia con foto, ubicación y hora (la hora la pone el servidor) ---- */
+function geoAhora(ms){return new Promise(res=>{if(!navigator.geolocation)return res(null);navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lng:p.coords.longitude,acc:Math.round(p.coords.accuracy),ts:Date.now()}),e=>res(e&&e.code===1?{denegado:1}:null),{enableHighAccuracy:true,timeout:ms||15000,maximumAge:60000})})}
+async function geoForm(){const g=await geoAhora(8000);return g&&!g.denegado?g:null}
+let ASIS={hoy:"",rows:[],hora:"08:30"},asisTipo=null;const ASCOLA="asis_cola";
+async function cargarAsis(){const c=$("asisCard");if(S.admin||!S.token){c.hidden=true;return}c.hidden=false;renderAsis();enviarAsis();
+  try{const r=await call("miAsistencia",S.token);if(r&&r.ok){ASIS=r;renderAsis()}}catch(x){}}
+const ASLAB={INGRESO:"Ingreso",SALIDA:"Salida",ALMUERZO_SALIDA:"Salida a almuerzo",ALMUERZO_REGRESO:"Regreso de almuerzo",TALLER_LLEGADA:"Llegada a taller",TALLER_SALIDA:"Salida de taller",TALLER_CAMBIO:"Cambio de taller"};
+const asMinA=h=>{const m=String(h||"").match(/^(\d{1,2}):(\d{2})/);return m?+m[1]*60+ +m[2]:NaN};
+function tallerActual(rows){let cur="";rows.slice().sort((a,b)=>asMinA(a.hora)-asMinA(b.hora)).forEach(r=>{if(r.tipo==="TALLER_LLEGADA")cur=r.taller;else if(r.tipo==="TALLER_CAMBIO")cur=String(r.taller).split(" → ").pop();else if(r.tipo==="TALLER_SALIDA"||r.tipo==="SALIDA")cur=""});return cur}
+function asisFilas(){const pend=ls.get(ASCOLA,[]);return[...(ASIS.rows||[]),...pend.map(m=>({tipo:m.tipo,taller:m.tipo==="TALLER_CAMBIO"?(m.tallerAnt||"")+" → "+m.taller:m.taller||"",hora:new Date(m.tLocal).toTimeString().slice(0,5),sinEnviar:1}))]}
+function renderAsis(){const rows=asisFilas().sort((a,b)=>asMinA(a.hora)-asMinA(b.hora)),cur=tallerActual(rows);
+  $("asisHoy").textContent=dmy(ASIS.hoy||today());
+  $("asisMis").innerHTML=rows.length?rows.map(r=>`<div class="trow"><span class="nm"><b>${ASLAB[r.tipo]||r.tipo}</b> · ${esc(r.hora)}${r.taller?` · ${esc(title(r.taller))}`:""}</span>${r.sinEnviar?`<span class="pill wait">sin señal · se enviará</span>`:r.estado==="TARDE"?`<span class="pill bad">Tarde</span>`:r.estado?`<span class="pill ok">A tiempo</span>`:`<span class="pill ok">Registrada</span>`}</div>`).join(""):`<p class="sub">Aún no marcas hoy.</p>`;
+  $("asisEn").textContent=cur?`· estás en ${title(cur)}`:"";$("asisLleg").textContent=cur?"Cambiar a este taller":"Llegada a taller";$("asisSalT").disabled=!cur}
+let asisTaller="",asisAnt="";
+function asisMarcar(tipo){const cur=tallerActual(asisFilas()),t=up($("asisTaller").value);asisAnt="";
+  if(tipo==="TALLER_LLEGADA"){if(!t){toast("Escribe el nombre del taller.");$("asisTaller").focus();return}if(cur){if(cur===t){toast("Ya estás marcado en ese taller.");return}tipo="TALLER_CAMBIO";asisAnt=cur}}
+  asisTaller=tipo==="TALLER_SALIDA"?cur:(tipo.indexOf("TALLER")===0?t:"");
+  asisTipo=tipo;$("asisFoto").value="";$("asisFoto").click()}
+$("asisCard").addEventListener("click",e=>{const b=e.target.closest("[data-asis]");if(b)asisMarcar(b.dataset.asis)});
+$("asisFoto").onchange=async e=>{const file=e.target.files[0];if(!file||!asisTipo)return;const msg=$("asisMsg"),bs=[...$("asisCard").querySelectorAll("[data-asis]")];bs.forEach(b=>b.disabled=true);msg.className="note";msg.textContent="Obteniendo tu ubicación…";
+  try{const g=await geoAhora(20000);
+    if(!g||g.denegado){msg.className="note err";msg.textContent=g&&g.denegado?"Para marcar asistencia debes permitir la ubicación (GPS) a la app en tu celular.":"No se pudo obtener la ubicación. Activa el GPS y vuelve a marcar.";return}
+    msg.textContent="Guardando…";const m={id:newId(),tipo:asisTipo,taller:asisTaller,tallerAnt:asisAnt,foto:await shrink(file),lat:g.lat,lng:g.lng,acc:g.acc,tLocal:Date.now()};
+    try{const r=await call("marcarAsistencia",S.token,m);if(!r.ok){msg.className="note err";msg.textContent=r.msg||"No se pudo marcar.";return}
+      msg.className="note "+(r.estado==="TARDE"?"err":"ok");msg.textContent=`${ASLAB[r.tipo]||r.tipo}${r.taller?" ("+title(r.taller)+")":""}: registrado a las ${r.hora}${r.estado==="TARDE"?` · TARDE (después de las ${ASIS.hora||"08:30"})`:""}.`;toast(msg.textContent);cargarAsis()}
+    catch(x){if(netErr(x)){ls.set(ASCOLA,[...ls.get(ASCOLA,[]),{...m,sinSenal:true}]);msg.className="note";msg.textContent="Sin señal: tu marca quedó guardada en el celular con la hora del celular y se enviará sola al volver la conexión.";renderAsis()}else{msg.className="note err";msg.textContent="No se pudo marcar. Inténtalo otra vez."}}}
+  catch(x){msg.className="note err";msg.textContent="No se pudo leer la foto. Inténtalo otra vez."}finally{bs.forEach(b=>b.disabled=false);asisTipo=null;renderAsis()}};
+let asisEnv=false;
+async function enviarAsis(){const q=ls.get(ASCOLA,[]);if(asisEnv||!q.length||!S.token||S.admin)return;asisEnv=true;let ok=0;
+  try{for(const m of q){try{const r=await call("marcarAsistencia",S.token,m);if(r.sesion)break;ls.set(ASCOLA,ls.get(ASCOLA,[]).filter(x=>x.id!==m.id));if(r.ok)ok++}catch(x){break}}}finally{asisEnv=false}
+  if(ok){toast("Asistencia enviada");try{const r=await call("miAsistencia",S.token);if(r&&r.ok){ASIS=r;renderAsis()}}catch(x){}}}
+addEventListener("online",()=>enviarAsis());setInterval(()=>enviarAsis(),60000);
+/* administradora: asistencia por día */
+let ASD=[];
+const asisFecha=()=>$("asFecha").value||today();
+const asMin=h=>{const m=String(h||"").match(/^(\d{1,2}):(\d{2})/);return m?+m[1]*60+ +m[2]:NaN};
+async function cargarAsisAdm(){const f=asisFecha();$("asFecha").value=f;$("asSub").textContent="Cargando…";
+  try{const r=await admin("adminAsistencia",f,f);ASD=r.rows||[];if(r.hora)ASIS.hora=r.hora;renderAsisAdm()}catch(x){$("asSub").textContent="Sin conexión. Inténtalo otra vez."}}
+function renderAsisAdm(){const f=asisFecha(),by={};ASD.forEach(r=>{const x=by[r.dni]=by[r.dni]||{aud:r.aud,ing:[],sal:[],all:[]};x.all.push(r);if(r.tipo==="INGRESO")x.ing.push(r);if(r.tipo==="SALIDA")x.sal.push(r)});
+  const L=Object.values(by).sort((a,b)=>String(a.aud).localeCompare(String(b.aud)));L.forEach(x=>{x.ing.sort((a,b)=>asMin(a.hora)-asMin(b.hora));x.sal.sort((a,b)=>asMin(a.hora)-asMin(b.hora));x.all.sort((a,b)=>asMin(a.hora)-asMin(b.hora))});
+  const tarde=L.filter(x=>x.ing[0]&&x.ing[0].estado==="TARDE").length;
+  $("asSub").textContent=`${dmy(f)} · ingreso puntual hasta las ${ASIS.hora||"08:30"} a. m.`;
+  $("asKpis").innerHTML=[["Marcaron ingreso",L.filter(x=>x.ing.length).length,"auditores"],["Tardanzas",tarde,"después de las "+(ASIS.hora||"08:30")],["Marcaron salida",L.filter(x=>x.sal.length).length,"auditores"]].map(([l,v,s2],i)=>`<div class="kpi${i===1&&v?" rej":""}"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s2}</div></div>`).join("");
+  const mk=r=>`<div class="trow"><span class="nm"><b>${esc(r.hora)} · ${ASLAB[r.tipo]||r.tipo}</b>${r.taller?` · ${esc(title(r.taller))}`:""}${r.estado==="TARDE"?` <span class="pill bad">TARDE</span>`:r.estado?` <span class="pill ok">A tiempo</span>`:""}${r.sin?` <span class="pill wait">sin señal</span>`:""}</span><span class="row" style="gap:6px;flex-wrap:nowrap"><a class="btn ghost sm" style="text-decoration:none" target="_blank" rel="noopener" href="${esc(r.mapa)}">Mapa</a><button type="button" class="btn ghost sm" data-afoto="${esc(r.foto)}">Foto</button></span></div>`;
+  const hm=m=>m>0?`${Math.floor(m/60)} h ${m%60} min`:"0 min";
+  const hrs=x=>{const a=x.ing[0],b=x.sal[x.sal.length-1];if(!a||!b)return"";const m=asMin(b.hora)-asMin(a.hora);return m>0?`${hm(m)} de jornada`:""};
+  const resum=x=>{const T=x.all,out=[];let ali=null,alm=0,cur="",ini=0;const tl={};
+    T.forEach(r=>{const m=asMin(r.hora);if(r.tipo==="ALMUERZO_SALIDA")ali=m;if(r.tipo==="ALMUERZO_REGRESO"&&ali!=null){alm+=m-ali;ali=null}
+      const cierra=()=>{if(cur){tl[cur]=(tl[cur]||0)+Math.max(0,m-ini);cur=""}};
+      if(r.tipo==="TALLER_LLEGADA"){cierra();cur=r.taller;ini=m}else if(r.tipo==="TALLER_CAMBIO"){cierra();cur=String(r.taller).split(" → ").pop();ini=m}else if(r.tipo==="TALLER_SALIDA"||r.tipo==="SALIDA")cierra()});
+    if(alm)out.push(`Almuerzo: ${hm(alm)}`);else if(ali!=null)out.push("Almuerzo sin regreso marcado");
+    const k=Object.keys(tl);if(k.length)out.push("Talleres: "+k.map(t=>`${title(t)} ${hm(tl[t])}`).join(" · "));if(cur)out.push(`Aún en ${title(cur)} (sin salida)`);
+    return out.length?`<p class="sub" style="margin:4px 0 0">${esc(out.join(" | "))}</p>`:""};
+  $("asList").innerHTML=L.length?L.map(x=>{const t=x.ing[0]&&x.ing[0].estado==="TARDE";
+    return`<article class="item${t?" rej":""}"><div class="t"><b>${esc(title(x.aud))}</b><span class="sub">${x.ing.length?"":"sin ingreso · "}${x.sal.length?hrs(x):"sin salida"}</span></div>${resum(x)}${x.all.map(mk).join("")}<div class="afoto"></div></article>`}).join(""):`<div class="empty">Nadie marcó asistencia este día.</div>`}
+$("asFecha").onchange=()=>cargarAsisAdm();
+const asMover=n=>{const d=new Date(asisFecha()+"T12:00:00");d.setDate(d.getDate()+n);$("asFecha").value=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");cargarAsisAdm()};
+$("asPrev").onclick=()=>asMover(-1);$("asNext").onclick=()=>asMover(1);$("asRefresh").onclick=()=>cargarAsisAdm();
+$("asList").addEventListener("click",async e=>{const b=e.target.closest("[data-afoto]");if(!b)return;const box=b.closest("article").querySelector(".afoto");if(box.dataset.id===b.dataset.afoto){box.innerHTML="";box.dataset.id="";return}
+  b.disabled=true;try{const r=await admin("adminFotoAsis",b.dataset.afoto);if(r.ok){box.dataset.id=b.dataset.afoto;box.innerHTML=`<img src="${r.src}" alt="Foto de asistencia" style="max-width:100%;max-height:360px;border-radius:8px;margin-top:6px">`}else toast(r.msg)}catch(x){}finally{b.disabled=false}});
 /* ---- botón Atrás del celular: vuelve a la pantalla anterior dentro de la app (no la cierra ni borra lo escrito) ---- */
 try{history.replaceState({cs:"root"},"")}catch(x){}
 let atrasT=0;
