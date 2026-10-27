@@ -115,6 +115,9 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 .tri{display:inline-flex;border:1px solid var(--base);border-radius:8px;overflow:hidden}
 .tri button{font:600 12px var(--font-body);border:0;background:transparent;color:var(--fg2);padding:7px 9px;cursor:pointer;min-width:42px;min-height:36px}
 .tri button+button{border-left:1px solid var(--base)}
+.tri button[aria-pressed=true]{background:var(--accent);color:#fff}
+.tri button[aria-pressed=true][data-v=C]{background:var(--good);color:#fff}
+.tri button[aria-pressed=true][data-v=NC]{background:var(--crit);color:#fff}
 .tri button[aria-pressed=true][data-v=A],.tri button[aria-pressed=true][data-v=OK]{background:var(--good);color:#fff}
 .tri button[aria-pressed=true][data-v=R],.tri button[aria-pressed=true][data-v=X]{background:var(--crit);color:#fff}
 .tri button[aria-pressed=true][data-v=NA],.tri button[aria-pressed=true][data-v=OBS]{background:var(--gold);color:#0b1030}
