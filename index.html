@@ -132,6 +132,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 .ph .st{position:absolute;inset:auto 0 0 0;font:500 10px var(--font-mono);background:#0b1030b3;color:#fff;padding:2px 4px;text-align:center}
 .photos.cap{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}.phw{display:flex;flex-direction:column;gap:4px;min-width:0}.phw input{font-size:12px;padding:6px 8px;min-height:0}
 .addph{aspect-ratio:1;border:1.5px dashed var(--base);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--fg2);font:600 12px var(--font-body);cursor:pointer;background:transparent}
+#admCard{scroll-margin-top:96px}
 .okdlg{position:fixed;inset:0;background:#0b103099;display:flex;align-items:center;justify-content:center;z-index:60;padding:16px}.okdlg[hidden]{display:none}.okbox{background:var(--surface);border-radius:14px;padding:22px 20px;max-width:360px;width:100%;text-align:center;display:flex;flex-direction:column;gap:10px}.okic{width:60px;height:60px;border-radius:50%;background:var(--good);color:#fff;font-size:32px;line-height:60px;margin:0 auto}.okic.wait{background:var(--gold);color:#0b1030}
 .addph svg{width:26px;height:26px;stroke:currentColor;fill:none;stroke-width:1.8}
 .sig{display:flex;flex-direction:column;gap:6px}
@@ -273,6 +274,7 @@ details.perm .grid2{margin-top:6px}
       <input type="file" id="asisFoto" accept="image/*" capture="user" hidden>
     </div>
     <div class="card" id="corrCard" hidden><div class="hd"><h3>Correcciones autorizadas</h3><span class="sub">La jefatura de calidad te habilitó estos reportes</span></div><div class="list" id="corrList"></div></div>
+    <div class="card" id="admQuick" hidden><div class="hd"><h3>Administradoras</h3><span class="sub">Solo administradora principal</span></div><p class="sub">Crea otra administradora (ADM) con su propio nombre y código.</p><button type="button" class="btn" id="admQuickBtn">➕ Crear otra administradora</button></div>
     <div class="card" id="procAdm" hidden>
       <div class="hd"><h3>Procesos del menú</h3><span class="sub">Ordena con ↑ ↓ · lo ven todos los auditores</span></div>
       <div class="list" id="procEd"></div>
@@ -473,9 +475,15 @@ details.perm .grid2{margin-top:6px}
       <form id="admForm" class="grid2" novalidate hidden>
         <label class="fld full"><span>Nombre de la nueva administradora</span><input id="admNom" autocapitalize="words"></label>
         <label class="fld"><span>Su código (6 a 12 dígitos)</span><input id="admCod" type="password" inputmode="numeric" maxlength="12" autocomplete="new-password"></label>
-        <button class="btn" type="submit" style="align-self:end">Agregar administradora</button>
+        <button class="btn" type="submit" style="align-self:end">Crear administradora (ADM)</button>
         <p class="note err full" id="admErr" hidden></p>
       </form>
+      <details><summary class="sub" style="cursor:pointer">Cambiar mi nombre</summary>
+        <form id="nomForm" class="grid2" novalidate style="margin-top:8px">
+          <label class="fld full"><span>Mi nombre (sale en «Hola, …»)</span><input id="nomNew" autocapitalize="words"></label>
+          <button class="btn ghost full" type="submit">Guardar nombre</button>
+          <p class="note err full" id="nomErr" hidden></p>
+        </form></details>
       <details><summary class="sub" style="cursor:pointer">Cambiar mi código</summary>
         <form id="codForm" class="grid2" novalidate style="margin-top:8px">
           <label class="fld"><span>Código actual</span><input id="codAct" type="password" inputmode="numeric" maxlength="12" autocomplete="current-password"></label>
@@ -877,7 +885,7 @@ function renderHome(){if(S.tab!=="home")return;const L=conModulos(PROCS||PROC_DE
   const nom=S.me&&S.me.nombre?title(S.me.nombre).split(" ")[0]:"";$("homeHi").textContent=nom&&nom!=="—"?`Hola, ${nom}`:"Calidad Samitex";
   $("homeSub").textContent="Control de calidad · elige el proceso";
   $("procList").innerHTML=L.length?L.map(p=>{const bi=!!MODULOS[p.id],usable=bi||!!p.url;return`<button type="button" class="proc${usable&&p.activo?"":" off"}" data-p="${esc(p.id)}"><span class="ic">${esc(bi?MODULOS[p.id].ic:ini2(p.nombre))}</span><span><b>${esc(p.nombre)}</b><small>${esc(bi?MODULOS[p.id].cod+" · "+MODULOS[p.id].d:p.desc||"")}${bi&&!S.admin?" · "+(puedeE(p.id)?"ingreso de datos":"visualizador"):""}${usable?"":(p.desc?" · ":"")+"En preparación"}${p.activo?"":" · oculto para auditores"}</small></span></button>`}).join(""):`<div class="empty">No hay procesos activos.</div>`;
-  $("procAdm").hidden=!S.admin;$("salirHome").hidden=!!S.admin;if(S.admin)renderProcEd()}
+  $("procAdm").hidden=!S.admin;$("admQuick").hidden=!(S.admin&&S.principal);$("salirHome").hidden=!!S.admin;if(S.admin)renderProcEd()}
 $("procList").onclick=e=>{const b=e.target.closest("[data-p]");if(!b)return;const p=(PROCS||PROC_DEF).find(x=>x.id===b.dataset.p);if(!p)return;
   if(abrirModulo(p.id))return;if(p.url){window.open(p.url,"_blank","noopener");return}toast("Este proceso aún está en preparación.")};
 function renderProcEd(){$("procEd").innerHTML=PED.map((p,i)=>`<div class="pe" data-i="${i}">
@@ -1486,6 +1494,10 @@ $("teamList").addEventListener("click",async e=>{const b=e.target.closest("[data
   b.disabled=true;b.textContent="Eliminando…";
   try{const r=await admin("adminEliminarAud",b.dataset.delaud);if(r.ok){TEAM=TEAM.filter(a=>String(a.DNI)!==b.dataset.delaud);renderTeam();toast(b.dataset.nom+" eliminado de la lista")}else{toast(r.msg);b.disabled=false;b.textContent="Eliminar"}}
   catch(x){b.disabled=false;b.textContent="Eliminar"}});
+/* ---- administradora: crear otra ADM desde Inicio y cambiar mi nombre ---- */
+$("admQuickBtn").onclick=()=>{go("team");setTimeout(()=>{$("admCard").scrollIntoView({behavior:"smooth",block:"start"});setTimeout(()=>$("admNom").focus(),400)},900)};
+$("nomForm").addEventListener("submit",async e=>{e.preventDefault();const er=$("nomErr");er.hidden=true;const n=$("nomNew").value.trim();if(!n){er.textContent="Escribe tu nombre.";er.hidden=false;return}
+  try{const r=await admin("adminCambiarNombre",n);if(!r.ok){er.textContent=r.msg;er.hidden=false;return}S.me={...(S.me||{}),nombre:r.nombre};$("role").textContent=title(r.nombre);$("nomNew").value="";toast("Nombre guardado: "+title(r.nombre));cargarAdmins()}catch(x){}});
 /* ---- botón Atrás del celular: vuelve a la pantalla anterior dentro de la app (no la cierra ni borra lo escrito) ---- */
 try{history.replaceState({cs:"root"},"")}catch(x){}
 let atrasT=0;
