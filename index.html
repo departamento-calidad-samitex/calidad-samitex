@@ -1369,28 +1369,82 @@ const asisFecha=()=>$("asFecha").value||today();
 const asMin=h=>{const m=String(h||"").match(/^(\d{1,2}):(\d{2})/);return m?+m[1]*60+ +m[2]:NaN};
 async function cargarAsisAdm(){const f=asisFecha();$("asFecha").value=f;$("asSub").textContent="Cargando…";
   try{const r=await admin("adminAsistencia",f,f);ASD=r.rows||[];if(r.hora)ASIS.hora=r.hora;renderAsisAdm()}catch(x){$("asSub").textContent="Sin conexión. Inténtalo otra vez."}}
-function renderAsisAdm(){const f=asisFecha(),by={};ASD.forEach(r=>{const x=by[r.dni]=by[r.dni]||{aud:r.aud,ing:[],sal:[],all:[]};x.all.push(r);if(r.tipo==="INGRESO")x.ing.push(r);if(r.tipo==="SALIDA")x.sal.push(r)});
-  const L=Object.values(by).sort((a,b)=>String(a.aud).localeCompare(String(b.aud)));L.forEach(x=>{x.ing.sort((a,b)=>asMin(a.hora)-asMin(b.hora));x.sal.sort((a,b)=>asMin(a.hora)-asMin(b.hora));x.all.sort((a,b)=>asMin(a.hora)-asMin(b.hora))});
+function renderAsisAdm(){const f=asisFecha(),by={};ASD.forEach(r=>{const x=by[r.dni]=by[r.dni]||{dni:r.dni,aud:r.aud,ing:[],sal:[],all:[]};x.all.push(r);if(r.tipo==="INGRESO")x.ing.push(r);if(r.tipo==="SALIDA")x.sal.push(r)});
+  const L=Object.values(by).sort((a,b)=>String(a.aud).localeCompare(String(b.aud)));ASL=L;L.forEach(x=>{x.ing.sort((a,b)=>asMin(a.hora)-asMin(b.hora));x.sal.sort((a,b)=>asMin(a.hora)-asMin(b.hora));x.all.sort((a,b)=>asMin(a.hora)-asMin(b.hora))});
   const tarde=L.filter(x=>x.ing[0]&&x.ing[0].estado==="TARDE").length;
   $("asSub").textContent=`${dmy(f)} · ingreso puntual hasta las ${ASIS.hora||"08:30"} a. m.`;
   $("asKpis").innerHTML=[["Marcaron ingreso",L.filter(x=>x.ing.length).length,"auditores"],["Tardanzas",tarde,"después de las "+(ASIS.hora||"08:30")],["Marcaron salida",L.filter(x=>x.sal.length).length,"auditores"]].map(([l,v,s2],i)=>`<div class="kpi${i===1&&v?" rej":""}"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s2}</div></div>`).join("");
   const mk=r=>`<div class="trow"><span class="nm"><b>${esc(r.hora)} · ${ASLAB[r.tipo]||r.tipo}</b>${r.taller?` · ${esc(title(r.taller))}`:""}${r.estado==="TARDE"?` <span class="pill bad">TARDE</span>`:r.estado?` <span class="pill ok">A tiempo</span>`:""}${r.sin?` <span class="pill wait">sin señal</span>`:""}</span><span class="row" style="gap:6px;flex-wrap:nowrap"><a class="btn ghost sm" style="text-decoration:none" target="_blank" rel="noopener" href="${esc(r.mapa)}">Mapa</a><button type="button" class="btn ghost sm" data-afoto="${esc(r.foto)}">Foto</button></span></div>`;
-  const hm=m=>m>0?`${Math.floor(m/60)} h ${m%60} min`:"0 min";
+  const hm=hmA;
   const hrs=x=>{const a=x.ing[0],b=x.sal[x.sal.length-1];if(!a||!b)return"";const m=asMin(b.hora)-asMin(a.hora);return m>0?`${hm(m)} de jornada`:""};
-  const resum=x=>{const T=x.all,out=[];let ali=null,alm=0,cur="",ini=0;const tl={};
-    T.forEach(r=>{const m=asMin(r.hora);if(r.tipo==="ALMUERZO_SALIDA")ali=m;if(r.tipo==="ALMUERZO_REGRESO"&&ali!=null){alm+=m-ali;ali=null}
-      const cierra=()=>{if(cur){tl[cur]=(tl[cur]||0)+Math.max(0,m-ini);cur=""}};
-      if(r.tipo==="TALLER_LLEGADA"){cierra();cur=r.taller;ini=m}else if(r.tipo==="TALLER_CAMBIO"){cierra();cur=String(r.taller).split(" → ").pop();ini=m}else if(r.tipo==="TALLER_SALIDA"||r.tipo==="SALIDA")cierra()});
-    if(alm)out.push(`Almuerzo: ${hm(alm)}`);else if(ali!=null)out.push("Almuerzo sin regreso marcado");
-    const k=Object.keys(tl);if(k.length)out.push("Talleres: "+k.map(t=>`${title(t)} ${hm(tl[t])}`).join(" · "));if(cur)out.push(`Aún en ${title(cur)} (sin salida)`);
+  const resum=x=>{const d=datosDia(x),out=[],tl={};let abierto="";
+    d.seg.forEach(z=>{if(z.min==null)abierto=z.taller;else tl[z.taller]=(tl[z.taller]||0)+z.min});
+    if(d.alm)out.push(`Almuerzo: ${hm(d.alm)}`);else if(d.ali)out.push("Almuerzo sin regreso marcado");
+    const k=Object.keys(tl);if(k.length)out.push("Talleres: "+k.map(t=>`${title(t)} ${hm(tl[t])}`).join(" · "));if(abierto)out.push(`Aún en ${title(abierto)} (sin salida)`);
     return out.length?`<p class="sub" style="margin:4px 0 0">${esc(out.join(" | "))}</p>`:""};
   $("asList").innerHTML=L.length?L.map(x=>{const t=x.ing[0]&&x.ing[0].estado==="TARDE";
-    return`<article class="item${t?" rej":""}"><div class="t"><b>${esc(title(x.aud))}</b><span class="sub">${x.ing.length?"":"sin ingreso · "}${x.sal.length?hrs(x):"sin salida"}</span></div>${resum(x)}${x.all.map(mk).join("")}<div class="afoto"></div></article>`}).join(""):`<div class="empty">Nadie marcó asistencia este día.</div>`}
+    return`<article class="item${t?" rej":""}"><div class="t"><b>${esc(title(x.aud))}</b><span class="sub">${x.ing.length?"":"sin ingreso · "}${x.sal.length?hrs(x):"sin salida"}</span></div>${resum(x)}<div class="acts"><button type="button" class="btn gold sm" data-apdf="${esc(x.dni)}">⬇ PDF del día</button></div>${x.all.map(mk).join("")}<div class="afoto"></div></article>`}).join(""):`<div class="empty">Nadie marcó asistencia este día.</div>`}
 $("asFecha").onchange=()=>cargarAsisAdm();
 const asMover=n=>{const d=new Date(asisFecha()+"T12:00:00");d.setDate(d.getDate()+n);$("asFecha").value=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");cargarAsisAdm()};
 $("asPrev").onclick=()=>asMover(-1);$("asNext").onclick=()=>asMover(1);$("asRefresh").onclick=()=>cargarAsisAdm();
 $("asList").addEventListener("click",async e=>{const b=e.target.closest("[data-afoto]");if(!b)return;const box=b.closest("article").querySelector(".afoto");if(box.dataset.id===b.dataset.afoto){box.innerHTML="";box.dataset.id="";return}
   b.disabled=true;try{const r=await admin("adminFotoAsis",b.dataset.afoto);if(r.ok){box.dataset.id=b.dataset.afoto;box.innerHTML=`<img src="${r.src}" alt="Foto de asistencia" style="max-width:100%;max-height:360px;border-radius:8px;margin-top:6px">`}else toast(r.msg)}catch(x){}finally{b.disabled=false}});
+/* ---- formato diario SA-AC-PR-06.01: registro de asistencia y recorrido (se llena solo con las marcas) ---- */
+const ASIS_FMT={cod:"SA-AC-PR-06.01",ver:"V.01 - 27/10/2026",t:"REGISTRO DE ASISTENCIA Y RECORRIDO - AUDITORÍA DE TALLERES"};
+let ASL=[];
+async function pdfPaginas(pages,land){if(!window.html2canvas||!window.jspdf)throw new Error("faltan las librerías del PDF; abre la app una vez con internet");
+  const W=land?297:210,H=land?210:297,host=document.createElement("div");host.style.cssText=`position:fixed;left:-20000px;top:0;width:${W}mm;background:#fff;z-index:-1`;document.body.appendChild(host);
+  const doc=new jspdf.jsPDF({orientation:land?"l":"p",unit:"mm",format:"a4",compress:true});
+  try{for(let i=0;i<pages.length;i++){host.innerHTML=`<style>${QCSS}${AFCSS}</style><div style="width:${W}mm;min-height:${H}mm;background:#fff">${pages[i]}</div>`;
+      await Promise.all([...host.querySelectorAll("img")].map(g=>g.complete?0:new Promise(ok=>{g.onload=g.onerror=ok})));
+      const cv=await html2canvas(host.lastElementChild,{scale:2,backgroundColor:"#ffffff",logging:false,useCORS:true});
+      if(i)doc.addPage("a4",land?"l":"p");const k=Math.min(1,(H/W)/(cv.height/cv.width)),w=W*k,h=w*cv.height/cv.width;doc.addImage(cv.toDataURL("image/jpeg",.84),"JPEG",(W-w)/2,0,w,Math.min(H,h))}}
+  finally{host.remove()}
+  return doc.output("datauristring").split(",")[1]}
+function bajarB64(b64,nombre){const bin=atob(b64),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+  const url=URL.createObjectURL(new Blob([u],{type:"application/pdf"})),a=document.createElement("a");a.href=url;a.download=nombre;a.target="_blank";a.rel="noopener";document.body.appendChild(a);a.click();a.remove()}
+const hmA=m=>m>=60?`${Math.floor(m/60)} h ${String(m%60).padStart(2,"0")} min`:`${Math.max(0,m)} min`;
+function datosDia(x){const T=x.all.slice().sort((a,b)=>asMin(a.hora)-asMin(b.hora));let ali=null,alm=0,almTxt=[],cur=null;const seg=[];
+  const almS=T.find(r=>r.tipo==="ALMUERZO_SALIDA"),corte=almS?asMin(almS.hora):780;
+  const cierra=(r)=>{if(cur){cur.sal=r?r.hora:"";cur.min=r?Math.max(0,asMin(r.hora)-asMin(cur.lleg)):null;seg.push(cur);cur=null}};
+  let pend="";
+  T.forEach((r,i)=>{const m=asMin(r.hora);
+    if(r.tipo==="ALMUERZO_SALIDA"){ali=r.hora;pend=cur?cur.taller:"";cierra(r)}
+    if(r.tipo==="ALMUERZO_REGRESO"){if(ali){alm+=m-asMin(ali);almTxt.push(ali+" – "+r.hora);ali=null}
+      const sig=T.slice(i+1).find(z=>/^TALLER_|^SALIDA$/.test(z.tipo));if(pend&&sig&&sig.tipo==="TALLER_SALIDA")cur={taller:pend,lleg:r.hora};pend=""}
+    if(r.tipo==="TALLER_LLEGADA"){cierra(r);cur={taller:r.taller,lleg:r.hora}}
+    else if(r.tipo==="TALLER_CAMBIO"){cierra(r);cur={taller:String(r.taller).split(" → ").pop(),lleg:r.hora}}
+    else if(r.tipo==="TALLER_SALIDA"||r.tipo==="SALIDA")cierra(r)});
+  cierra(null);seg.forEach(z=>z.turno=asMin(z.lleg)<corte?"Mañana":"Tarde");
+  const ing=T.find(r=>r.tipo==="INGRESO"),sal=T.filter(r=>r.tipo==="SALIDA").pop(),lim=asMin(ASIS.hora||"08:30");
+  return{T,seg,alm,almTxt,ali,ing,sal,corte,tarde:ing&&ing.estado==="TARDE"?asMin(ing.hora)-lim:0,jor:ing&&sal?asMin(sal.hora)-asMin(ing.hora):null}}
+function htmlAsisDia(x,f,au,fotos){const d=datosDia(x),dn=new Date(f+"T12:00:00").toLocaleDateString("es-PE",{weekday:"long"}).toUpperCase();
+  const almR=d.T.find(r=>r.tipo==="ALMUERZO_REGRESO"),finM=almR?asMin(almR.hora):d.corte;
+  const fondo=r=>{const m=asMin(r.hora);return m<d.corte?"#fff8e1":m>=finM?"#e8f0fe":"#fff"};
+  let h=qHead(ASIS_FMT.t,ASIS_FMT.cod,ASIS_FMT.ver)+'<div class="q-gap"></div>'+qInf([[["AUDITOR:",up(x.aud)],["FECHA:",dn+" "+dmy(f)]],[["CARGO:",up(au.CARGO||"AUDITOR DE CALIDAD")],["INGRESO PUNTUAL:","HASTA LAS "+(ASIS.hora||"08:30")+" A. M."]]]);
+  const sec=t=>`<div style="background:#0a1f74;color:#fff;font-weight:bold;font-size:8pt;padding:1mm 2mm;margin-top:3mm">${t}</div>`;
+  h+=sec("MARCAS DEL DÍA (en orden de hora)")+`<table style="font-size:7.5pt"><colgroup><col style="width:6%"><col style="width:9%"><col style="width:17%"><col style="width:25%"><col style="width:11%"><col style="width:19%"><col style="width:13%"></colgroup>
+   <tr><th>N°</th><th>HORA</th><th>MOVIMIENTO</th><th>TALLER</th><th>ESTADO</th><th>UBICACIÓN (GPS)</th><th>FOTO</th></tr>
+   ${d.T.map((r,i)=>`<tr style="height:12mm;background:${fondo(r)}"><td>${i+1}</td><td class="q-b">${Q(r.hora)}</td><td>${Q(ASLAB[r.tipo]||r.tipo)}${r.sin?'<br><span style="font-size:6pt">(sin señal)</span>':""}</td><td style="white-space:normal">${Q(r.taller||"—")}</td><td${r.estado==="TARDE"?' style="color:#c00;font-weight:bold"':""}>${Q(r.estado||"—")}</td><td style="font-size:6.5pt">${Number(r.lat).toFixed(5)}, ${Number(r.lng).toFixed(5)}${r.acc?`<br>± ${Q(r.acc)} m`:""}</td><td>${fotos[r.foto]?`<img src="${fotos[r.foto]}" style="height:11mm;max-width:100%;object-fit:cover">`:"—"}</td></tr>`).join("")}</table>
+   <div style="font-size:6.5pt;margin-top:1mm"><span style="background:#fff8e1;border:1px solid #bbb;padding:0 2mm">turno mañana</span> &nbsp; <span style="background:#e8f0fe;border:1px solid #bbb;padding:0 2mm">turno tarde</span></div>`;
+  const nm=d.seg.filter(z=>z.turno==="Mañana").length,nt=d.seg.length-nm;
+  h+=sec("RESUMEN DEL DÍA")+`<table style="font-size:7.5pt"><tr><th>INGRESO</th><th>SALIDA</th><th>JORNADA</th><th>ALMUERZO</th><th>TALLERES VISITADOS</th></tr>
+   <tr style="height:6mm"><td${d.tarde?' style="color:#c00;font-weight:bold"':""}>${d.ing?Q(d.ing.hora)+(d.tarde?` · TARDE (${d.tarde} min)`:" · A TIEMPO"):"SIN MARCA"}</td><td>${d.sal?Q(d.sal.hora):"SIN MARCA"}</td><td>${d.jor!=null?hmA(d.jor):"—"}</td><td>${d.alm?hmA(d.alm)+" ("+Q(d.almTxt.join(", "))+")":d.ali?"sin regreso marcado":"—"}</td><td class="q-b">${d.seg.length} (mañana ${nm} · tarde ${nt})</td></tr></table>`;
+  const tot=d.seg.reduce((s2,z)=>s2+(z.min||0),0);
+  h+=`<table style="font-size:7.5pt;margin-top:2mm"><colgroup><col style="width:6%"><col><col style="width:12%"><col style="width:12%"><col style="width:12%"><col style="width:15%"></colgroup><tr><th>N°</th><th>TALLER</th><th>TURNO</th><th>LLEGADA</th><th>SALIDA</th><th>TIEMPO</th></tr>
+   ${d.seg.length?d.seg.map((z,i)=>`<tr style="height:5mm"><td>${i+1}</td><td>${Q(z.taller)}</td><td>${z.turno}</td><td>${Q(z.lleg)}</td><td>${Q(z.sal||"—")}</td><td class="q-b">${z.min!=null?hmA(z.min):"sin salida"}</td></tr>`).join(""):`<tr><td colspan="6">No marcó llegada a talleres este día.</td></tr>`}
+   <tr><td colspan="5" class="q-r q-b">TOTAL EN TALLERES</td><td class="q-b">${hmA(tot)}</td></tr></table>`;
+  h+=`<table class="q-inf" style="margin-top:2mm"><tr><td class="q-k" style="width:1%">OBSERVACIONES:</td><td class="q-v">&nbsp;</td></tr><tr><td></td><td class="q-v">&nbsp;</td></tr></table>`;
+  h+=qSig([["AUDITOR DE CALIDAD","",title(x.aud)],["JEFATURA DE CALIDAD · V°B°",""]],{firmaA:"",firmaT:""},"");
+  return h}
+async function pdfAsisDia(x,f,btn){const t0=btn.textContent;btn.disabled=true;btn.textContent="Armando PDF…";
+  try{if(!TEAM.length){try{TEAM=await admin("adminAuditores")}catch(e){}}const au=TEAM.find(a=>String(a.DNI)===String(x.dni))||{};
+    const fotos={};for(const r of x.all){if(!r.foto)continue;try{const q=await admin("adminFotoAsis",r.foto);if(q.ok)fotos[r.foto]=q.src}catch(e){}}
+    const b64=await pdfPaginas([pagina(htmlAsisDia(x,f,au,fotos))],false),nombre=`${f} · Asistencia y recorrido · ${title(x.aud)}.pdf`;
+    btn.textContent="Guardando…";try{await admin("adminGuardarPdfAsis",x.dni,f,b64,nombre)}catch(e){}
+    bajarB64(b64,nombre);toast("PDF listo: "+nombre)}
+  catch(e){toast("No se pudo armar el PDF: "+(e&&e.message||e))}finally{btn.disabled=false;btn.textContent=t0}}
+$("asList").addEventListener("click",e=>{const b=e.target.closest("[data-apdf]");if(!b)return;const x=ASL.find(z=>String(z.dni)===b.dataset.apdf);if(x)pdfAsisDia(x,asisFecha(),b)});
 /* ---- botón Atrás del celular: vuelve a la pantalla anterior dentro de la app (no la cierra ni borra lo escrito) ---- */
 try{history.replaceState({cs:"root"},"")}catch(x){}
 let atrasT=0;
