@@ -263,7 +263,7 @@ details.perm .grid2{margin-top:6px}
       <span class="sub"><b>Talleres</b> <span id="asisEn"></span></span>
       <label class="fld full"><span>Taller</span><input id="asisTaller" list="lTal" autocapitalize="characters" placeholder="Nombre del taller"></label>
       <div class="row" style="flex-wrap:nowrap"><button type="button" class="btn ghost block" data-asis="TALLER_LLEGADA" id="asisLleg">Llegada a taller</button><button type="button" class="btn ghost block" data-asis="TALLER_SALIDA" id="asisSalT">Salida de taller</button></div>
-      <p class="sub" id="asisMsg">Cada marca toma una foto con la cámara frontal, tu ubicación y la hora. El ingreso después de las 8:30 a. m. queda como tardanza.</p>
+      <p class="sub" id="asisMsg">Cada marca toma una foto con la cámara frontal, tu ubicación y la hora. El ingreso después de tu hora de entrada queda como tardanza.</p>
       <input type="file" id="asisFoto" accept="image/*" capture="user" hidden>
     </div>
     <div class="card" id="corrCard" hidden><div class="hd"><h3>Correcciones autorizadas</h3><span class="sub">La jefatura de calidad te habilitó estos reportes</span></div><div class="list" id="corrList"></div></div>
@@ -420,8 +420,17 @@ details.perm .grid2{margin-top:6px}
   </section>
 
   <section id="v-asis" class="view" hidden style="flex-direction:column;gap:12px">
-    <div class="row" style="justify-content:space-between"><div><h2>Asistencia</h2><p class="sub" id="asSub">Ingreso puntual hasta las 8:30 a. m.</p></div><button type="button" class="btn ghost sm" id="asRefresh">Actualizar</button></div>
+    <div class="row" style="justify-content:space-between"><div><h2>Asistencia</h2><p class="sub" id="asSub">Tardanza según el horario de cada auditor</p></div><button type="button" class="btn ghost sm" id="asRefresh">Actualizar</button></div>
     <div class="row" style="flex-wrap:nowrap"><button type="button" class="btn ghost sm" id="asPrev" aria-label="Día anterior">‹</button><input type="date" id="asFecha" aria-label="Fecha" style="flex:1;min-width:0"><button type="button" class="btn ghost sm" id="asNext" aria-label="Día siguiente">›</button></div>
+    <button type="button" class="btn ghost sm" id="asHorBtn" style="align-self:flex-start">Horarios de ingreso por auditor</button>
+    <div class="card" id="asHor" hidden>
+      <div class="hd"><h3>Horario de ingreso por auditor</h3><span class="sub">Solo administradora</span></div>
+      <p class="sub">Después de esta hora el ingreso sale como TARDE. Si lo dejas vacío se usa 08:30.</p>
+      <input type="search" id="asHorQ" placeholder="Filtrar por nombre o DNI" aria-label="Filtrar auditores">
+      <div class="row" style="flex-wrap:nowrap"><input type="time" id="asHorTodos" aria-label="Hora para todos" style="flex:1;min-width:0"><button type="button" class="btn ghost sm" id="asHorAplicar">Poner a los filtrados</button></div>
+      <div class="list" id="asHorList"></div>
+      <button type="button" class="btn" id="asHorSave">Guardar horarios</button>
+    </div>
     <section class="kpis" id="asKpis"></section>
     <div class="list" id="asList"></div>
   </section>
@@ -948,9 +957,9 @@ $("codForm").addEventListener("submit",async e=>{e.preventDefault();const er=$("
 
 
 /* ================= Calidad Samitex v4: formatos de control de calidad ================= */
-const ELAB="Karina Uscubilca Aguilar",APROB="Maribel Ludeña";
+const ELAB="Karina Uscubilca Aguilar",APROB="Maribel Ludeña",ELAB_H="Karina Uscubilca",REVISA="Maribel Ludeña",APRUEBA="José Luis Rodríguez";
 const MODULOS={
- af:{n:"Auditoría Final",cod:"SA-AC-PR-05.01",ver:"V.03 - 23/12/2025",d:"Prenda terminada · AQL 2.5 / 4.0",ic:"AF"},
+ af:{n:"Auditoría Final",cod:"SA-AC-PR-05.01",ver:"V.02 - 28/10/2026",d:"Prenda terminada · AQL 2.5 / 4.0",ic:"AF"},
  telas:{n:"Auditoría de Telas",cod:"SA-AC-PR-01.01",ver:"V.02 - 16/01/2026",d:"Rollos · pruebas y fallas de tela",ic:"TE",t:"REPORTE DE AUDITORIA DE CALIDAD - TELAS",land:1},
  avios:{n:"Auditoría de Avíos",cod:"SA-AC-PR-002.02",ver:"V.02 - 29/12/2025",d:"Avíos · AQL 2.5 inspección general nivel II",ic:"AV",t:"REPORTE DE AUDITORIA DE CALIDAD - AVIOS"},
  corte:{n:"Auditoría de Corte",cod:"SA-AC-PR-03.01",ver:"V.02 - 21/10/2026",d:"Camisería · sacos · pantalón y falda",ic:"CO",t:"REPORTE DE AUDITORIA DE CORTE"},
@@ -1150,14 +1159,17 @@ const QCSS=`.q{font-family:Arial,Helvetica,sans-serif;color:#000;background:#fff
 .q *{box-sizing:border-box}.q table{border-collapse:collapse;width:100%;table-layout:fixed}
 .q td,.q th{border:1px solid #000;padding:0 1mm;text-align:center;vertical-align:middle;font-weight:normal;overflow:hidden;white-space:nowrap;line-height:1.15}
 .q th{font-weight:bold;background:#d9d9d9;white-space:normal;line-height:1.05}.q .q-b{font-weight:bold}.q .q-l{text-align:left}.q .q-r{text-align:right}.q table.q-nb>tbody>tr>td,.q td.q-nb{border:0}
-.q .q-hd td{height:5.6mm;font-size:8pt}.q .q-tt{font-size:12.5pt;font-weight:bold;line-height:1.3;white-space:normal}.q .q-tt span{font-size:8.5pt}
+.q .q-hd td{height:4.3mm;font-size:8pt}.q .q-tt{font-size:12.5pt;font-weight:bold;line-height:1.3;white-space:normal}.q .q-tt span{font-size:8.5pt}
 .q table.q-inf{table-layout:auto}.q .q-inf td{border:0;font-size:8pt;height:5.4mm;vertical-align:bottom;padding:0 1mm;overflow:visible}.q .q-inf .q-k{font-weight:bold;text-align:right;white-space:nowrap}.q .q-inf .q-v{border-bottom:1px solid #000;text-align:center}
 .q .q-sig td{border:0;font-size:8pt;font-weight:bold;vertical-align:bottom;text-align:center;padding:0 5mm}.q .q-sig .q-ln{border-top:1px solid #000;padding-top:.6mm}.q .q-sig img{height:12mm;max-width:100%}
 .q .q-box{display:inline-block;width:4.4mm;height:3.6mm;border:1px solid #000;vertical-align:middle;line-height:3.4mm;text-align:center;font-weight:bold;margin:0 1.5mm}
 .q .q-g{background:#fff3c4}.q .q-gap{height:2mm}`;
-function qHead(titulo,cod,ver,sub){return`<table class="q-hd"><colgroup><col style="width:24%"><col><col style="width:13%"><col style="width:17%"></colgroup>
- <tr><td rowspan="4"><img src="${LOGO()}" style="height:12mm"></td><td rowspan="4" class="q-tt">${Q(titulo)}<br><span>${Q(sub||"DPTO. DE GESTIÓN DE CALIDAD")}</span></td><td class="q-r q-b">CÓDIGO:</td><td>${Q(cod)}</td></tr>
- <tr><td class="q-r q-b">VERSIÓN/FECHA:</td><td>${Q(ver)}</td></tr><tr><td class="q-r q-b">ELABORADO:</td><td style="font-size:7pt">${Q(ELAB)}</td></tr><tr><td class="q-r q-b">APROBACIÓN:</td><td>${Q(APROB)}</td></tr></table>`}
+function qHead(titulo,cod,ver,sub){const m=String(ver||"").match(/V\.?\s*0*(\d+)\s*-\s*(\S+)/),vn=m?String(m[1]).padStart(2,"0"):Q(ver),vf=m?m[2]:"";
+ const c=(k,v,x)=>`<td colspan="2" class="q-l" style="font-size:7pt${x||""}"><b>${k}</b> ${Q(v)}</td>`;
+ return`<table class="q-hd"><colgroup><col style="width:21%"><col><col style="width:20%"><col style="width:14%"></colgroup>
+ <tr><td rowspan="6"><img src="${LOGO()}" style="height:12mm"></td><td rowspan="6" class="q-tt">${Q(titulo)}<br><span>${Q(sub||"DEPARTAMENTO DE CALIDAD SAMITEX")}</span></td>${c("ELABORADO POR:",ELAB_H)}</tr>
+ <tr>${c("REVISADO POR:",REVISA)}</tr><tr>${c("APROBADO POR:",APRUEBA)}</tr><tr>${c("FORMATO:",cod)}</tr><tr>${c("FECHA:",vf)}</tr>
+ <tr><td class="q-l" style="font-size:7pt"><b>VERSIÓN:</b> ${vn}</td><td class="q-l" style="font-size:7pt"><b>PÁG.:</b> {{PAG}}</td></tr></table>`}
 function qInf(rows){const n=rows[0].length;return`<table class="q-inf">${rows.map(r=>`<tr>${r.map(([k,v])=>`<td class="q-k" style="width:1%">${Q(k)}</td><td class="q-v" style="width:${Math.floor(88/n)}%">${Q(v)}</td>`).join("")}</tr>`).join("")}</table>`}
 function qSig(list,im,vb){return`<table class="q-sig" style="margin-top:auto"><tr>${list.map(([l,k,nm])=>`<td>${k==="A"&&im.firmaA?`<img src="${im.firmaA}">`:k==="T"&&im.firmaT?`<img src="${im.firmaT}">`:k==="VB"&&vb?`<div style="height:12mm;line-height:12mm;color:#0b7a2a">V°B° ${Q(vb)}</div>`:`<div style="height:12mm"></div>`}<div class="q-ln">${Q(l)}</div><div style="font-weight:normal;font-size:7pt">${Q(nm||"")}</div></td>`).join("")}</tr></table>`}
 const qBox=b=>`<span class="q-box">${b?"X":""}</span>`;
@@ -1265,7 +1277,7 @@ async function pdfDe(r,im){if(!window.html2canvas||!window.jspdf)throw new Error
   const land=!!MODULOS[r.mod||"af"].land,W=land?297:210,H=land?210:297,pages=paginasDe(r,im.fotos?im:{...im,fotos:[]});
   const host=document.createElement("div");host.style.cssText=`position:fixed;left:-20000px;top:0;width:${W}mm;background:#fff;z-index:-1`;document.body.appendChild(host);
   const doc=new jspdf.jsPDF({orientation:land?"l":"p",unit:"mm",format:"a4",compress:true});
-  try{for(let i=0;i<pages.length;i++){host.innerHTML=`<style>${QCSS}${AFCSS}</style><div style="width:${W}mm;min-height:${H}mm;background:#fff">${pages[i]}</div>`;
+  try{for(let i=0;i<pages.length;i++){host.innerHTML=`<style>${QCSS}${AFCSS}</style><div style="width:${W}mm;min-height:${H}mm;background:#fff">${pages[i].replace(/\{\{PAG\}\}/g,(i+1)+" de "+pages.length)}</div>`;
       await Promise.all([...host.querySelectorAll("img")].map(g=>g.complete?0:new Promise(ok=>{g.onload=g.onerror=ok})));
       const cv=await html2canvas(host.lastElementChild,{scale:2,backgroundColor:"#ffffff",logging:false,useCORS:true});
       if(i)doc.addPage("a4",land?"l":"p");const k=Math.min(1,(H/W)/(cv.height/cv.width)),w=W*k,h=w*cv.height/cv.width;doc.addImage(cv.toDataURL("image/jpeg",.84),"JPEG",(W-w)/2,0,w,Math.min(H,h))}}
@@ -1341,7 +1353,7 @@ const asMinA=h=>{const m=String(h||"").match(/^(\d{1,2}):(\d{2})/);return m?+m[1
 function tallerActual(rows){let cur="";rows.slice().sort((a,b)=>asMinA(a.hora)-asMinA(b.hora)).forEach(r=>{if(r.tipo==="TALLER_LLEGADA")cur=r.taller;else if(r.tipo==="TALLER_CAMBIO")cur=String(r.taller).split(" → ").pop();else if(r.tipo==="TALLER_SALIDA"||r.tipo==="SALIDA")cur=""});return cur}
 function asisFilas(){const pend=ls.get(ASCOLA,[]);return[...(ASIS.rows||[]),...pend.map(m=>({tipo:m.tipo,taller:m.tipo==="TALLER_CAMBIO"?(m.tallerAnt||"")+" → "+m.taller:m.taller||"",hora:new Date(m.tLocal).toTimeString().slice(0,5),sinEnviar:1}))]}
 function renderAsis(){const rows=asisFilas().sort((a,b)=>asMinA(a.hora)-asMinA(b.hora)),cur=tallerActual(rows);
-  $("asisHoy").textContent=dmy(ASIS.hoy||today());
+  $("asisHoy").textContent=dmy(ASIS.hoy||today())+" · entrada "+(ASIS.hora||"08:30");
   $("asisMis").innerHTML=rows.length?rows.map(r=>`<div class="trow"><span class="nm"><b>${ASLAB[r.tipo]||r.tipo}</b> · ${esc(r.hora)}${r.taller?` · ${esc(title(r.taller))}`:""}</span>${r.sinEnviar?`<span class="pill wait">sin señal · se enviará</span>`:r.estado==="TARDE"?`<span class="pill bad">Tarde</span>`:r.estado?`<span class="pill ok">A tiempo</span>`:`<span class="pill ok">Registrada</span>`}</div>`).join(""):`<p class="sub">Aún no marcas hoy.</p>`;
   $("asisEn").textContent=cur?`· estás en ${title(cur)}`:"";$("asisLleg").textContent=cur?"Cambiar a este taller":"Llegada a taller";$("asisSalT").disabled=!cur}
 let asisTaller="",asisAnt="";
@@ -1368,12 +1380,12 @@ let ASD=[];
 const asisFecha=()=>$("asFecha").value||today();
 const asMin=h=>{const m=String(h||"").match(/^(\d{1,2}):(\d{2})/);return m?+m[1]*60+ +m[2]:NaN};
 async function cargarAsisAdm(){const f=asisFecha();$("asFecha").value=f;$("asSub").textContent="Cargando…";
-  try{const r=await admin("adminAsistencia",f,f);ASD=r.rows||[];if(r.hora)ASIS.hora=r.hora;renderAsisAdm()}catch(x){$("asSub").textContent="Sin conexión. Inténtalo otra vez."}}
+  try{if(!TEAM.length){try{TEAM=await admin("adminAuditores")}catch(e){}}const r=await admin("adminAsistencia",f,f);ASD=r.rows||[];if(r.hora)ASIS.hora=r.hora;renderAsisAdm()}catch(x){$("asSub").textContent="Sin conexión. Inténtalo otra vez."}}
 function renderAsisAdm(){const f=asisFecha(),by={};ASD.forEach(r=>{const x=by[r.dni]=by[r.dni]||{dni:r.dni,aud:r.aud,ing:[],sal:[],all:[]};x.all.push(r);if(r.tipo==="INGRESO")x.ing.push(r);if(r.tipo==="SALIDA")x.sal.push(r)});
   const L=Object.values(by).sort((a,b)=>String(a.aud).localeCompare(String(b.aud)));ASL=L;L.forEach(x=>{x.ing.sort((a,b)=>asMin(a.hora)-asMin(b.hora));x.sal.sort((a,b)=>asMin(a.hora)-asMin(b.hora));x.all.sort((a,b)=>asMin(a.hora)-asMin(b.hora))});
   const tarde=L.filter(x=>x.ing[0]&&x.ing[0].estado==="TARDE").length;
-  $("asSub").textContent=`${dmy(f)} · ingreso puntual hasta las ${ASIS.hora||"08:30"} a. m.`;
-  $("asKpis").innerHTML=[["Marcaron ingreso",L.filter(x=>x.ing.length).length,"auditores"],["Tardanzas",tarde,"después de las "+(ASIS.hora||"08:30")],["Marcaron salida",L.filter(x=>x.sal.length).length,"auditores"]].map(([l,v,s2],i)=>`<div class="kpi${i===1&&v?" rej":""}"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s2}</div></div>`).join("");
+  $("asSub").textContent=`${dmy(f)} · tardanza según el horario de cada auditor`;
+  $("asKpis").innerHTML=[["Marcaron ingreso",L.filter(x=>x.ing.length).length,"auditores"],["Tardanzas",tarde,"después de su hora"],["Marcaron salida",L.filter(x=>x.sal.length).length,"auditores"]].map(([l,v,s2],i)=>`<div class="kpi${i===1&&v?" rej":""}"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s2}</div></div>`).join("");
   const mk=r=>`<div class="trow"><span class="nm"><b>${esc(r.hora)} · ${ASLAB[r.tipo]||r.tipo}</b>${r.taller?` · ${esc(title(r.taller))}`:""}${r.estado==="TARDE"?` <span class="pill bad">TARDE</span>`:r.estado?` <span class="pill ok">A tiempo</span>`:""}${r.sin?` <span class="pill wait">sin señal</span>`:""}</span><span class="row" style="gap:6px;flex-wrap:nowrap"><a class="btn ghost sm" style="text-decoration:none" target="_blank" rel="noopener" href="${esc(r.mapa)}">Mapa</a><button type="button" class="btn ghost sm" data-afoto="${esc(r.foto)}">Foto</button></span></div>`;
   const hm=hmA;
   const hrs=x=>{const a=x.ing[0],b=x.sal[x.sal.length-1];if(!a||!b)return"";const m=asMin(b.hora)-asMin(a.hora);return m>0?`${hm(m)} de jornada`:""};
@@ -1383,7 +1395,7 @@ function renderAsisAdm(){const f=asisFecha(),by={};ASD.forEach(r=>{const x=by[r.
     const k=Object.keys(tl);if(k.length)out.push("Talleres: "+k.map(t=>`${title(t)} ${hm(tl[t])}`).join(" · "));if(abierto)out.push(`Aún en ${title(abierto)} (sin salida)`);
     return out.length?`<p class="sub" style="margin:4px 0 0">${esc(out.join(" | "))}</p>`:""};
   $("asList").innerHTML=L.length?L.map(x=>{const t=x.ing[0]&&x.ing[0].estado==="TARDE";
-    return`<article class="item${t?" rej":""}"><div class="t"><b>${esc(title(x.aud))}</b><span class="sub">${x.ing.length?"":"sin ingreso · "}${x.sal.length?hrs(x):"sin salida"}</span></div>${resum(x)}<div class="acts"><button type="button" class="btn gold sm" data-apdf="${esc(x.dni)}">⬇ PDF del día</button></div>${x.all.map(mk).join("")}<div class="afoto"></div></article>`}).join(""):`<div class="empty">Nadie marcó asistencia este día.</div>`}
+    return`<article class="item${t?" rej":""}"><div class="t"><b>${esc(title(x.aud))}</b><span class="sub">entra ${limDe(x)} · ${x.ing.length?"":"sin ingreso · "}${x.sal.length?hrs(x):"sin salida"}</span></div>${resum(x)}<div class="acts"><button type="button" class="btn gold sm" data-apdf="${esc(x.dni)}">⬇ PDF del día</button></div>${x.all.map(mk).join("")}<div class="afoto"></div></article>`}).join(""):`<div class="empty">Nadie marcó asistencia este día.</div>`}
 $("asFecha").onchange=()=>cargarAsisAdm();
 const asMover=n=>{const d=new Date(asisFecha()+"T12:00:00");d.setDate(d.getDate()+n);$("asFecha").value=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");cargarAsisAdm()};
 $("asPrev").onclick=()=>asMover(-1);$("asNext").onclick=()=>asMover(1);$("asRefresh").onclick=()=>cargarAsisAdm();
@@ -1395,7 +1407,7 @@ let ASL=[];
 async function pdfPaginas(pages,land){if(!window.html2canvas||!window.jspdf)throw new Error("faltan las librerías del PDF; abre la app una vez con internet");
   const W=land?297:210,H=land?210:297,host=document.createElement("div");host.style.cssText=`position:fixed;left:-20000px;top:0;width:${W}mm;background:#fff;z-index:-1`;document.body.appendChild(host);
   const doc=new jspdf.jsPDF({orientation:land?"l":"p",unit:"mm",format:"a4",compress:true});
-  try{for(let i=0;i<pages.length;i++){host.innerHTML=`<style>${QCSS}${AFCSS}</style><div style="width:${W}mm;min-height:${H}mm;background:#fff">${pages[i]}</div>`;
+  try{for(let i=0;i<pages.length;i++){host.innerHTML=`<style>${QCSS}${AFCSS}</style><div style="width:${W}mm;min-height:${H}mm;background:#fff">${pages[i].replace(/\{\{PAG\}\}/g,(i+1)+" de "+pages.length)}</div>`;
       await Promise.all([...host.querySelectorAll("img")].map(g=>g.complete?0:new Promise(ok=>{g.onload=g.onerror=ok})));
       const cv=await html2canvas(host.lastElementChild,{scale:2,backgroundColor:"#ffffff",logging:false,useCORS:true});
       if(i)doc.addPage("a4",land?"l":"p");const k=Math.min(1,(H/W)/(cv.height/cv.width)),w=W*k,h=w*cv.height/cv.width;doc.addImage(cv.toDataURL("image/jpeg",.84),"JPEG",(W-w)/2,0,w,Math.min(H,h))}}
@@ -1416,12 +1428,12 @@ function datosDia(x){const T=x.all.slice().sort((a,b)=>asMin(a.hora)-asMin(b.hor
     else if(r.tipo==="TALLER_CAMBIO"){cierra(r);cur={taller:String(r.taller).split(" → ").pop(),lleg:r.hora}}
     else if(r.tipo==="TALLER_SALIDA"||r.tipo==="SALIDA")cierra(r)});
   cierra(null);seg.forEach(z=>z.turno=asMin(z.lleg)<corte?"Mañana":"Tarde");
-  const ing=T.find(r=>r.tipo==="INGRESO"),sal=T.filter(r=>r.tipo==="SALIDA").pop(),lim=asMin(ASIS.hora||"08:30");
+  const ing=T.find(r=>r.tipo==="INGRESO"),sal=T.filter(r=>r.tipo==="SALIDA").pop(),lim=asMin(limDe(x));
   return{T,seg,alm,almTxt,ali,ing,sal,corte,tarde:ing&&ing.estado==="TARDE"?asMin(ing.hora)-lim:0,jor:ing&&sal?asMin(sal.hora)-asMin(ing.hora):null}}
 function htmlAsisDia(x,f,au,fotos){const d=datosDia(x),dn=new Date(f+"T12:00:00").toLocaleDateString("es-PE",{weekday:"long"}).toUpperCase();
   const almR=d.T.find(r=>r.tipo==="ALMUERZO_REGRESO"),finM=almR?asMin(almR.hora):d.corte;
   const fondo=r=>{const m=asMin(r.hora);return m<d.corte?"#fff8e1":m>=finM?"#e8f0fe":"#fff"};
-  let h=qHead(ASIS_FMT.t,ASIS_FMT.cod,ASIS_FMT.ver)+'<div class="q-gap"></div>'+qInf([[["AUDITOR:",up(x.aud)],["FECHA:",dn+" "+dmy(f)]],[["CARGO:",up(au.CARGO||"AUDITOR DE CALIDAD")],["INGRESO PUNTUAL:","HASTA LAS "+(ASIS.hora||"08:30")+" A. M."]]]);
+  let h=qHead(ASIS_FMT.t,ASIS_FMT.cod,ASIS_FMT.ver)+'<div class="q-gap"></div>'+qInf([[["AUDITOR:",up(x.aud)],["FECHA:",dn+" "+dmy(f)]],[["CARGO:",up(au.CARGO||"AUDITOR DE CALIDAD")],["INGRESO PUNTUAL:","HASTA LAS "+limDe(x)]]]);
   const sec=t=>`<div style="background:#0a1f74;color:#fff;font-weight:bold;font-size:8pt;padding:1mm 2mm;margin-top:3mm">${t}</div>`;
   h+=sec("MARCAS DEL DÍA (en orden de hora)")+`<table style="font-size:7.5pt"><colgroup><col style="width:6%"><col style="width:9%"><col style="width:17%"><col style="width:25%"><col style="width:11%"><col style="width:19%"><col style="width:13%"></colgroup>
    <tr><th>N°</th><th>HORA</th><th>MOVIMIENTO</th><th>TALLER</th><th>ESTADO</th><th>UBICACIÓN (GPS)</th><th>FOTO</th></tr>
@@ -1445,6 +1457,18 @@ async function pdfAsisDia(x,f,btn){const t0=btn.textContent;btn.disabled=true;bt
     bajarB64(b64,nombre);toast("PDF listo: "+nombre)}
   catch(e){toast("No se pudo armar el PDF: "+(e&&e.message||e))}finally{btn.disabled=false;btn.textContent=t0}}
 $("asList").addEventListener("click",e=>{const b=e.target.closest("[data-apdf]");if(!b)return;const x=ASL.find(z=>String(z.dni)===b.dataset.apdf);if(x)pdfAsisDia(x,asisFecha(),b)});
+/* ---- horario de ingreso de cada auditor (solo administradora) ---- */
+const horDe=a=>{const m=String(a&&a["HORA INGRESO"]||"").replace(/^'/,"").match(/^(\d{1,2}):(\d{2})/);return m?m[1].padStart(2,"0")+":"+m[2]:""};
+function limDe(x){const r=x&&x.ing&&x.ing[0];if(r&&r.lim)return r.lim;const a=TEAM.find(t=>String(t.DNI)===String(x&&x.dni));return horDe(a)||ASIS.hora||"08:30"}
+let HORS={};
+async function abrirHor(){const c=$("asHor");c.hidden=!c.hidden;if(c.hidden)return;try{TEAM=await admin("adminAuditores")}catch(e){}HORS={};renderHor()}
+function renderHor(){const q=NORM($("asHorQ").value),A=TEAM.filter(a=>a.ESTADO==="ACTIVO"&&(!q||NORM(a.NOMBRE+" "+a.DNI).includes(q))).sort((a,b)=>String(a.NOMBRE).localeCompare(String(b.NOMBRE)));
+  $("asHorList").innerHTML=A.length?A.map(a=>`<div class="trow"><span class="nm"><b>${esc(title(a.NOMBRE))}</b> <small>DNI ${esc(a.DNI)}</small></span><input type="time" data-hor="${esc(a.DNI)}" value="${esc(HORS[a.DNI]??horDe(a))}" aria-label="Hora de ingreso de ${esc(title(a.NOMBRE))}" style="width:auto"></div>`).join(""):`<p class="sub">Ningún auditor activo coincide con el filtro.</p>`}
+$("asHorBtn").onclick=abrirHor;$("asHorQ").oninput=renderHor;
+$("asHorList").addEventListener("input",e=>{const i=e.target.closest("[data-hor]");if(i)HORS[i.dataset.hor]=i.value});
+$("asHorAplicar").onclick=()=>{const v=$("asHorTodos").value;if(!v){toast("Elige la hora primero.");return}const L=$("asHorList").querySelectorAll("[data-hor]");L.forEach(i=>{i.value=v;HORS[i.dataset.hor]=v});toast(`${L.length} auditor${L.length===1?"":"es"} con ingreso ${v}. Toca Guardar horarios.`)};
+$("asHorSave").onclick=async()=>{const L=Object.entries(HORS).map(([dni,hora])=>({dni,hora}));if(!L.length){toast("No cambiaste ningún horario.");return}const b=$("asHorSave");b.disabled=true;b.textContent="Guardando…";
+  try{const r=await admin("adminHorarios",L);if(r.ok){L.forEach(({dni,hora})=>{const a=TEAM.find(x=>String(x.DNI)===dni);if(a)a["HORA INGRESO"]=hora});HORS={};toast(`Horarios guardados (${r.n})`);renderHor();renderAsisAdm()}else toast(r.msg)}catch(e){}finally{b.disabled=false;b.textContent="Guardar horarios"}};
 /* ---- botón Atrás del celular: vuelve a la pantalla anterior dentro de la app (no la cierra ni borra lo escrito) ---- */
 try{history.replaceState({cs:"root"},"")}catch(x){}
 let atrasT=0;
