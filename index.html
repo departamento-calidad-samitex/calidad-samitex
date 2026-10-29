@@ -155,6 +155,8 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 .list{display:flex;flex-direction:column;gap:8px}
 .item{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--good);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;min-width:0}
 .item.rej{border-left-color:var(--crit)}
+.selbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--surface);border:1px dashed var(--line);border-radius:8px;padding:8px 10px}.selbar label,.selck{display:flex;gap:6px;align-items:center;font-size:13px;cursor:pointer}.selbar input,.selck input{width:20px;height:20px;min-height:0;margin:0;accent-color:var(--crit)}
+.item.sel{outline:2px solid var(--crit);outline-offset:1px}
 .item .t{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
 .item .t b{font:600 15px var(--font-body);overflow-wrap:anywhere}
 .item .m{font:500 12px var(--font-mono);color:var(--muted);overflow-wrap:anywhere}
@@ -439,9 +441,10 @@ details.perm .grid2{margin-top:6px}
   <section id="v-hist" class="view" hidden style="flex-direction:column;gap:12px">
     <div class="row" style="justify-content:space-between"><div><h2 id="hiTitle">Historial</h2><p class="sub" id="hiSub"></p></div><button type="button" class="btn ghost sm" id="hiRefresh">Actualizar</button></div>
     <div class="row">
-      <input type="search" id="hiQ" placeholder="Buscar OF, artículo, cliente, defecto…" aria-label="Buscar" style="flex:1 1 220px">
+      <input type="search" id="hiQ" placeholder="Buscar OF, artículo, cliente, auditor, fecha…" aria-label="Buscar" style="flex:1 1 220px">
       <div class="seg" role="group" aria-label="Estado"><button type="button" id="hiA" aria-pressed="true">Todas</button><button type="button" id="hiR" aria-pressed="false">Rechazadas</button></div>
     </div>
+    <div class="selbar" id="hiSelBar" hidden><label><input type="checkbox" id="hiSelAll"> Seleccionar todos los de la lista</label><button type="button" class="btn danger sm" id="hiSelDel" disabled>Eliminar seleccionados (0)</button><span class="sub" id="hiSelMsg"></span></div>
     <div class="list" id="hiList"></div>
   </section>
 
@@ -458,6 +461,7 @@ details.perm .grid2{margin-top:6px}
       <button type="button" class="btn" id="asHorSave">Guardar horarios</button>
     </div>
     <section class="kpis" id="asKpis"></section>
+    <div class="selbar" id="asSelBar" hidden><label><input type="checkbox" id="asSelAll"> Seleccionar todas las marcas del día</label><button type="button" class="btn danger sm" id="asSelDel" disabled>Eliminar marcas seleccionadas (0)</button><span class="sub" id="asSelMsg"></span></div>
     <div class="list" id="asList"></div>
   </section>
 
@@ -866,17 +870,19 @@ async function cargarHist(){$("hiSub").textContent="Cargando…";
   catch(x){if(!S.admin)toast("Sin conexión.");HIS=[]}renderHist()}
 function renderHist(){if(S.tab!=="hist")return;const q=NORM($("hiQ").value);
   let T=HIS.slice();if(S.hiMode==="R")T=T.filter(r=>r.rej);
-  if(q)T=T.filter(r=>NORM([r.of,r.art,r.color,r.cli,r.tal,r.lin,r.aud,...(r.obs||[]).map(o=>o.t),...Object.keys(r.d||{}),...Object.values(r.nombres||{}),JSON.stringify(r.cab||[]),MODULOS[r.mod||"af"].n].join(" ")).includes(q));
+  if(q)T=T.filter(r=>NORM([r.of,r.art,r.color,r.cli,r.tal,r.lin,r.aud,...(r.obs||[]).map(o=>o.t),...Object.keys(r.d||{}),...Object.values(r.nombres||{}),JSON.stringify(r.cab||[]),MODULOS[r.mod||"af"].n,dmy(r.fecha),r.fecha].join(" ")).includes(q));
   $("hiTitle").textContent=S.admin?"Reportes":"Mi historial";
   $("hiSub").textContent=S.admin?`${fmt(T.length)} reportes registrados en la app · PDF, fotos y firmas en tu Drive`:`Autorizado hasta el ${dt(S.hasta)} · ${fmt(T.length)} reportes de los últimos 60 días`;
-  $("hiList").innerHTML=T.length?T.slice(0,200).map(r=>`<article class="item${r.rej?" rej":""}">
+  const selOn=S.admin&&S.principal;HSEL.forEach(id=>{if(!HIS.some(x=>x.id===id))HSEL.delete(id)});HVIS=T.slice(0,200).map(r=>r.id);
+  $("hiList").innerHTML=T.length?T.slice(0,200).map(r=>`<article class="item${r.rej?" rej":""}${HSEL.has(r.id)?" sel":""}">
+    ${selOn?`<label class="selck"><input type="checkbox" data-hsel="${esc(r.id)}"${HSEL.has(r.id)?" checked":""}> Seleccionar para borrar</label>`:""}
     <div class="t"><b>${(r.mod||"af")!=="af"?`<span class="pill wait">${esc(MODULOS[r.mod].n)}</span> `:""}${esc((r.mod||"af")==="af"?`OF ${r.of||"—"} · ${r.art||"—"}`:resumen(r))}</b><span class="pill ${r.rej?"bad":"ok"}">${esc(title(r.res||(r.rej?"Rechazado":"Aprobado")))}</span></div>
     ${(r.mod||"af")!=="af"?`<div class="m">${dmy(r.fecha)} · Auditor ${esc(title(r.aud))}</div>`:`<div class="m">${dmy(r.fecha)} · ${esc(title(r.tipo||"Aud. final"))} · ${esc(title(r.op))} · ${esc(title(r.cli))} · ${esc(title(r.lin))} · ${esc(title(r.tal||r.proc))}</div>
     <div class="m">Auditor ${esc(title(r.aud))} · lote ${fmt(r.lote)} · muestra ${fmt(r.mue)} · ${fmt(r.may)} may. (≤${r.acM??"—"}) · ${fmt(r.men)} men. (≤${r.acm??"—"})</div>
     ${Object.keys(r.d||{}).length?`<div class="d">${Object.entries(r.d).map(([c,x])=>`${esc(c)} ${esc(title((r.nombres||{})[c]||""))} (${(x.M||0)+(x.m||0)})`).join(" · ")}</div>`:""}`}
     <div class="m">${r.geo?`<a class="pill ok" style="text-decoration:none" target="_blank" rel="noopener" href="https://www.google.com/maps?q=${encodeURIComponent(r.geo.lat+","+r.geo.lng)}">Ver ubicación</a> `:""}${autPill(r)}${r.editado?`<span class="pill wait">corregido${r.corrPor?" por "+esc(title(r.corrPor)):""}</span> `:""}${r.vb?`<span class="pill ok">V°B° ${dt(r.vb)}</span> `:""}${(r.fotos||[]).length?`${r.fotos.length} foto${r.fotos.length>1?"s":""}`:""}</div>
     <div class="acts"><button type="button" class="btn gold sm" data-pdf="${esc(r.id)}">⬇ PDF</button>${puedoCorregir(r)?`<button type="button" class="btn ghost sm" data-ed="${esc(r.id)}">Corregir</button>`:""}${S.admin?autCtl(r):""}${S.admin&&!r.vb?`<button type="button" class="btn sm" data-vb="${esc(r.id)}">Dar V°B°</button>`:""}${S.admin&&r.pdfId?`<a class="btn ghost sm" style="text-decoration:none;display:inline-flex;align-items:center" target="_blank" rel="noopener" href="https://drive.google.com/file/d/${encodeURIComponent(r.pdfId)}/view">Abrir en Drive</a>`:""}${S.admin?`<button type="button" class="btn danger sm" data-del="${esc(r.id)}">Eliminar</button>`:""}</div>
-  </article>`).join(""):`<div class="empty">${S.admin?"Todavía no hay reportes registrados desde la app.":"No tienes reportes de los últimos 60 días."}</div>`}
+  </article>`).join(""):`<div class="empty">${S.admin?"Todavía no hay reportes registrados desde la app.":"No tienes reportes de los últimos 60 días."}</div>`;hSelUI()}
 $("hiQ").oninput=()=>renderHist();
 $("hiA").onclick=()=>{S.hiMode="A";$("hiA").setAttribute("aria-pressed","true");$("hiR").setAttribute("aria-pressed","false");renderHist()};
 $("hiR").onclick=()=>{S.hiMode="R";$("hiR").setAttribute("aria-pressed","true");$("hiA").setAttribute("aria-pressed","false");renderHist()};
@@ -1444,7 +1450,8 @@ function renderAsisAdm(){const f=asisFecha(),by={};ASD.forEach(r=>{const x=by[r.
   const tarde=L.filter(x=>x.ing[0]&&x.ing[0].estado==="TARDE").length;
   $("asSub").textContent=`${dmy(f)} · tardanza según el horario de cada auditor`;
   $("asKpis").innerHTML=[["Marcaron ingreso",L.filter(x=>x.ing.length).length,"auditores"],["Tardanzas",tarde,"después de su hora"],["Marcaron salida",L.filter(x=>x.sal.length).length,"auditores"]].map(([l,v,s2],i)=>`<div class="kpi${i===1&&v?" rej":""}"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s2}</div></div>`).join("");
-  const mk=r=>`<div class="trow"><span class="nm"><b>${esc(r.hora)} · ${ASLAB[r.tipo]||r.tipo}</b>${r.taller?` · ${esc(title(r.taller))}`:""}${r.estado==="TARDE"?` <span class="pill bad">TARDE</span>`:r.estado?` <span class="pill ok">A tiempo</span>`:""}${r.sin?` <span class="pill wait">sin señal</span>`:""}</span><span class="row" style="gap:6px;flex-wrap:nowrap"><a class="btn ghost sm" style="text-decoration:none" target="_blank" rel="noopener" href="${esc(r.mapa)}">Mapa</a><button type="button" class="btn ghost sm" data-afoto="${esc(r.foto)}">Foto</button></span></div>`;
+  const selOn=S.admin&&S.principal;ASEL.forEach(id=>{if(!ASD.some(x=>x.id===id))ASEL.delete(id)});
+  const mk=r=>`<div class="trow"><span class="nm">${selOn?`<label class="selck" style="display:inline-flex;margin-right:6px"><input type="checkbox" data-asel="${esc(r.id)}"${ASEL.has(r.id)?" checked":""} aria-label="Seleccionar marca"></label>`:""}<b>${esc(r.hora)} · ${ASLAB[r.tipo]||r.tipo}</b>${r.taller?` · ${esc(title(r.taller))}`:""}${r.estado==="TARDE"?` <span class="pill bad">TARDE</span>`:r.estado?` <span class="pill ok">A tiempo</span>`:""}${r.sin?` <span class="pill wait">sin señal</span>`:""}</span><span class="row" style="gap:6px;flex-wrap:nowrap"><a class="btn ghost sm" style="text-decoration:none" target="_blank" rel="noopener" href="${esc(r.mapa)}">Mapa</a><button type="button" class="btn ghost sm" data-afoto="${esc(r.foto)}">Foto</button></span></div>`;
   const hm=hmA;
   const hrs=x=>{const a=x.ing[0],b=x.sal[x.sal.length-1];if(!a||!b)return"";const m=asMin(b.hora)-asMin(a.hora);return m>0?`${hm(m)} de jornada`:""};
   const resum=x=>{const d=datosDia(x),out=[],tl={};let abierto="";
@@ -1453,7 +1460,7 @@ function renderAsisAdm(){const f=asisFecha(),by={};ASD.forEach(r=>{const x=by[r.
     const k=Object.keys(tl);if(k.length)out.push("Talleres: "+k.map(t=>`${title(t)} ${hm(tl[t])}`).join(" · "));if(abierto)out.push(`Aún en ${title(abierto)} (sin salida)`);
     return out.length?`<p class="sub" style="margin:4px 0 0">${esc(out.join(" | "))}</p>`:""};
   $("asList").innerHTML=L.length?L.map(x=>{const t=x.ing[0]&&x.ing[0].estado==="TARDE";
-    return`<article class="item${t?" rej":""}"><div class="t"><b>${esc(title(x.aud))}${/^ADM-/.test(x.dni)?' <span class="pill wait">ADM</span>':""}</b><span class="sub">entra ${limDe(x)} · ${x.ing.length?"":"sin ingreso · "}${x.sal.length?hrs(x):"sin salida"}</span></div>${resum(x)}<div class="acts"><button type="button" class="btn gold sm" data-apdf="${esc(x.dni)}">⬇ PDF del día</button></div>${x.all.map(mk).join("")}<div class="afoto"></div></article>`}).join(""):`<div class="empty">Nadie marcó asistencia este día.</div>`}
+    return`<article class="item${t?" rej":""}"><div class="t"><b>${esc(title(x.aud))}${/^ADM-/.test(x.dni)?' <span class="pill wait">ADM</span>':""}</b><span class="sub">entra ${limDe(x)} · ${x.ing.length?"":"sin ingreso · "}${x.sal.length?hrs(x):"sin salida"}</span></div>${resum(x)}<div class="acts"><button type="button" class="btn gold sm" data-apdf="${esc(x.dni)}">⬇ PDF del día</button></div>${x.all.map(mk).join("")}<div class="afoto"></div></article>`}).join(""):`<div class="empty">Nadie marcó asistencia este día.</div>`;aSelUI()}
 $("asFecha").onchange=()=>cargarAsisAdm();
 const asMover=n=>{const d=new Date(asisFecha()+"T12:00:00");d.setDate(d.getDate()+n);$("asFecha").value=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");cargarAsisAdm()};
 $("asPrev").onclick=()=>asMover(-1);$("asNext").onclick=()=>asMover(1);$("asRefresh").onclick=()=>cargarAsisAdm();
@@ -1562,6 +1569,25 @@ $("teamList").addEventListener("click",async e=>{const b=e.target.closest("[data
     const a=TEAM.find(x=>String(x.DNI)===dni);if(a){if(ac==="temporal"){a.TIENE_CLAVE=true;a.TEMPORAL=true;a.CLAVE_TEMP=r.temporal;a.RESET=""}else a.RESET=ac==="aprobarReset"?"APROBADO":"RECHAZADO"}renderTeam();
     if(ac==="temporal")okSubido(false,"Clave temporal: "+r.temporal,`Díctasela a ${title(a?a.NOMBRE:"")}. Al entrar con su DNI y esta clave, la app le pedirá crear su propia contraseña. Sus reportes y asistencia no se borran.`);
     else toast(ac==="aprobarReset"?"Aprobado: ya puede crear su nueva contraseña en su celular":"Solicitud no aprobada")}catch(x){b.disabled=false}});
+/* ---- borrar los registros que yo seleccione (solo administradora principal) ---- */
+const HSEL=new Set(),ASEL=new Set();let HVIS=[];
+function hSelUI(){const on=S.admin&&S.principal&&HVIS.length>0;$("hiSelBar").hidden=!on;if(!on)return;const n=HSEL.size,b=$("hiSelDel");
+  b.disabled=!n;b.dataset.arm="";b.textContent=`Eliminar seleccionados (${n})`;$("hiSelAll").checked=HVIS.length>0&&HVIS.every(id=>HSEL.has(id))}
+$("hiList").addEventListener("change",e=>{const c=e.target.closest("[data-hsel]");if(!c)return;if(c.checked)HSEL.add(c.dataset.hsel);else HSEL.delete(c.dataset.hsel);c.closest("article").classList.toggle("sel",c.checked);hSelUI()});
+$("hiSelAll").onchange=e=>{HVIS.forEach(id=>e.target.checked?HSEL.add(id):HSEL.delete(id));renderHist()};
+$("hiSelDel").onclick=async()=>{const b=$("hiSelDel"),ids=[...HSEL],m=$("hiSelMsg");if(!ids.length)return;
+  if(b.dataset.arm!=="1"){b.dataset.arm="1";b.textContent=`¿Borrar ${ids.length} reporte${ids.length>1?"s":""}? Toca otra vez`;setTimeout(()=>{if(b.dataset.arm==="1")hSelUI()},5000);return}
+  b.disabled=true;let n=0,f=0;try{for(let i=0;i<ids.length;i+=10){m.textContent=`Borrando ${Math.min(i+10,ids.length)} de ${ids.length}…`;const r=await admin("adminEliminarVarios",ids.slice(i,i+10));if(!r.ok){toast(r.msg);break}n+=r.eliminados;f+=(r.fallidos||[]).length;
+      const ok=ids.slice(i,i+10).filter(id=>!(r.fallidos||[]).includes(id));HIS=HIS.filter(x=>!ok.includes(x.id));ok.forEach(id=>HSEL.delete(id))}}catch(x){}
+  m.textContent="";TAB=null;TIM=null;renderHist();okSubido(false,`${n} reporte${n===1?"":"s"} borrado${n===1?"":"s"}`,`Quedó una copia en la hoja ELIMINADOS del Excel y los PDF/fotos en la papelera de Drive (30 días).${f?` ${f} no se pudieron borrar.`:""}`)};
+function aSelUI(){const on=S.admin&&S.principal&&ASD.length>0;$("asSelBar").hidden=!on;if(!on)return;const n=ASEL.size,b=$("asSelDel");
+  b.disabled=!n;b.dataset.arm="";b.textContent=`Eliminar marcas seleccionadas (${n})`;$("asSelAll").checked=ASD.length>0&&ASD.every(r=>ASEL.has(r.id))}
+$("asList").addEventListener("change",e=>{const c=e.target.closest("[data-asel]");if(!c)return;if(c.checked)ASEL.add(c.dataset.asel);else ASEL.delete(c.dataset.asel);aSelUI()});
+$("asSelAll").onchange=e=>{ASD.forEach(r=>e.target.checked?ASEL.add(r.id):ASEL.delete(r.id));renderAsisAdm()};
+$("asSelDel").onclick=async()=>{const b=$("asSelDel"),ids=[...ASEL];if(!ids.length)return;
+  if(b.dataset.arm!=="1"){b.dataset.arm="1";b.textContent=`¿Borrar ${ids.length} marca${ids.length>1?"s":""}? Toca otra vez`;setTimeout(()=>{if(b.dataset.arm==="1")aSelUI()},5000);return}
+  b.disabled=true;$("asSelMsg").textContent="Borrando…";try{const r=await admin("adminEliminarAsis",ids);if(!r.ok){toast(r.msg);aSelUI();return}
+    ASD=ASD.filter(x=>!ids.includes(x.id));ASEL.clear();renderAsisAdm();okSubido(false,`${r.eliminados} marca${r.eliminados===1?"":"s"} borrada${r.eliminados===1?"":"s"}`,"Quedó una copia en la hoja ASISTENCIA ELIMINADA del Excel y las fotos en la papelera de Drive (30 días).")}catch(x){aSelUI()}finally{$("asSelMsg").textContent=""}};
 /* ---- botón Atrás del celular: vuelve a la pantalla anterior dentro de la app (no la cierra ni borra lo escrito) ---- */
 try{history.replaceState({cs:"root"},"")}catch(x){}
 let atrasT=0;
