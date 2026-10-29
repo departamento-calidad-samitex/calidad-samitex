@@ -490,6 +490,17 @@ details.perm .grid2{margin-top:6px}
       <button class="btn" type="submit" id="rBtn">Registrar y activar</button>
       <p class="note err" id="rErr" hidden></p>
     </form>
+    <div class="card" id="cfgCard" hidden>
+      <div class="hd"><h3>Dónde llegan los informes</h3><span class="sub">Solo administradora principal</span></div>
+      <form id="cfgForm" novalidate style="display:flex;flex-direction:column;gap:10px">
+        <label class="fld"><span>Correo(s) que reciben los informes</span><input id="cfgCorreo" type="text" inputmode="email" autocomplete="off" placeholder="calidad@samitex.com.pe, otro@outlook.com"></label>
+        <p class="sub" style="margin-top:-6px">Sirve Gmail, Outlook, Hotmail o el correo de la empresa. Hasta 5, separados por coma. Vacío = <span id="cfgCuenta1"></span>.</p>
+        <label class="fld"><span>Carpeta de Google Drive para guardar</span><input id="cfgCarpeta" type="url" autocomplete="off" placeholder="https://drive.google.com/drive/folders/…"></label>
+        <p class="sub" style="margin-top:-6px">Ahora: <a id="cfgCarpetaAct" target="_blank" rel="noopener"></a>. Para cambiarla, comparte la carpeta nueva como <b>Editor</b> con <b id="cfgCuenta2"></b> y pega aquí su link. Lo nuevo (PDF, fotos, firmas, asistencia) se guardará ahí; lo anterior se queda donde está.</p>
+        <div class="row"><button class="btn" type="submit" id="cfgSave">Guardar</button><button type="button" class="btn ghost" id="cfgTest">Enviar correo de prueba</button><button type="button" class="btn ghost sm" id="cfgOrig" hidden>Volver a la carpeta original</button></div>
+        <p class="note err" id="cfgErr" hidden></p>
+      </form>
+    </div>
     <div class="card" id="admCard">
       <div class="hd"><h3>Administradoras</h3><span class="sub" id="admSub"></span></div>
       <div id="admList"></div>
@@ -792,7 +803,7 @@ $("tabs").onclick=e=>{const b=e.target.closest("[data-t]");if(b)go(b.dataset.t)}
 function go(t,pop){if(!pop&&S.tab!==t&&(S.token||S.admin)&&!["gate","pend","adm"].includes(t))try{history.pushState({cs:t},"")}catch(x){}S.tab=t;document.querySelectorAll(".view").forEach(v=>{const on=v.id==="v-"+t;v.hidden=!on;v.style.display=on?"flex":"none"});
   $("hTitle").textContent=t==="form"&&S.editing?"Corregir reporte":HT[t];$("hSub").textContent=t==="form"?"Calidad Samitex · "+MODULOS.af.cod:"Calidad Samitex";renderTabs();
   if(t==="form")requestAnimationFrame(()=>{pads.sA.size();pads.sT.size();pads.sA.load(S.form.firmaA);pads.sT.load(S.form.firmaT)});
-  if(t==="home"){cargarProcs();cargarCorr();cargarAsis()}if(t==="asis")cargarAsisAdm();if(t==="dash")cargarTablero();if(t==="hist")cargarHist();if(t==="team"){cargarTeam();cargarAdmins()}if(t==="time")cargarTiempos();scrollTo(0,0)}
+  if(t==="home"){cargarProcs();cargarCorr();cargarAsis()}if(t==="asis")cargarAsisAdm();if(t==="dash")cargarTablero();if(t==="hist")cargarHist();if(t==="team"){cargarTeam();cargarAdmins().then(cargarCfg)}if(t==="time")cargarTiempos();scrollTo(0,0)}
 
 /* ================= ingreso de auditores ================= */
 ["gDni","sDni","rDni"].forEach(id=>$(id)&&$(id).addEventListener("input",e=>{e.target.value=e.target.value.replace(/\D/g,"").slice(0,8)}));
@@ -1003,6 +1014,15 @@ $("tiRefresh").onclick=()=>cargarTiempos(true);
 
 /* ================= administradoras ================= */
 let ADMS=null;
+let CFG=null;
+async function cargarCfg(){const c=$("cfgCard");if(!S.admin||!S.principal){c.hidden=true;return}try{CFG=await admin("adminConfig")}catch(x){return}renderCfg()}
+function renderCfg(){const c=$("cfgCard");c.hidden=!(S.admin&&S.principal&&CFG);if(c.hidden)return;
+  $("cfgCorreo").value=CFG.correoPropio?"":CFG.correo;$("cfgCuenta1").textContent=CFG.cuenta;$("cfgCuenta2").textContent=CFG.cuenta;
+  const a=$("cfgCarpetaAct");a.textContent=CFG.carpeta.nombre||"—";a.href=CFG.carpeta.url||"#";$("cfgCarpeta").value="";$("cfgOrig").hidden=CFG.carpeta.propia!==false}
+$("cfgForm").addEventListener("submit",async e=>{e.preventDefault();const er=$("cfgErr"),b=$("cfgSave");er.hidden=true;const cfg={correo:$("cfgCorreo").value.trim()};const cp=$("cfgCarpeta").value.trim();if(cp)cfg.carpeta=cp;
+  b.disabled=true;b.textContent="Guardando…";try{const r=await admin("adminGuardarConfig",cfg);if(!r.ok){er.textContent=r.msg;er.hidden=false;return}CFG=r.config;renderCfg();okSubido(false,"Guardado",`Los informes llegarán a ${CFG.correo} y se guardarán en la carpeta «${CFG.carpeta.nombre}».`)}catch(x){}finally{b.disabled=false;b.textContent="Guardar"}});
+$("cfgTest").onclick=async()=>{const b=$("cfgTest");b.disabled=true;try{const r=await admin("adminProbarCorreo");if(r.ok)okSubido(false,"Correo de prueba enviado",`Revisa ${r.correo} (también la carpeta de spam o correo no deseado).`);else toast(r.msg)}catch(x){}finally{b.disabled=false}};
+$("cfgOrig").onclick=async()=>{const b=$("cfgOrig");b.disabled=true;try{const r=await admin("adminGuardarConfig",{carpeta:"original"});if(r.ok){CFG=r.config;renderCfg();toast("Se volvió a la carpeta original")}else toast(r.msg)}catch(x){}finally{b.disabled=false}};
 async function cargarAdmins(){try{ADMS=await admin("adminLista");S.principal=!!ADMS.principal}catch(x){}renderAdmins()}
 function renderAdmins(){if(!ADMS)return;const L=ADMS.lista||[];$("admSub").textContent=`${L.length} con acceso`;
   $("admList").innerHTML=L.map(a=>`<div class="row" style="justify-content:space-between;border-bottom:1px solid var(--line);padding:6px 0"><span><b>${esc(title(a.nombre))}</b> ${a.principal?`<span class="pill ok">Principal</span>`:""} ${a.id===ADMS.yo?`<span class="pill wait">Tú</span>`:""}</span>${ADMS.principal&&!a.principal?`<button type="button" class="btn danger sm" data-qa="${esc(a.id)}">Quitar acceso</button>`:""}</div>`).join("");
