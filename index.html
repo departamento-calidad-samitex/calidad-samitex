@@ -133,6 +133,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 .photos.cap{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}.phw{display:flex;flex-direction:column;gap:4px;min-width:0}.phw input{font-size:12px;padding:6px 8px;min-height:0}
 .addph{aspect-ratio:1;border:1.5px dashed var(--base);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--fg2);font:600 12px var(--font-body);cursor:pointer;background:transparent}
 #admCard{scroll-margin-top:96px}
+.stack{display:flex;flex-direction:column;gap:10px}
 .okdlg{position:fixed;inset:0;background:#0b103099;display:flex;align-items:center;justify-content:center;z-index:60;padding:16px}.okdlg[hidden]{display:none}.okbox{background:var(--surface);border-radius:14px;padding:22px 20px;max-width:360px;width:100%;text-align:center;display:flex;flex-direction:column;gap:10px}.okic{width:60px;height:60px;border-radius:50%;background:var(--good);color:#fff;font-size:32px;line-height:60px;margin:0 auto}.okic.wait{background:var(--gold);color:#0b1030}
 .addph svg{width:26px;height:26px;stroke:currentColor;fill:none;stroke-width:1.8}
 .sig{display:flex;flex-direction:column;gap:6px}
@@ -220,10 +221,17 @@ details.perm .grid2{margin-top:6px}
     <button type="button" class="btn gold block" data-inst="1" hidden>⬇ Instalar la app en este equipo</button><div class="note" data-insthelp hidden></div>
     <form id="gForm" class="card" novalidate>
       <h3>Ingresar</h3>
-      <label class="fld"><span>DNI</span><input id="gDni" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="00000000"></label>
+      <label class="fld"><span>DNI</span><input id="gDni" inputmode="numeric" autocomplete="username" maxlength="8" placeholder="00000000"></label>
+      <label class="fld" id="gPwdBox"><span>Contraseña</span><input id="gPwd" type="password" autocomplete="current-password" maxlength="30" placeholder="Tu contraseña"></label>
+      <div id="gNewBox" class="stack" hidden><p class="note" id="gNewMsg"></p>
+        <label class="fld"><span>Nueva contraseña (6 a 30 caracteres)</span><input id="gNew" type="password" autocomplete="new-password" maxlength="30"></label>
+        <label class="fld"><span>Repite la nueva contraseña</span><input id="gNew2" type="password" autocomplete="new-password" maxlength="30"></label></div>
+      <label class="sub" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="gVer" style="width:auto;min-height:0"> Mostrar contraseña</label>
       <p class="sub">El primer ingreso necesita señal. Después este equipo queda autorizado y la app funciona sin internet.</p>
       <button class="btn block" type="submit" id="gBtn">Ingresar</button>
       <p class="note err" id="gErr" hidden></p>
+      <p class="sub" style="text-align:center"><button type="button" class="btn ghost sm" id="gOlv">¿Olvidaste tu contraseña?</button></p>
+      <p class="note" id="gRst" hidden></p>
       <p class="sub" style="text-align:center">¿Primera vez? <button type="button" class="btn ghost sm" id="toReq">Solicitar acceso</button></p>
     </form>
     <form id="sForm" class="card" novalidate hidden>
@@ -231,6 +239,9 @@ details.perm .grid2{margin-top:6px}
       <label class="fld"><span>Nombre y apellido</span><input id="sNom" autocapitalize="words" placeholder="Clara Ramos"></label>
       <label class="fld"><span>DNI</span><input id="sDni" inputmode="numeric" maxlength="8" placeholder="00000000"></label>
       <label class="fld"><span>Cargo</span><input id="sCargo" placeholder="Auditor de calidad"></label>
+      <label class="fld"><span>Crea tu contraseña (6 a 30 caracteres)</span><input id="sPwd" type="password" autocomplete="new-password" maxlength="30"></label>
+      <label class="fld"><span>Repite tu contraseña</span><input id="sPwd2" type="password" autocomplete="new-password" maxlength="30"></label>
+      <p class="sub">Tu contraseña es solo tuya: queda cifrada y nadie puede verla. Si la olvidas, pide restablecerla.</p>
       <button class="btn block" type="submit" id="sBtn">Enviar solicitud</button>
       <p class="note err" id="sErr" hidden></p>
       <p class="sub" style="text-align:center">¿Ya te aprobaron? <button type="button" class="btn ghost sm" id="toIn">Ingresar con mi DNI</button></p>
@@ -259,7 +270,6 @@ details.perm .grid2{margin-top:6px}
   <!-- ===== INICIO: procesos de control de calidad ===== -->
   <section id="v-home" class="view" hidden style="flex-direction:column;gap:14px">
     <div><h2 id="homeHi">Calidad Samitex</h2><p class="sub" id="homeSub">Control de calidad · elige el proceso</p></div>
-    <div class="procs" id="procList"></div>
     <div class="card" id="asisCard" hidden>
       <div class="hd"><h3>Asistencia Auditoría Talleres</h3><span class="sub" id="asisHoy"></span></div>
       <div class="list" id="asisMis"></div>
@@ -273,6 +283,7 @@ details.perm .grid2{margin-top:6px}
       <p class="sub" id="asisMsg">Cada marca toma una foto con la cámara frontal, tu ubicación y la hora. El ingreso después de tu hora de entrada queda como tardanza.</p>
       <input type="file" id="asisFoto" accept="image/*" capture="user" hidden>
     </div>
+    <div class="procs" id="procList"></div>
     <div class="card" id="corrCard" hidden><div class="hd"><h3>Correcciones autorizadas</h3><span class="sub">La jefatura de calidad te habilitó estos reportes</span></div><div class="list" id="corrList"></div></div>
     <div class="card" id="admQuick" hidden><div class="hd"><h3>Administradoras</h3><span class="sub">Solo administradora principal</span></div><p class="sub">Crea otra administradora (ADM) con su propio nombre y código.</p><button type="button" class="btn" id="admQuickBtn">➕ Crear otra administradora</button></div>
     <div class="card" id="procAdm" hidden>
@@ -287,6 +298,13 @@ details.perm .grid2{margin-top:6px}
       <p class="note err" id="procErr" hidden></p>
       <button type="button" class="btn" id="procSave">Guardar menú</button>
     </div>
+    <div class="card" id="clvCard" hidden><div class="hd"><h3>Mi contraseña</h3></div><p class="note" id="clvAviso" hidden></p>
+      <details id="clvDet"><summary class="sub" style="cursor:pointer">Cambiar mi contraseña</summary>
+      <form id="clvForm" novalidate style="display:flex;flex-direction:column;gap:10px;margin-top:8px">
+        <label class="fld" id="clvActBox"><span>Contraseña actual</span><input id="clvAct" type="password" autocomplete="current-password" maxlength="30"></label>
+        <label class="fld"><span>Nueva contraseña (6 a 30 caracteres)</span><input id="clvNew" type="password" autocomplete="new-password" maxlength="30"></label>
+        <label class="fld"><span>Repite la nueva</span><input id="clvNew2" type="password" autocomplete="new-password" maxlength="30"></label>
+        <button class="btn" type="submit">Guardar contraseña</button><p class="note err" id="clvErr" hidden></p></form></details></div>
     <button type="button" class="btn ghost sm" id="salirHome" style="align-self:center" hidden>Salir de mi cuenta en este celular</button>
   </section>
 
@@ -780,25 +798,48 @@ async function reLogin(){return false}
 function setSesion(r){setPerm(r.permisos);S.token=r.token;S.hasta=r.historialHasta||0;S.me={nombre:r.nombre};ls.set("af_ses",{tok:r.token,nombre:r.nombre,hasta:S.hasta});ls.set("af_pend",null);
   $("role").textContent=title(r.nombre);loadForm(ls.get("draft3",null)||blankForm());go("home");banner();usoIni();enviarCola()}
 function cerrarSesion(msg){usoFin();usoBeacon(usoPend());ls.set(USO,[]);ls.set(USOA,null);ls.set("af_ses",null);S.token=null;S.me=null;S.hasta=0;$("gForm").hidden=false;$("sForm").hidden=true;go("gate");$("role").textContent="Auditor";if(msg){$("gErr").textContent=msg;$("gErr").hidden=false}}
-async function verificar(){try{const r=await call("estado",S.token);if(r.ok){setPerm(r.permisos);renderHome();S.hasta=r.historialHasta||0;S.me.nombre=r.nombre;ls.set("af_ses",{tok:S.token,nombre:r.nombre,hasta:S.hasta});renderTabs();banner()}
+async function verificar(){try{const r=await call("estado",S.token);if(r.ok){S.clv={sin:!!r.sinClave,tmp:!!r.claveTemporal};renderClv();setPerm(r.permisos);renderHome();S.hasta=r.historialHasta||0;S.me.nombre=r.nombre;ls.set("af_ses",{tok:S.token,nombre:r.nombre,hasta:S.hasta});renderTabs();banner()}
   else cerrarSesion(r.estado==="BLOQUEADO"?"Tu acceso fue bloqueado por la jefatura de calidad.":r.estado==="PENDIENTE"?"Tu acceso está pendiente de aprobación.":"Este equipo ya no está autorizado. Vuelve a ingresar con tu DNI.")}catch(x){}}
-async function entrar(dni){const er=$("gErr");er.hidden=true;
-  try{const r=await call("ingresar",dni);
-    if(r.ok){setSesion(r);return true}
+let gModo="";
+function gNuevo(modo,msg){gModo=modo;$("gNewBox").hidden=false;$("gNewMsg").textContent=msg||"";$("gPwdBox").hidden=modo!=="cambiar";$("gBtn").textContent="Guardar contraseña e ingresar";setTimeout(()=>$("gNew").focus(),50)}
+function gNormal(){gModo="";$("gNewBox").hidden=true;$("gPwdBox").hidden=false;$("gNew").value="";$("gNew2").value="";$("gBtn").textContent="Ingresar"}
+async function entrar(dni){const er=$("gErr");er.hidden=true;er.className="note err";
+  let nueva="";if(gModo){nueva=$("gNew").value;if(nueva.length<6){er.textContent="La nueva contraseña debe tener al menos 6 caracteres.";er.hidden=false;return false}if(nueva!==$("gNew2").value){er.textContent="Las dos contraseñas nuevas no coinciden.";er.hidden=false;return false}}
+  const rst=ls.get("af_rst",null),rid=gModo==="reset"&&rst&&rst.dni===dni?rst.rid:"";
+  try{const r=await call("ingresar",dni,$("gPwd").value,nueva,rid);
+    if(r.ok){if(rid)ls.set("af_rst",null);$("gPwd").value="";gNormal();$("gRst").hidden=true;setSesion(r);return true}
+    if(r.estado==="CREAR_CLAVE"){gNuevo(r.reset?"reset":"crear",r.msg);return false}
+    if(r.estado==="CAMBIAR_CLAVE"){gNuevo("cambiar",r.msg);return false}
+    if(r.estado==="PEDIR_CLAVE"){gNormal();er.textContent=r.msg;er.hidden=false;$("gPwd").focus();return false}
     if(r.estado==="PENDIENTE"){ls.set("af_pend",dni);showPend(r.nombre,dni);return false}
     if(r.estado==="NUEVO"){$("toReq").click();$("sErr").className="note";$("sErr").textContent="Tu DNI aún no tiene acceso. Completa la solicitud.";$("sErr").hidden=false;return false}
     er.textContent=r.msg||"No se pudo ingresar.";er.hidden=false;return false}
   catch(x){er.textContent=netErr(x)?"Para el primer ingreso necesitas señal. Inténtalo con internet; después la app funciona sin señal.":"No se pudo ingresar: "+x.message;er.hidden=false;return false}}
 $("gForm").addEventListener("submit",async e=>{e.preventDefault();const d=$("gDni").value;if(!/^\d{8}$/.test(d)){$("gErr").textContent="El DNI tiene 8 dígitos.";$("gErr").hidden=false;return}
-  const b=$("gBtn");b.disabled=true;b.textContent="Verificando…";await entrar(d);b.disabled=false;b.textContent="Ingresar"});
+  const b=$("gBtn");b.disabled=true;const t0=b.textContent;b.textContent="Verificando…";await entrar(d);b.disabled=false;if(b.textContent==="Verificando…")b.textContent=gModo?"Guardar contraseña e ingresar":"Ingresar"});
+$("gVer").onchange=e=>{["gPwd","gNew","gNew2","sPwd","sPwd2"].forEach(i=>$(i).type=e.target.checked?"text":"password")};
+$("gDni").addEventListener("input",()=>{if(gModo)gNormal()});
+/* olvidé mi contraseña: la jefatura aprueba y luego se crea una nueva desde este mismo celular */
+$("gOlv").onclick=async()=>{const d=$("gDni").value,er=$("gErr");er.hidden=true;if(!/^\d{8}$/.test(d)){er.textContent="Primero escribe tu DNI.";er.hidden=false;$("gDni").focus();return}
+  const b=$("gOlv");b.disabled=true;try{const r=await call("olvideClave",d);if(!r.ok){er.textContent=r.msg;er.hidden=false;return}ls.set("af_rst",{dni:d,rid:r.rid});rstVer()}catch(x){er.textContent="Sin conexión. Inténtalo con señal.";er.hidden=false}finally{b.disabled=false}};
+let rstT;async function rstVer(){const p=ls.get("af_rst",null),n=$("gRst");clearTimeout(rstT);if(!p){n.hidden=true;return}
+  n.className="note";n.textContent="Pediste restablecer tu contraseña. Espera a que la jefatura de calidad lo apruebe; esta pantalla se actualiza sola.";n.hidden=false;
+  try{const r=await call("estadoReset",p.dni,p.rid);
+    if(r.estado==="APROBADO"){$("gDni").value=p.dni;n.className="note ok";n.textContent="¡Aprobado! Crea tu nueva contraseña.";gNuevo("reset","Crea tu nueva contraseña (6 a 30 caracteres).");return}
+    if(r.estado==="RECHAZADO"||r.estado==="NINGUNO"){ls.set("af_rst",null);n.className="note err";n.textContent=r.estado==="RECHAZADO"?"La jefatura no aprobó restablecer tu contraseña. Habla con ella.":"Tu solicitud ya no está vigente. Si aún no puedes entrar, pídela otra vez.";return}}catch(x){}
+  if(S.tab==="gate")rstT=setTimeout(rstVer,20000)}
 $("sForm").addEventListener("submit",async e=>{e.preventDefault();const n=$("sNom").value.trim(),d=$("sDni").value,c=$("sCargo").value.trim(),er=$("sErr");er.hidden=true;er.className="note err";
   if(!n||!/^\d{8}$/.test(d)){er.textContent="Escribe tu nombre y un DNI de 8 dígitos.";er.hidden=false;return}
+  const pw=$("sPwd").value;if(pw.length<6){er.textContent="Crea una contraseña de al menos 6 caracteres.";er.hidden=false;return}if(pw!==$("sPwd2").value){er.textContent="Las dos contraseñas no coinciden.";er.hidden=false;return}
   const b=$("sBtn");b.disabled=true;b.textContent="Enviando…";
-  try{const r=await call("solicitarAcceso",n,d,c);if(!r.ok){er.textContent=r.msg;er.hidden=false;return}
-    if(r.estado==="ACTIVO"){await entrar(d);return}ls.set("af_pend",d);showPend(up(n),d)}
+  try{const r=await call("solicitarAcceso",n,d,c,pw);if(!r.ok){er.textContent=r.msg;er.hidden=false;return}
+    $("sPwd").value="";$("sPwd2").value="";
+    if(r.estado==="ACTIVO"){$("gForm").hidden=false;$("sForm").hidden=true;$("gDni").value=d;$("gErr").className="note";$("gErr").textContent="Ya tienes acceso. Ingresa con tu contraseña.";$("gErr").hidden=false;$("gPwd").focus();return}ls.set("af_pend",d);showPend(up(n),d)}
   catch(x){er.textContent="Sin conexión. Revisa tu señal e inténtalo otra vez.";er.hidden=false}finally{b.disabled=false;b.textContent="Enviar solicitud"}});
 let pendT;function showPend(nombre,dni){go("pend");$("pNom").textContent=`${title(nombre)} · DNI ••••${dni.slice(-4)}`;clearInterval(pendT);
-  pendT=setInterval(async()=>{try{const r=await call("ingresar",dni);if(r.ok){clearInterval(pendT);setSesion(r);toast("¡Acceso aprobado!")}else if(r.estado!=="PENDIENTE"){clearInterval(pendT);ls.set("af_pend",null);go("gate");$("gErr").textContent=r.msg||"Tu solicitud no fue aprobada.";$("gErr").hidden=false}}catch(x){}},20000)}
+  pendT=setInterval(async()=>{try{const r=await call("ingresar",dni);if(r.ok){clearInterval(pendT);setSesion(r);toast("¡Acceso aprobado!")}else if(/CLAVE/.test(r.estado||"")){clearInterval(pendT);aprobadoPedirClave(dni,r)}else if(r.estado!=="PENDIENTE"){clearInterval(pendT);ls.set("af_pend",null);go("gate");$("gErr").textContent=r.msg||"Tu solicitud no fue aprobada.";$("gErr").hidden=false}}catch(x){}},20000)}
+function aprobadoPedirClave(dni,r){ls.set("af_pend",null);$("gForm").hidden=false;$("sForm").hidden=true;go("gate");$("gDni").value=dni;gNormal();
+  if(r.estado==="CREAR_CLAVE")gNuevo("crear","¡Te aprobaron! "+r.msg);else{$("gErr").className="note ok";$("gErr").textContent="¡Te aprobaron! Escribe tu contraseña para ingresar.";$("gErr").hidden=false;$("gPwd").focus()}}
 $("pOut").onclick=()=>{clearInterval(pendT);ls.set("af_pend",null);$("gForm").hidden=false;$("sForm").hidden=true;go("gate")};
 $("salir").onclick=()=>{if(cola().length){toast("Tienes reportes sin enviar. Conéctate a internet antes de salir.");return}cerrarSesion()};
 
@@ -861,6 +902,7 @@ function renderTeam(){if(S.tab!=="team")return;const now=Date.now(),ord={PENDIEN
       :`<button type="button" class="btn sm" data-a="reactivar" data-d="${dni}">Reactivar</button>`;
     return`<div class="card"><div class="hd"><b style="font-size:16px">${esc(title(a.NOMBRE))}</b><span class="pill ${pill}">${esc(title(st))}</span></div>
      <div class="sub">DNI ${dni} · ${esc(title(a.CARGO||""))} · ${fmt(a.REPORTES||0)} reportes · ${st==="PENDIENTE"?"pidió acceso "+dt(Number(a.SOLICITADO)):"último ingreso "+dt(Number(a["ULTIMO INGRESO"]))}</div>
+     ${clvAdm(a)}
      ${h>now?`<span class="pill ok" style="align-self:flex-start">Historial autorizado (solo ver) hasta ${dt(h)}</span>`:""}
      <div class="row">${acts}<button type="button" class="btn danger sm" data-delaud="${dni}" data-nom="${esc(title(a.NOMBRE))}">Eliminar</button></div>${st==="ACTIVO"?permCard(a):""}</div>`}).join(""):`<div class="empty">Aún no hay auditores. Cuando un auditor pida acceso aparecerá aquí, o regístralo tú abajo.</div>`;
   $("aqlTbl").innerHTML=`<tr>${["Lote","Muestra","May. Ac","May. Re","Men. Ac","Men. Re"].map(h=>`<th style="text-align:left;padding:6px;border-bottom:1px solid var(--base);color:var(--muted);font-size:11px">${h}</th>`).join("")}</tr>`+
@@ -885,7 +927,7 @@ function renderHome(){if(S.tab!=="home")return;const L=conModulos(PROCS||PROC_DE
   const nom=S.me&&S.me.nombre?title(S.me.nombre).split(" ")[0]:"";$("homeHi").textContent=nom&&nom!=="—"?`Hola, ${nom}`:"Calidad Samitex";
   $("homeSub").textContent="Control de calidad · elige el proceso";
   $("procList").innerHTML=L.length?L.map(p=>{const bi=!!MODULOS[p.id],usable=bi||!!p.url;return`<button type="button" class="proc${usable&&p.activo?"":" off"}" data-p="${esc(p.id)}"><span class="ic">${esc(bi?MODULOS[p.id].ic:ini2(p.nombre))}</span><span><b>${esc(p.nombre)}</b><small>${esc(bi?MODULOS[p.id].cod+" · "+MODULOS[p.id].d:p.desc||"")}${bi&&!S.admin?" · "+(puedeE(p.id)?"ingreso de datos":"visualizador"):""}${usable?"":(p.desc?" · ":"")+"En preparación"}${p.activo?"":" · oculto para auditores"}</small></span></button>`}).join(""):`<div class="empty">No hay procesos activos.</div>`;
-  $("procAdm").hidden=!S.admin;$("admQuick").hidden=!(S.admin&&S.principal);$("salirHome").hidden=!!S.admin;if(S.admin)renderProcEd()}
+  $("procAdm").hidden=!S.admin;$("admQuick").hidden=!(S.admin&&S.principal);renderClv();$("salirHome").hidden=!!S.admin;if(S.admin)renderProcEd()}
 $("procList").onclick=e=>{const b=e.target.closest("[data-p]");if(!b)return;const p=(PROCS||PROC_DEF).find(x=>x.id===b.dataset.p);if(!p)return;
   if(abrirModulo(p.id))return;if(p.url){window.open(p.url,"_blank","noopener");return}toast("Este proceso aún está en preparación.")};
 function renderProcEd(){$("procEd").innerHTML=PED.map((p,i)=>`<div class="pe" data-i="${i}">
@@ -1362,7 +1404,7 @@ $("teamList").addEventListener("change",e=>{const s=e.target.closest("[data-pmal
 function geoAhora(ms){return new Promise(res=>{if(!navigator.geolocation)return res(null);setTimeout(()=>res(null),(ms||15000)+3000);navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lng:p.coords.longitude,acc:Math.round(p.coords.accuracy),ts:Date.now()}),e=>res(e&&e.code===1?{denegado:1}:null),{enableHighAccuracy:true,timeout:ms||15000,maximumAge:60000})})}
 async function geoForm(){const g=await geoAhora(8000);return g&&!g.denegado?g:null}
 let ASIS={hoy:"",rows:[],hora:"08:30"},asisTipo=null;const ASCOLA="asis_cola";
-async function cargarAsis(){const c=$("asisCard");if(S.admin||!S.token){c.hidden=true;return}c.hidden=false;renderAsis();enviarAsis();
+async function cargarAsis(){const c=$("asisCard");if(!S.token){c.hidden=true;return}c.hidden=false;renderAsis();enviarAsis();
   try{const r=await call("miAsistencia",S.token);if(r&&r.ok){ASIS=r;renderAsis()}}catch(x){}}
 const ASLAB={INGRESO:"Ingreso",SALIDA:"Salida",ALMUERZO_SALIDA:"Salida a almuerzo",ALMUERZO_REGRESO:"Regreso de almuerzo",TALLER_LLEGADA:"Llegada a taller",TALLER_SALIDA:"Salida de taller",TALLER_CAMBIO:"Cambio de taller"};
 const asMinA=h=>{const m=String(h||"").match(/^(\d{1,2}):(\d{2})/);return m?+m[1]*60+ +m[2]:NaN};
@@ -1387,7 +1429,7 @@ $("asisFoto").onchange=async e=>{const file=e.target.files[0];if(!file||!asisTip
     catch(x){if(netErr(x)){ls.set(ASCOLA,[...ls.get(ASCOLA,[]),{...m,sinSenal:true}]);msg.className="note";msg.textContent="Sin señal: tu marca quedó guardada en el celular con la hora del celular y se enviará sola al volver la conexión.";renderAsis()}else{msg.className="note err";msg.textContent="No se pudo marcar. Inténtalo otra vez."}}}
   catch(x){msg.className="note err";msg.textContent="No se pudo leer la foto. Inténtalo otra vez."}finally{bs.forEach(b=>b.disabled=false);asisTipo=null;renderAsis()}};
 let asisEnv=false;
-async function enviarAsis(){const q=ls.get(ASCOLA,[]);if(asisEnv||!q.length||!S.token||S.admin)return;asisEnv=true;let ok=0;
+async function enviarAsis(){const q=ls.get(ASCOLA,[]);if(asisEnv||!q.length||!S.token)return;asisEnv=true;let ok=0;
   try{for(const m of q){try{const r=await call("marcarAsistencia",S.token,m);if(r.sesion)break;ls.set(ASCOLA,ls.get(ASCOLA,[]).filter(x=>x.id!==m.id));if(r.ok)ok++}catch(x){break}}}finally{asisEnv=false}
   if(ok){toast("Asistencia enviada");try{const r=await call("miAsistencia",S.token);if(r&&r.ok){ASIS=r;renderAsis()}}catch(x){}}}
 addEventListener("online",()=>enviarAsis());setInterval(()=>enviarAsis(),60000);
@@ -1411,7 +1453,7 @@ function renderAsisAdm(){const f=asisFecha(),by={};ASD.forEach(r=>{const x=by[r.
     const k=Object.keys(tl);if(k.length)out.push("Talleres: "+k.map(t=>`${title(t)} ${hm(tl[t])}`).join(" · "));if(abierto)out.push(`Aún en ${title(abierto)} (sin salida)`);
     return out.length?`<p class="sub" style="margin:4px 0 0">${esc(out.join(" | "))}</p>`:""};
   $("asList").innerHTML=L.length?L.map(x=>{const t=x.ing[0]&&x.ing[0].estado==="TARDE";
-    return`<article class="item${t?" rej":""}"><div class="t"><b>${esc(title(x.aud))}</b><span class="sub">entra ${limDe(x)} · ${x.ing.length?"":"sin ingreso · "}${x.sal.length?hrs(x):"sin salida"}</span></div>${resum(x)}<div class="acts"><button type="button" class="btn gold sm" data-apdf="${esc(x.dni)}">⬇ PDF del día</button></div>${x.all.map(mk).join("")}<div class="afoto"></div></article>`}).join(""):`<div class="empty">Nadie marcó asistencia este día.</div>`}
+    return`<article class="item${t?" rej":""}"><div class="t"><b>${esc(title(x.aud))}${/^ADM-/.test(x.dni)?' <span class="pill wait">ADM</span>':""}</b><span class="sub">entra ${limDe(x)} · ${x.ing.length?"":"sin ingreso · "}${x.sal.length?hrs(x):"sin salida"}</span></div>${resum(x)}<div class="acts"><button type="button" class="btn gold sm" data-apdf="${esc(x.dni)}">⬇ PDF del día</button></div>${x.all.map(mk).join("")}<div class="afoto"></div></article>`}).join(""):`<div class="empty">Nadie marcó asistencia este día.</div>`}
 $("asFecha").onchange=()=>cargarAsisAdm();
 const asMover=n=>{const d=new Date(asisFecha()+"T12:00:00");d.setDate(d.getDate()+n);$("asFecha").value=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");cargarAsisAdm()};
 $("asPrev").onclick=()=>asMover(-1);$("asNext").onclick=()=>asMover(1);$("asRefresh").onclick=()=>cargarAsisAdm();
@@ -1498,6 +1540,28 @@ $("teamList").addEventListener("click",async e=>{const b=e.target.closest("[data
 $("admQuickBtn").onclick=()=>{go("team");setTimeout(()=>{$("admCard").scrollIntoView({behavior:"smooth",block:"start"});setTimeout(()=>$("admNom").focus(),400)},900)};
 $("nomForm").addEventListener("submit",async e=>{e.preventDefault();const er=$("nomErr");er.hidden=true;const n=$("nomNew").value.trim();if(!n){er.textContent="Escribe tu nombre.";er.hidden=false;return}
   try{const r=await admin("adminCambiarNombre",n);if(!r.ok){er.textContent=r.msg;er.hidden=false;return}S.me={...(S.me||{}),nombre:r.nombre};$("role").textContent=title(r.nombre);$("nomNew").value="";toast("Nombre guardado: "+title(r.nombre));cargarAdmins()}catch(x){}});
+/* ---- contraseña: tarjeta del auditor ---- */
+function renderClv(){const c=$("clvCard");if(!c)return;c.hidden=!!S.admin||!S.token;if(c.hidden)return;const k=S.clv||{},av=$("clvAviso");
+  $("clvActBox").hidden=!!(k.sin||k.tmp);
+  if(k.sin||k.tmp){av.className="note err";av.textContent=k.sin?"Aún no tienes contraseña. Créala ahora: la necesitarás para entrar en otro celular o si sales de tu cuenta.":"Tienes una contraseña temporal. Crea la tuya ahora.";av.hidden=false;$("clvDet").open=true}else av.hidden=true}
+$("clvForm").addEventListener("submit",async e=>{e.preventDefault();const er=$("clvErr"),n=$("clvNew").value;er.hidden=true;
+  if(n.length<6){er.textContent="La contraseña debe tener al menos 6 caracteres.";er.hidden=false;return}if(n!==$("clvNew2").value){er.textContent="Las dos contraseñas no coinciden.";er.hidden=false;return}
+  try{const r=await call("cambiarClave",S.token,$("clvAct").value,n);if(!r.ok){er.textContent=r.msg;er.hidden=false;return}
+    ["clvAct","clvNew","clvNew2"].forEach(i=>$(i).value="");S.clv={sin:false,tmp:false};$("clvDet").open=false;renderClv();toast("Contraseña guardada");okSubido(false,"Contraseña guardada","Úsala la próxima vez que ingreses con tu DNI.")}
+  catch(x){er.textContent="Sin conexión. Inténtalo con señal.";er.hidden=false}});
+/* ---- contraseña: la administradora principal da clave temporal o aprueba el restablecimiento ---- */
+function clvAdm(a){if(a.ESTADO!=="ACTIVO"&&a.ESTADO!=="PENDIENTE")return"";const d=esc(a.DNI);
+  let h=`<div class="row" style="align-items:center;gap:6px">${a.TIENE_CLAVE?(a.TEMPORAL?`<span class="pill wait">Contraseña temporal${a.CLAVE_TEMP?": <b style=\"font-family:var(--font-mono);letter-spacing:1px\">"+esc(a.CLAVE_TEMP)+"</b>":""}</span>`:`<span class="pill ok">Con contraseña</span>`):`<span class="pill wait">Sin contraseña aún</span>`}`;
+  if(S.principal&&a.ESTADO==="ACTIVO")h+=`<button type="button" class="btn ghost sm" data-clv="temporal" data-d="${d}">${a.TEMPORAL?"Otra clave temporal":"Restablecer: clave temporal"}</button>`;
+  h+=`</div>`;
+  if(a.RESET==="PENDIENTE")h+=`<div class="note" style="display:flex;flex-direction:column;gap:6px">Pidió restablecer su contraseña${a.RESET_TS?" el "+dt(a.RESET_TS):""}${S.principal?`<div class="row"><button type="button" class="btn sm" data-clv="aprobarReset" data-d="${d}">Aprobar: que cree una nueva</button><button type="button" class="btn danger sm" data-clv="rechazarReset" data-d="${d}">No aprobar</button></div>`:` Solo la administradora principal puede aprobarlo.`}</div>`;
+  return h}
+$("teamList").addEventListener("click",async e=>{const b=e.target.closest("[data-clv]");if(!b)return;const ac=b.dataset.clv,dni=b.dataset.d;
+  if(ac==="temporal"&&b.dataset.arm!=="1"){b.dataset.arm="1";b.textContent="Su contraseña actual dejará de servir. Toca otra vez";setTimeout(()=>{if(b.isConnected){b.dataset.arm="";b.textContent="Restablecer: clave temporal"}},5000);return}
+  b.disabled=true;try{const r=await admin("adminClave",dni,ac);if(!r.ok){toast(r.msg);b.disabled=false;return}
+    const a=TEAM.find(x=>String(x.DNI)===dni);if(a){if(ac==="temporal"){a.TIENE_CLAVE=true;a.TEMPORAL=true;a.CLAVE_TEMP=r.temporal;a.RESET=""}else a.RESET=ac==="aprobarReset"?"APROBADO":"RECHAZADO"}renderTeam();
+    if(ac==="temporal")okSubido(false,"Clave temporal: "+r.temporal,`Díctasela a ${title(a?a.NOMBRE:"")}. Al entrar con su DNI y esta clave, la app le pedirá crear su propia contraseña. Sus reportes y asistencia no se borran.`);
+    else toast(ac==="aprobarReset"?"Aprobado: ya puede crear su nueva contraseña en su celular":"Solicitud no aprobada")}catch(x){b.disabled=false}});
 /* ---- botón Atrás del celular: vuelve a la pantalla anterior dentro de la app (no la cierra ni borra lo escrito) ---- */
 try{history.replaceState({cs:"root"},"")}catch(x){}
 let atrasT=0;
@@ -1514,8 +1578,8 @@ addEventListener("popstate",e=>{if(!S.token&&!S.admin)return;const st=e.state&&e
   const ses=ls.get("af_ses",null),p=ls.get("af_pend",null);
   if(ses&&ses.tok){S.token=ses.tok;S.hasta=ses.hasta||0;S.me={nombre:ses.nombre};$("role").textContent=title(ses.nombre);loadForm(ls.get("draft3",null)||blankForm());go("home");banner();usoIni();
     if(navigator.onLine){await verificar();enviarCola();usoEnviar()}return}
-  if(p){showPend("",p);try{const r=await call("ingresar",p);if(r.ok)setSesion(r);else if(r.estado==="PENDIENTE")$("pNom").textContent=`${title(r.nombre)} · DNI ••••${p.slice(-4)}`;else{ls.set("af_pend",null);go("gate")}}catch(x){}return}
-  go("gate")})();
+  if(p){showPend("",p);try{const r=await call("ingresar",p);if(r.ok)setSesion(r);else if(/CLAVE/.test(r.estado||"")){clearInterval(pendT);aprobadoPedirClave(p,r)}else if(r.estado==="PENDIENTE")$("pNom").textContent=`${title(r.nombre)} · DNI ••••${p.slice(-4)}`;else{ls.set("af_pend",null);go("gate")}}catch(x){}return}
+  go("gate");rstVer()})();
 addEventListener("online",()=>{if(S.token&&!S.admin)verificar()});
 /* app instalable y sin señal */
 if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
