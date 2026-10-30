@@ -1703,7 +1703,9 @@ addEventListener("appinstalled",()=>{toast("App instalada en este equipo");instB
 instMostrar();
 </script>
 <script>
-/* v20: fondo «Noche dorada» — partículas doradas y azules en 3D que vienen hacia ti sobre azul noche.
+/* v21: en las pantallas de ingreso (DNI, solicitud, código ADM) el fondo es «Hilos de costura 3D»;
+   dentro de la app es «Noche dorada».
+   v20: fondo «Noche dorada» — partículas doradas y azules en 3D que vienen hacia ti sobre azul noche.
    Ligero: 30 cuadros/s, se pausa en segundo plano y se queda quieto si el celular es lento o pide «reducir movimiento». */
 (function(){const c=document.getElementById('bg3d');if(!c||!c.getContext)return;const x=c.getContext('2d');
  let W=0,H=0,D=Math.min(window.devicePixelRatio||1,1.5),mx=0,my=0,tx=0,ty=0,last=0,slow=0,quieto=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1712,13 +1714,35 @@ instMostrar();
  addEventListener('pointermove',e=>{tx=e.clientX/innerWidth-.5;ty=e.clientY/innerHeight-.5},{passive:true});
  addEventListener('deviceorientation',e=>{if(e.gamma!=null){tx=Math.max(-.5,Math.min(.5,e.gamma/70));ty=Math.max(-.5,Math.min(.5,(e.beta-45)/100))}},{passive:true});
  const Rn=(a,b)=>a+Math.random()*(b-a),N=innerWidth<600?110:190,S=[...Array(N)].map(()=>({x:Rn(-1,1),y:Rn(-1,1),z:Rn(.05,1),g:Math.random()<.62}));
- function dib(dt){const cx=W*(.5-mx*.06),cy=H*(.45-my*.06);const g=x.createRadialGradient(cx,cy,0,cx,cy,Math.max(W,H)*.9);g.addColorStop(0,'#1b2659');g.addColorStop(.55,'#0e1433');g.addColorStop(1,'#060918');x.fillStyle=g;x.fillRect(0,0,W,H);
+ /* hilos de costura en 3D: cada hilo tiene profundidad (los cercanos son más gruesos, brillantes y rápidos);
+    los dorados llevan puntadas que avanzan y una aguja que va cosiendo */
+ const HL=[...Array(innerWidth<600?13:18)].map((_,i)=>({y:Rn(.05,.98),z:Rn(.25,1),a:Rn(.025,.09),f:Rn(1.4,3.6),s:Rn(.15,.45),ph:Rn(0,6.3),g:i%3!==1,ag:i%4===0,u:Math.random()})).sort((a,b)=>b.z-a.z);
+ let ht=0;
+ function hilos(dt){if(!quieto)ht+=dt;const g=x.createLinearGradient(0,0,W,H);g.addColorStop(0,'#141d4a');g.addColorStop(.6,'#0b1130');g.addColorStop(1,'#070a1c');x.fillStyle=g;x.fillRect(0,0,W,H);
+  const gl=x.createRadialGradient(W*(.7-mx*.1),H*(.25-my*.1),0,W*.7,H*.25,Math.max(W,H)*.6);gl.addColorStop(0,'rgba(210,170,108,.16)');gl.addColorStop(1,'rgba(210,170,108,0)');x.fillStyle=gl;x.fillRect(0,0,W,H);
+  for(const l of HL){const k=1/l.z,par=(mx*60*k)*D,pv=(my*40*k)*D,amp=l.a*k*.8,lw=(.6+1.9*(1-l.z)+.4)*D,al=.22+.5*(1-l.z);
+   const Y=u=>(l.y+Math.sin(u*l.f+ht*l.s*k+l.ph)*amp+Math.sin(u*11+ht*1.1+l.ph)*.004*k)*H+pv;
+   const pts=[];for(let i=0;i<=48;i++){const u=i/48;pts.push([u*W*1.1-W*.05+par,Y(u)])}
+   if(l.g&&l.z<.6){x.beginPath();pts.forEach((p,i)=>i?x.lineTo(p[0],p[1]):x.moveTo(p[0],p[1]));x.strokeStyle=`rgba(226,192,138,${al*.18})`;x.lineWidth=lw*4;x.setLineDash([]);x.stroke()}
+   x.beginPath();pts.forEach((p,i)=>i?x.lineTo(p[0],p[1]):x.moveTo(p[0],p[1]));
+   if(l.g){x.setLineDash([7*k*D,5*k*D]);x.lineDashOffset=-ht*40*k*D;x.strokeStyle=`rgba(226,192,138,${al})`}else{x.setLineDash([]);x.strokeStyle=`rgba(120,145,240,${al*.7})`}
+   x.lineWidth=lw;x.stroke();x.setLineDash([]);
+   if(l.ag){if(!quieto)l.u=(l.u+dt*.05*l.s*3*k)%1.05;const u=l.u,X=u*W*1.1-W*.05+par,yy=Y(u),d=(Y(u+.01)-yy)/(W*.011),an=Math.atan(d);
+    x.save();x.translate(X,yy);x.rotate(an);const L=17*k*D,T=1.6*k*D;const ng=x.createLinearGradient(-L,0,L,0);ng.addColorStop(0,'#8e97b8');ng.addColorStop(.5,'#f2f4ff');ng.addColorStop(1,'#9aa3c4');
+    x.beginPath();x.moveTo(L,0);x.lineTo(-L*.7,-T);x.quadraticCurveTo(-L,0,-L*.7,T);x.closePath();x.fillStyle=ng;x.fill();
+    x.beginPath();x.ellipse(-L*.62,0,L*.12,T*.45,0,0,7);x.fillStyle='#0b1130';x.fill();x.restore()}}}
+ let modo='',prev=null,fade=1;
+ const enIngreso=()=>!!document.querySelector('#v-gate:not([hidden]),#v-pend:not([hidden]),#v-adm:not([hidden])');
+ function noche(dt){const cx=W*(.5-mx*.06),cy=H*(.45-my*.06);const g=x.createRadialGradient(cx,cy,0,cx,cy,Math.max(W,H)*.9);g.addColorStop(0,'#1b2659');g.addColorStop(.55,'#0e1433');g.addColorStop(1,'#060918');x.fillStyle=g;x.fillRect(0,0,W,H);
   const k=Math.min(W,H)*.32;
   for(const p of S){if(!quieto){p.z-=dt*.075;if(p.z<.03){p.z=1;p.x=Rn(-1,1);p.y=Rn(-1,1)}}
    const X=cx+p.x/p.z*k,Y=cy+p.y/p.z*k;if(X<-10||X>W+10||Y<-10||Y>H+10){if(!quieto){p.z=1;p.x=Rn(-1,1);p.y=Rn(-1,1)}continue}
    const f=1-p.z,r=(f*2.4+.35)*D,a=Math.min(1,f*1.15);
    if(f>.55&&p.g){x.beginPath();x.arc(X,Y,r*3.2,0,7);x.fillStyle=`rgba(226,192,138,${a*.12})`;x.fill()}
    x.beginPath();x.arc(X,Y,r,0,7);x.fillStyle=p.g?`rgba(232,198,140,${a})`:`rgba(150,172,255,${a*.85})`;x.fill()}}
+ function dib(dt){const m=enIngreso()?'hilos':'noche';if(m!==modo){prev=modo;modo=m;fade=prev?0:1}
+  (modo==='hilos'?hilos:noche)(dt);
+  if(fade<1&&prev){fade=Math.min(1,fade+dt*2.2+.02);x.save();x.globalAlpha=1-fade;(prev==='hilos'?hilos:noche)(0);x.restore()}}
  function fr(ts){requestAnimationFrame(fr);if(document.hidden)return;if(ts-last<33)return;const dt=Math.min(.1,(ts-last)/1000);const ms=ts-last;last=ts;
   if(ms>90&&++slow>40)quieto=true; else if(ms<60)slow=Math.max(0,slow-1);
   mx+=(tx-mx)*.05;my+=(ty-my)*.05;dib(dt)}
