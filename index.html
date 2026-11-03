@@ -521,7 +521,7 @@ nav.tabs button[aria-selected=true] svg{filter:drop-shadow(0 3px 4px color-mix(i
   </section>
 
   <section id="v-time" class="view" hidden style="flex-direction:column;gap:12px">
-    <div class="row" style="justify-content:space-between"><div><h2>Tiempos</h2><p class="sub" id="tiSub">Solo administradoras</p></div><button type="button" class="btn ghost sm" id="tiRefresh">Actualizar</button></div>
+    <div class="row" style="justify-content:space-between"><div><h2>Tiempos</h2><p class="sub" id="tiSub">Solo administradora principal</p></div><button type="button" class="btn ghost sm" id="tiRefresh">Actualizar</button></div>
     <div class="row">
       <div class="seg" role="group" aria-label="Periodo" id="tiPer"><button type="button" data-d="7" aria-pressed="false">7 días</button><button type="button" data-d="30" aria-pressed="true">30 días</button><button type="button" data-d="90" aria-pressed="false">90 días</button></div>
       <label class="fld" style="flex:1 1 180px"><span>Auditor</span><select id="tiAud"></select></label>
@@ -529,7 +529,7 @@ nav.tabs button[aria-selected=true] svg{filter:drop-shadow(0 3px 4px color-mix(i
     <section class="kpis" id="tiKpis"></section>
     <div class="card"><h3>Por auditor</h3><p class="sub">Uso de la app: desde que ingresa hasta que sale. Llenado: desde que empieza el formulario hasta «Guardar reporte».</p><div style="overflow-x:auto"><table class="tt" id="tiTbl"></table></div></div>
     <div class="card"><h3>Promedio de llenado por auditor</h3><div class="cv"><canvas id="chTi"></canvas></div></div>
-    <div class="card"><h3>Detalle</h3><div class="list" id="tiList"></div></div>
+    <div class="card"><h3>Detalle</h3><div class="selbar" id="tiSelBar" hidden><label><input type="checkbox" id="tiSelAll"> Seleccionar todos los de la lista</label><button type="button" class="btn danger sm" id="tiSelDel" disabled>Eliminar seleccionados (0)</button><span class="sub" id="tiSelMsg"></span></div><div class="list" id="tiList"></div></div>
   </section>
 
   <section id="v-team" class="view" hidden style="flex-direction:column;gap:12px">
@@ -850,7 +850,7 @@ async function bajarPdf(id,btn){const t=btn&&btn.textContent;if(btn){btn.disable
 const ICON={asis:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4M8 15l3 3 5-6"/>',home:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',time:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/>',form:'<path d="M12 5v14M5 12h14"/>',dash:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',hist:'<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>',team:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/>'};
 const TLAB={asis:"Asistencia",home:"Inicio",form:"Auditoría",dash:"Tablero",hist:"Historial",time:"Tiempos",team:"Equipo"},HT={asis:"Asistencia",gate:"Ingreso",pend:"Ingreso",adm:"Administración",home:"Inicio",form:"Auditoría Final",dash:"Tablero",hist:"Historial",time:"Tiempos",team:"Equipo",mod:"Formato",ver:"Reportes"};
 const histOk=()=>S.hasta>Date.now();
-function tabsFor(){if(["gate","pend","adm"].includes(S.tab))return[];return S.admin?["home","dash","hist","asis","time","team"]:["home",...(puedeE("af")?["form"]:[]),...(histOk()?["hist"]:[])]}
+function tabsFor(){if(["gate","pend","adm"].includes(S.tab))return[];return S.admin?["home","dash","hist","asis",...(S.principal?["time"]:[]),"team"]:["home",...(puedeE("af")?["form"]:[]),...(histOk()?["hist"]:[])]}
 function renderTabs(){const t=tabsFor();if(!["gate","pend","adm","form","mod","ver"].includes(S.tab)&&!t.includes(S.tab))S.tab="home";
   $("tabs").innerHTML=t.length>1?t.map(k=>`<button type="button" role="tab" data-t="${k}" aria-selected="${S.tab===k}"><svg viewBox="0 0 24 24">${ICON[k]}</svg>${TLAB[k]}</button>`).join(""):"";
   document.querySelector("nav.tabs").hidden=t.length<2}
@@ -1040,15 +1040,16 @@ setInterval(()=>usoEnviar(),90000);
 let TIM=null;S.tiDias=30;S.tiAud="";
 const hm=m=>{m=Number(m)||0;if(m<1)return`${Math.round(m*60)} s`;m=Math.round(m);return m>=60?`${Math.floor(m/60)} h ${String(m%60).padStart(2,"0")} min`:`${m} min`};
 const hora=t=>t?new Date(t).toLocaleTimeString("es-PE",{hour:"2-digit",minute:"2-digit"}):"—";
-async function cargarTiempos(force){if(TIM&&!force&&TIM.d===S.tiDias){renderTiempos();return}$("tiSub").textContent="Cargando…";
-  try{const R=await admin("adminTiempos",S.tiDias);TIM={d:S.tiDias,rows:R||[]};renderTiempos()}catch(x){}}
+async function cargarTiempos(force){if(!S.principal){go("home");return}if(TIM&&TIM.d===S.tiDias)renderTiempos();$("tiSub").textContent="Actualizando…";
+  try{const R=await admin("adminTiempos",S.tiDias);if(R&&R.ok===false){toast(R.msg);go("home");return}TIM={d:S.tiDias,rows:R||[],at:Date.now()};renderTiempos()}catch(x){}}
+setInterval(()=>{if(S.tab==="time"&&S.admin&&S.principal&&!document.hidden&&!TSEL.size)cargarTiempos(true)},60000);
 function renderTiempos(){if(S.tab!=="time"||!TIM)return;const all=TIM.rows,key=r=>r.dni||r.aud;
   const auds=[...new Map(all.map(r=>[key(r),r.aud])).entries()].sort((a,b)=>String(a[1]).localeCompare(String(b[1])));
   if(S.tiAud&&!auds.some(([k])=>k===S.tiAud))S.tiAud="";
   $("tiAud").innerHTML=`<option value="">Todos</option>`+auds.map(([k,n])=>`<option value="${esc(k)}">${esc(title(n))}</option>`).join("");$("tiAud").value=S.tiAud;
   const R=all.filter(r=>!S.tiAud||key(r)===S.tiAud),U=R.filter(r=>r.tipo==="S"),F=R.filter(r=>r.tipo==="F");
   const sm=a=>a.reduce((s,x)=>s+x,0),av=a=>a.length?sm(a)/a.length:0,us=U.map(r=>r.min),fs=F.map(r=>r.min);
-  $("tiSub").textContent=`Últimos ${S.tiDias} días · solo administradoras`;
+  $("tiSub").textContent=`Últimos ${S.tiDias} días · actualizado ${hora(TIM.at||Date.now())} · solo administradora principal`;
   $("tiKpis").innerHTML=[["Tiempo en la app",hm(sm(us)),`${fmt(us.length)} ingreso${us.length===1?"":"s"}`],["Promedio por ingreso",us.length?hm(av(us)):"—","ingreso → salida"],["Reportes con tiempo",fmt(fs.length),"formularios guardados"],
     ["Promedio de llenado",fs.length?hm(av(fs)):"—","inicio → Guardar reporte"],["Más rápido",fs.length?hm(Math.min(...fs)):"—","formulario"],["Más lento",fs.length?hm(Math.max(...fs)):"—","formulario"]]
     .map(([l,v,s])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
@@ -1061,8 +1062,18 @@ function renderTiempos(){if(S.tab!=="time"||!TIM)return;const all=TIM.rows,key=r
   $("chTi").parentElement.style.height=Math.max(120,ch.length*30+36)+"px";
   if(window.Chart){const o=base(true,ch.length?Math.ceil(ch[0].v*1.4+1):10,null);o.scales.x.ticks.callback=v=>v+" min";o.plugins.tooltip.callbacks={label:c=>[` Promedio ${hm(ch[c.dataIndex].v)}`,` ${ch[c.dataIndex].n} reportes`]};
     draw("chTi",{type:"bar",data:{labels:ch.map(x=>title(x.k).slice(0,18)),datasets:[{data:ch.map(x=>x.v),backgroundColor:css("--gold"),borderRadius:3,barThickness:14,vl:ch.map(x=>`${hm(x.v)} · ${x.n} rep.`)}]},options:o})}
-  $("tiList").innerHTML=R.length?R.slice(0,200).map(r=>`<div class="item" style="border-left-color:${r.tipo==="F"?"var(--gold)":"var(--accent)"}"><div class="t"><b>${esc(title(r.aud))}</b><span class="pill ${r.tipo==="F"?"wait":"ok"}">${r.tipo==="F"?"Llenado del formulario":"Uso de la app"}</span></div>
-    <div class="m">${dt(r.ini)} → ${hora(r.fin)} · <b>${hm(r.min)}</b>${r.of?` · OF ${esc(r.of)}`:""}</div></div>`).join(""):`<div class="empty">Sin registros.</div>`}
+  TSEL.forEach(id=>{if(!all.some(x=>x.id===id))TSEL.delete(id)});TVIS=R.slice(0,200).map(r=>r.id).filter(Boolean);
+  $("tiList").innerHTML=R.length?R.slice(0,200).map(r=>`<div class="item${TSEL.has(r.id)?" sel":""}" style="border-left-color:${r.tipo==="F"?"var(--gold)":"var(--accent)"}">${r.id?`<label class="selck"><input type="checkbox" data-tsel="${esc(r.id)}"${TSEL.has(r.id)?" checked":""}> Seleccionar para borrar</label>`:""}<div class="t"><b>${esc(title(r.aud))}</b><span class="pill ${r.tipo==="F"?"wait":"ok"}">${r.tipo==="F"?"Llenado del formulario":"Uso de la app"}</span></div>
+    <div class="m">${dt(r.ini)} → ${hora(r.fin)} · <b>${hm(r.min)}</b>${r.of?` · OF ${esc(r.of)}`:""}</div></div>`).join(""):`<div class="empty">Sin registros.</div>`;tSelUI()}
+/* borrar tiempos seleccionados (solo administradora principal; copia en TIEMPOS ELIMINADOS) */
+const TSEL=new Set();let TVIS=[];
+function tSelUI(){const on=S.admin&&S.principal&&TVIS.length>0;$("tiSelBar").hidden=!on;if(!on)return;const n=TSEL.size,b=$("tiSelDel");b.disabled=!n;b.dataset.arm="";b.textContent=`Eliminar seleccionados (${n})`;$("tiSelAll").checked=TVIS.every(id=>TSEL.has(id))}
+$("tiList").addEventListener("change",e=>{const c=e.target.closest("[data-tsel]");if(!c)return;if(c.checked)TSEL.add(c.dataset.tsel);else TSEL.delete(c.dataset.tsel);c.closest(".item").classList.toggle("sel",c.checked);tSelUI()});
+$("tiSelAll").onchange=e=>{TVIS.forEach(id=>e.target.checked?TSEL.add(id):TSEL.delete(id));renderTiempos()};
+$("tiSelDel").onclick=async()=>{const b=$("tiSelDel"),ids=[...TSEL];if(!ids.length)return;
+  if(b.dataset.arm!=="1"){b.dataset.arm="1";b.textContent=`¿Borrar ${ids.length} tiempo${ids.length>1?"s":""}? Toca otra vez`;setTimeout(()=>{if(b.dataset.arm==="1")tSelUI()},5000);return}
+  b.disabled=true;$("tiSelMsg").textContent="Borrando…";try{const r=await admin("adminEliminarTiempos",ids);if(!r.ok){toast(r.msg);tSelUI();return}
+    TIM.rows=TIM.rows.filter(x=>!TSEL.has(x.id));TSEL.clear();renderTiempos();okSubido(false,`${r.eliminados} tiempo${r.eliminados===1?"":"s"} borrado${r.eliminados===1?"":"s"}`,"Quedó una copia en la hoja TIEMPOS ELIMINADOS del Excel.")}catch(x){tSelUI()}finally{$("tiSelMsg").textContent=""}};
 $("tiPer").onclick=e=>{const b=e.target.closest("[data-d]");if(!b)return;S.tiDias=+b.dataset.d;$("tiPer").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));cargarTiempos(true)};
 $("tiAud").onchange=e=>{S.tiAud=e.target.value;renderTiempos()};
 $("tiRefresh").onclick=()=>cargarTiempos(true);
