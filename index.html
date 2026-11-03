@@ -1138,7 +1138,7 @@ const FORMS={
   ["check","Checklist de piezas de prenda","pz","PZ"],["check","Checklist de avíos","av","AV"],
   ["muestreo","Muestreo · AQL 2.5 mayor / 4.0 menor"],["res","Resultado",["APROBADO","RECHAZADO"]],["obs","Comentarios","obs",5],["firmas",[["A","Auditor de calidad"],["T","Jefe de corte"]]]],
  segundas:[["campos","Datos",[["fecha","Fecha","fecha"],["lin","Línea"],["aud","Auditor","aud"],["proc","Procedencia"]]],["op","Origen","org",["PLANTA","SERVICIO EXTERNO"]],
-  ["tabla","Prendas de segunda","sg",29,[["art","Artículo"],["marca","Marca"],["oc","O/C"],["cant","Cant. total","num"],["color","Color"],["talla","Talla"],["cos","Costura","num"],["tel","Telas","num"],["man","Mancha","num"],["obs","Observación"],["zona","Zona"]]],
+  ["tabla","Prendas de segunda","sg",29,[["art","Artículo"],["marca","Marca"],["oc","O/C"],["cant","Cant. total","num"],["color","Color"],["talla","Talla"],["falla","Tipo de segunda (elige uno)","falla3"],["obs","Observación"],["zona","Zona"]]],
   ["firmas",[["A","Auditor de aseg. de calidad"]]]],
  muestra:[["op","Canal comercial","canal",["I.PRIV.","I.PUB.","EXP.","OTROS"]],["op","Tipo de muestra","tipo",["LICITACIÓN","PRODUCCIÓN"]],["op","Origen","org",["PLANTA","EXTERNO"]],["op","Estación","est",["VERANO","INVIERNO"]],
   ["campos","Datos",[["cli","Cliente"],["oc","O/C"],["desc","Descripción"],["color","Color"],["art","Artículo"],["fecha","Fecha","fecha"],["aud","Auditor","aud"]]],
@@ -1177,9 +1177,11 @@ function mfSugerido(f){
   if(f.mod==="corte"){const p=mfMuestreo(f),t=mfTot(f,"df","cant");return p&&t>=p.reM?"RECHAZADO":"APROBADO"}
   if(f.mod==="telas"){const r=rowsDe(f,"rol").some(x=>x&&x.ar==="R")||Object.values(f.p).some(x=>x&&x.ar==="R");return r?"RECHAZADO":"APROBADO"}
   return""}
+const FALLA3=[["cos","Costura"],["tel","Telas"],["man","Mancha"]];
 function celda(f,tk,r,c){const [k,l,ty,cat]=c,R=rowsDe(f,tk)[r]||{},v=R[k]??"",a=`data-tk="${tk}" data-r="${r}" data-k="${k}"`;
   if(ty==="auto")return`<label class="fld"><span>${esc(l)}</span><input ${a} value="${esc(v)}" readonly tabindex="-1"></label>`;
   if(k==="dif"&&f.mod==="muestra")return`<label class="fld"><span>${esc(l)} <small class="fueraTol"${R.fuera?"":" hidden"} style="color:var(--crit)">fuera de tolerancia</small></span><input ${a} value="${esc(v)}" inputmode="decimal"${R.fuera?' style="border-color:var(--crit);color:var(--crit)"':""}></label>`;
+  if(ty==="falla3"){const sel=FALLA3.find(([kk])=>R[kk]!==""&&R[kk]!=null&&R[kk]!==0&&R[kk]!=="0");return`<div class="fld full"><span>${esc(l)}</span><span class="seg wide" ${a}>${FALLA3.map(([kk,t])=>`<button type="button" data-v="${kk}" aria-pressed="${!!sel&&sel[0]===kk}">${t}</button>`).join("")}</span></div>`}
   if(ty==="ar"||ty==="cnc"){const o=ty==="ar"?[["A","A"],["R","R"]]:[["C","Corr."],["NC","No corr."]];return`<div class="fld"><span>${esc(l)}</span><span class="tri" ${a}>${o.map(([x,t])=>`<button type="button" data-v="${x}" aria-pressed="${v===x}">${t}</button>`).join("")}</span></div>`}
   if(ty==="def"||ty==="defs")return`<label class="fld${ty==="defs"?" full":""}"><span>${esc(l)}</span><input ${a} list="dl${cat}" value="${esc(v)}" autocapitalize="characters" placeholder="${cat}…"></label>`;
   return`<label class="fld"><span>${esc(l)}</span><input ${a} value="${esc(v)}"${ty==="num"?' inputmode="decimal"':""}></label>`}
@@ -1207,7 +1209,7 @@ function refreshMFbits(){const f=S.mf,p=$("mfPlan");if(p&&f.mod==="corte"){const
   const rs=document.querySelector("#mfBody [data-res]");if(rs&&!f.res){const sg=mfSugerido(f);rs.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===sg)));const n=rs.previousElementSibling;if(n&&n.tagName==="P")n.innerHTML=`Según los datos: <b>${sg}</b>`}}
 $("mfBody").addEventListener("input",e=>{const x=e.target,f=S.mf;if(!f)return;
   if(x.dataset.c){f.c[x.dataset.c]=x.value;if(x.dataset.c==="lote")refreshMFbits()}
-  else if(x.dataset.tk){const R=rowsDe(f,x.dataset.tk),r=+x.dataset.r;R[r]=R[r]||{};R[r][x.dataset.k]=x.value;R[r]._ed=x.dataset.k;autoFila(f,x.dataset.tk,r);
+  else if(x.dataset.tk){const R=rowsDe(f,x.dataset.tk),r=+x.dataset.r;R[r]=R[r]||{};R[r][x.dataset.k]=x.value;R[r]._ed=x.dataset.k;autoFila(f,x.dataset.tk,r);if(x.dataset.tk==="sg"&&x.dataset.k==="cant")FALLA3.forEach(([kk])=>{if(R[r][kk])R[r][kk]=Number(String(x.value).replace(",","."))||1});
     x.closest(".mrow").querySelectorAll("input[data-tk]").forEach(i=>{if(i!==x&&i.value!==String(R[r][i.dataset.k]??""))i.value=R[r][i.dataset.k]??""});
     if(f.mod==="muestra"&&x.dataset.tk==="md"){const di=x.closest(".mrow").querySelector('input[data-k="dif"]'),fl=x.closest(".mrow").querySelector(".fueraTol");if(di){di.style.borderColor=R[r].fuera?"var(--crit)":"";di.style.color=R[r].fuera?"var(--crit)":""}if(fl)fl.hidden=!R[r].fuera}
     const t=x.closest(".mrow").querySelector(".tri[data-k=ar]");if(t)t.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===R[r].ar)));refreshMFbits()}
@@ -1222,6 +1224,9 @@ $("mfBody").addEventListener("click",e=>{const f=S.mf;if(!f)return;const b=e.tar
   if(g.dataset.op){f.c[g.dataset.op]=b.dataset.v}
   else if(g.dataset.res){f.res=b.dataset.v}
   else if(g.dataset.ck){f.ck[g.dataset.ck]=f.ck[g.dataset.ck]||{};f.ck[g.dataset.ck][g.dataset.i]=b.dataset.v}
+  else if(g.dataset.tk&&g.dataset.k==="falla"){const R=rowsDe(f,g.dataset.tk),r=+g.dataset.r,o=R[r]=R[r]||{},on=b.getAttribute("aria-pressed")==="true";
+    FALLA3.forEach(([kk])=>o[kk]="");if(!on)o[b.dataset.v]=Number(String(o.cant||"").replace(",","."))||1;
+    g.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",String(!on&&x===b)));refreshMFbits();saveMF();return}
   else if(g.dataset.tk){const R=rowsDe(f,g.dataset.tk),r=+g.dataset.r;R[r]=R[r]||{};R[r][g.dataset.k]=b.dataset.v;if(g.dataset.k==="ar")R[r].arM=1}
   else if(g.dataset.p){const P=f.p[g.dataset.p]=f.p[g.dataset.p]||{};P.ar=b.dataset.v}
   else return;
@@ -1260,7 +1265,7 @@ function mfRecord(f){const M=MODULOS[f.mod],cab=[],ss=secs(f),c=f.c;
   if(f.mod==="avios")cab.push(["TESTS NO CONFORMES",Object.entries(f.ck.tst||{}).filter(([,v])=>v==="X").map(([i])=>FORMS.avios[2][3][i][0]).join(" | ")]);
   const ob=Object.values(f.obs||{}).filter(Boolean);if(ob.length)cab.push(["OBSERVACIONES",ob.join(" | ")]);
   const tb=ss.find(s=>s[0]==="tabla"),lin={cols:[],filas:[]};
-  if(tb){const cols=tb[4];lin.cols=cols.map(c=>up(c[1]));lin.filas=rowsDe(f,tb[2]).filter(r=>r&&cols.some(c=>r[c[0]]!==""&&r[c[0]]!=null)).map(r=>cols.map(c=>{const v=r[c[0]];return c[2]==="num"&&v!==""&&!isNaN(Number(v))?Number(v):up(v)}))}
+  if(tb){const cols=tb[4].flatMap(c=>c[2]==="falla3"?FALLA3.map(([k,t])=>[k,t,"num"]):[c]);lin.cols=cols.map(c=>up(c[1]));lin.filas=rowsDe(f,tb[2]).filter(r=>r&&cols.some(c=>r[c[0]]!==""&&r[c[0]]!=null)).map(r=>cols.map(c=>{const v=r[c[0]];return c[2]==="num"&&v!==""&&!isNaN(Number(v))?Number(v):up(v)}))}
   const res=f.mod==="segundas"?"REGISTRADO":(f.res||mfSugerido(f)||""),rej=/RECHAZ/.test(res)?1:0;
   return{id:f.id,mod:f.mod,fmt:f.mod==="corte"?CORTE[f.sub].cod:M.cod,fecha:c.fecha||today(),sub:f.sub,aud:up(c.aud),f:JSON.parse(JSON.stringify({...f,fotos:undefined,firmaA:undefined,firmaT:undefined})),
     cli:up(c.cli),prov:up(c.prov),art:up(c.art),of:up(c.of),oc:up(c.oc),gr:up(c.gr),lin:lin,cab,res,rej,tIni:S.mfEdit?null:(f.tIni||null),tFin:S.mfEdit?null:Date.now(),esCorreccion:!!S.mfEdit,fotosKeep:f.fotos.filter(x=>x.id).map(x=>x.id)}}
