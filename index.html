@@ -1031,7 +1031,8 @@ function usoFin(fin,silent){const a=ls.get(USOA,null);if(!a||a.fin)return;a.fin=
   const it={sid:a.sid,ini:a.ini,fin:a.fin};ls.set(USO,[...usoPend().filter(x=>x.sid!==a.sid),it].slice(-300));if(!silent)usoBeacon([it])}
 async function usoEnviar(){const L=usoPend();if(!L.length||!S.token||S.admin||!navigator.onLine)return;
   try{const r=await call("registrarUso",S.token,L);if(r&&r.ok){const k=new Set(L.map(x=>x.sid+":"+x.fin));ls.set(USO,usoPend().filter(x=>!k.has(x.sid+":"+x.fin)))}}catch(x){}}
-document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")usoFin();else{usoIni();usoEnviar()}});
+let verifT=0;
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")usoFin();else{usoIni();usoEnviar();if(S.token&&!S.admin&&navigator.onLine&&Date.now()-verifT>30000){verifT=Date.now();verificar()}}});
 addEventListener("pagehide",()=>usoFin());
 setInterval(()=>{const a=ls.get(USOA,null);if(a&&!a.fin&&document.visibilityState==="visible"){a.last=Date.now();ls.set(USOA,a)}},30000);
 setInterval(()=>usoEnviar(),90000);
@@ -1466,10 +1467,20 @@ async function darVB(r,b){b.disabled=true;b.textContent="Armando PDF…";
   catch(x){toast("No se pudo registrar el V°B°.");b.disabled=false;b.textContent="Dar V°B°"}}
 /* ---- permisos de cada auditor por formato (administradora) ---- */
 const PERM_OP=[["","Sin acceso"],["E","Ingreso de datos"],["L","Visualizador"],["LE","Ingreso y visualizador"]];
-function permCard(a){let p={af:"E"};try{if(a.PERMISOS)p=JSON.parse(a.PERMISOS)}catch(x){}
-  return`<details class="perm"><summary>Rol por formato · ${MOD_IDS.filter(k=>p[k]).length} de ${MOD_IDS.length}</summary><div class="grid2" data-perm="${esc(a.DNI)}"><label class="fld full"><span>Aplicar a todos los formatos</span><select data-pmall="1"><option value="-">— elegir —</option>${PERM_OP.map(([v,t])=>`<option value="${v}">${t}</option>`).join("")}</select></label>${MOD_IDS.map(k=>`<label class="fld"><span>${esc(MODULOS[k].n)}</span><select data-pm="${k}">${PERM_OP.map(([v,t])=>`<option value="${v}"${(p[k]||"")===v?" selected":""}>${t}</option>`).join("")}</select></label>`).join("")}</div></details>`}
-$("teamList").addEventListener("change",async e=>{const s=e.target.closest("[data-pm]");if(!s)return;const g=s.closest("[data-perm]"),p={};g.querySelectorAll("[data-pm]").forEach(x=>{if(x.value)p[x.dataset.pm]=x.value});
-  try{const r=await admin("adminPermisos",g.dataset.perm,p);toast(r.ok?"Accesos guardados":r.msg);const a=TEAM.find(x=>x.DNI===g.dataset.perm);if(a&&r.ok){a.PERMISOS=JSON.stringify(r.permisos);const sm=g.parentElement.querySelector("summary");if(sm)sm.textContent=`Rol por formato · ${Object.keys(r.permisos).length} de ${MOD_IDS.length}`}}catch(x){}});
+const PERM_TX={E:"ingreso",L:"ver",LE:"ingreso y ver"};
+function permResumen(p,def){const L=MOD_IDS.filter(k=>p[k]).map(k=>`${MODULOS[k].ic} ${PERM_TX[p[k]]||p[k]}`);return(L.length?L.join(" · "):"sin formatos")+(def?" (sin roles guardados: solo Auditoría Final)":"")}
+function permCard(a){let p={af:"E"},def=!a.PERMISOS;try{if(a.PERMISOS)p=JSON.parse(a.PERMISOS)}catch(x){}
+  return`<details class="perm"><summary>Rol por formato · ${MOD_IDS.filter(k=>p[k]).length} de ${MOD_IDS.length}</summary><p class="sub" data-pmres style="margin:6px 0">${esc(permResumen(p,def))}</p><div class="grid2" data-perm="${esc(a.DNI)}"><label class="fld full"><span>Aplicar a todos los formatos</span><select data-pmall="1"><option value="-">— elegir —</option>${PERM_OP.map(([v,t])=>`<option value="${v}">${t}</option>`).join("")}</select></label>${MOD_IDS.map(k=>`<label class="fld"><span>${esc(MODULOS[k].n)}</span><select data-pm="${k}">${PERM_OP.map(([v,t])=>`<option value="${v}"${(p[k]||"")===v?" selected":""}>${t}</option>`).join("")}</select></label>`).join("")}<button type="button" class="btn sm full" data-pmsave="1">Guardar roles</button><p class="note full" data-pmst hidden></p></div></details>`}
+async function guardarRoles(g){const p={},st=g.querySelector("[data-pmst]"),b=g.querySelector("[data-pmsave]");g.querySelectorAll("[data-pm]").forEach(x=>{if(x.value)p[x.dataset.pm]=x.value});
+  st.hidden=false;st.className="note full";st.textContent="Guardando…";if(b)b.disabled=true;
+  try{const r=await admin("adminPermisos",g.dataset.perm,p);if(!r.ok){st.className="note err full";st.textContent="No se guardó: "+(r.msg||"inténtalo otra vez");return}
+    const a=TEAM.find(x=>String(x.DNI)===g.dataset.perm);if(a)a.PERMISOS=JSON.stringify(r.permisos);
+    const sm=g.parentElement.querySelector("summary");if(sm)sm.textContent=`Rol por formato · ${Object.keys(r.permisos).length} de ${MOD_IDS.length}`;
+    const rs=g.parentElement.querySelector("[data-pmres]");if(rs)rs.textContent=permResumen(r.permisos,false);
+    st.className="note ok full";st.textContent=`✔ Guardado (${new Date().toLocaleTimeString("es-PE",{hour:"2-digit",minute:"2-digit"})}). El auditor lo verá al abrir la app con internet.`;toast("Roles guardados")}
+  catch(x){st.className="note err full";st.textContent="No se guardó (sin conexión o sesión vencida). Vuelve a tocar Guardar roles."}finally{if(b)b.disabled=false}}
+$("teamList").addEventListener("change",e=>{const s=e.target.closest("[data-pm]");if(!s)return;guardarRoles(s.closest("[data-perm]"))});
+$("teamList").addEventListener("click",e=>{const b=e.target.closest("[data-pmsave]");if(b)guardarRoles(b.closest("[data-perm]"))});
 
 /* ---- v5: corrección solo con autorización de la administradora ---- */
 const miDni=()=>String(S.token||"").split(":")[0];
@@ -1679,6 +1690,22 @@ $("asSelDel").onclick=async()=>{const b=$("asSelDel"),ids=[...ASEL];if(!ids.leng
   if(b.dataset.arm!=="1"){b.dataset.arm="1";b.textContent=`¿Borrar ${ids.length} marca${ids.length>1?"s":""}? Toca otra vez`;setTimeout(()=>{if(b.dataset.arm==="1")aSelUI()},5000);return}
   b.disabled=true;$("asSelMsg").textContent="Borrando…";try{const r=await admin("adminEliminarAsis",ids);if(!r.ok){toast(r.msg);aSelUI();return}
     ASD=ASD.filter(x=>!ids.includes(x.id));ASEL.clear();renderAsisAdm();okSubido(false,`${r.eliminados} marca${r.eliminados===1?"":"s"} borrada${r.eliminados===1?"":"s"}`,"Quedó una copia en la hoja ASISTENCIA ELIMINADA del Excel y las fotos en la papelera de Drive (30 días).")}catch(x){aSelUI()}finally{$("asSelMsg").textContent=""}};
+/* ---- memoria de llenado: lo que ya se escribió aparece como lista desplegable (en filas de abajo y en próximos reportes) ---- */
+const MEMO_K="af_memo";let MEMO=(()=>{try{return JSON.parse(localStorage.getItem(MEMO_K)||"{}")||{}}catch(x){return{}}})();
+const memoMod=()=>S.tab==="form"?"af":(S.mf&&S.mf.mod)||"x";
+function memoKey(el){if(!el||el.tagName!=="INPUT"||el.readOnly||!["text","search",""].includes(el.type)||!el.closest("#v-form,#mfBody"))return null;
+  if(el.dataset.k)return memoMod()+":"+(el.dataset.tk||"")+":"+el.dataset.k;if(el.dataset.c)return memoMod()+":c:"+el.dataset.c;if(el.dataset.fcap!=null)return memoMod()+":foto";if(el.id)return"id:"+el.id;return null}
+function memoGuardar(el){const k=memoKey(el);if(!k)return;const v=String(el.value||"").trim();if(!v||v.length>80)return;
+  const L=(MEMO[k]||[]).filter(x=>x.toUpperCase()!==v.toUpperCase());L.unshift(v);MEMO[k]=L.slice(0,40);try{localStorage.setItem(MEMO_K,JSON.stringify(MEMO))}catch(x){}}
+document.addEventListener("change",e=>memoGuardar(e.target),true);
+document.addEventListener("focusin",e=>{const el=e.target,k=memoKey(el);if(!k)return;
+  const vis=[...document.querySelectorAll("#v-form input,#mfBody input")].filter(x=>x!==el&&memoKey(x)===k).map(x=>String(x.value||"").trim()).filter(Boolean);
+  const vals=[],seen=new Set();for(const v of[...vis.reverse(),...(MEMO[k]||[])]){const u=v.toUpperCase();if(!seen.has(u)){seen.add(u);vals.push(v)}if(vals.length>=30)break}
+  if(!vals.length)return;const own=el.getAttribute("list");
+  if(own&&!own.startsWith("mm-")){const dl=document.getElementById(own);if(!dl)return;dl.querySelectorAll("option[data-mm]").forEach(o=>o.remove());const ya=new Set([...dl.options].map(o=>o.value.toUpperCase()));
+    vals.filter(v=>!ya.has(v.toUpperCase())).reverse().forEach(v=>{const o=document.createElement("option");o.value=v;o.dataset.mm="1";dl.prepend(o)});return}
+  const id="mm-"+k.replace(/[^A-Za-z0-9]/g,"_");let dl=document.getElementById(id);if(!dl){dl=document.createElement("datalist");dl.id=id;document.body.appendChild(dl)}
+  dl.innerHTML=vals.map(v=>`<option value="${esc(v)}">`).join("");el.setAttribute("list",id)});
 /* ---- botón Atrás del celular: vuelve a la pantalla anterior dentro de la app (no la cierra ni borra lo escrito) ---- */
 try{history.replaceState({cs:"root"},"")}catch(x){}
 let atrasT=0;
