@@ -1149,7 +1149,7 @@ const FORMS={
   ["tabla","Defectos encontrados","df",12,[["cod","Cód. defecto","def","CR"],["def","Defecto","auto"],["cant","Cant. defecto","num"],["obs","Observaciones"]]],
   ["check","Checklist de piezas de prenda","pz","PZ"],["check","Checklist de avíos","av","AV"],
   ["muestreo","Muestreo · AQL 2.5 mayor / 4.0 menor"],["res","Resultado",["APROBADO","RECHAZADO"]],["obs","Comentarios","obs",5],["firmas",[["A","Auditor de calidad"],["T","Jefe de corte"]]]],
- segundas:[["campos","Datos",[["fecha","Fecha","fecha"],["lin","Línea"],["aud","Auditor","aud"],["proc","Procedencia"]]],["op","Origen","org",["PLANTA","SERVICIO EXTERNO"]],
+ segundas:[["campos","Datos",[["fecha","Fecha","fecha"],["lin","Línea"],["aud","Auditor","aud"],["proc","Procedencia"]]],["op","Origen","org",["PLANTA","SERVICIO EXTERNO","IMPORTACIÓN"]],
   ["tabla","Prendas de segunda","sg",29,[["art","Artículo"],["marca","Marca"],["oc","O/C"],["cant","Cant. total","num"],["color","Color"],["talla","Talla"],["falla","Tipo de segunda (elige uno)","falla3"],["obs","Observación"],["zona","Zona"]]],
   ["firmas",[["A","Auditor de aseg. de calidad"]]]],
  muestra:[["op","Canal comercial","canal",["I.PRIV.","I.PUB.","EXP.","OTROS"]],["op","Tipo de muestra","tipo",["LICITACIÓN","PRODUCCIÓN"]],["op","Origen","org",["PLANTA","EXTERNO"]],["op","Estación","est",["VERANO","INVIERNO"]],
@@ -1381,8 +1381,8 @@ function pdfCorte(r,im){const f=r.f,c=f.c,C=CORTE[f.sub||"cam"],R=rowsDe(f,"df")
 /* ---- SEGUNDAS ---- */
 function pdfSegundas(r,im){const f=r.f,c=f.c,R=rowsDe(f,"sg"),M=MODULOS.segundas;
  let h=qHead(M.t,M.cod,M.ver,"SAMITEX · GESTIÓN DE CALIDAD")+'<div class="q-gap"></div>';
- h+=`<table class="q-inf"><tr><td class="q-k" style="width:9%">FECHA:</td><td class="q-v" style="width:16%">${dmy(c.fecha)}</td><td class="q-k" style="width:8%">LINEA:</td><td class="q-v" style="width:22%">${Q(c.lin)}</td><td class="q-b" style="text-align:center">${qBox(c.org==="PLANTA")} PLANTA</td><td class="q-b" style="text-align:center">${qBox(c.org==="SERVICIO EXTERNO")} SERVICIO EXTERNO</td></tr>
-  <tr><td class="q-k">CONDICIÓN:</td><td class="q-v q-b">SEGUNDAS</td><td class="q-k">AUDITOR:</td><td class="q-v">${Q(r.aud)}</td><td class="q-k">PROCEDENCIA:</td><td class="q-v">${Q(c.proc)}</td></tr></table><div class="q-gap"></div>`;
+ h+=`<table class="q-inf"><tr><td class="q-k" style="width:9%">FECHA:</td><td class="q-v" style="width:16%">${dmy(c.fecha)}</td><td class="q-k" style="width:8%">LINEA:</td><td class="q-v" style="width:22%">${Q(c.lin)}</td><td class="q-b" style="text-align:center">${qBox(c.org==="PLANTA")} PLANTA</td><td class="q-b" style="text-align:center">${qBox(c.org==="SERVICIO EXTERNO")} SERVICIO EXTERNO</td><td class="q-b" style="text-align:center">${qBox(c.org==="IMPORTACIÓN")} IMPORTACIÓN</td></tr>
+  <tr><td class="q-k">CONDICIÓN:</td><td class="q-v q-b">SEGUNDAS</td><td class="q-k">AUDITOR:</td><td class="q-v">${Q(r.aud)}</td><td class="q-k">PROCEDENCIA:</td><td class="q-v" colspan="2">${Q(c.proc)}</td></tr></table><div class="q-gap"></div>`;
  const cols=[["art","ARTÍCULO",8],["marca","MARCA",7],["oc","O/C",7],["cant","CANT. TOTAL",7],["color","COLOR",8],["talla","TALLA",5],["cos","COSTURA",6],["tel","TELAS",5],["man","MANCHA",6],["obs","OBSERVACIÓN",24],["zona","ZONA",17]];
  h+=`<table style="font-size:7pt"><colgroup>${cols.map(x=>`<col style="width:${x[2]}%">`).join("")}</colgroup><tr>${cols.map(x=>`<th style="background:#000;color:#fff">${x[1]}</th>`).join("")}</tr>${Array.from({length:29},(_,i)=>{const x=R[i]||{};return`<tr style="height:4.3mm">${cols.map(([k])=>["cos","tel","man"].includes(k)?`<td style="text-align:center;font-weight:bold;font-size:9pt">${x[k]&&x[k]!=="0"?"✔":""}</td>`:`<td>${Q(x[k])}</td>`).join("")}</tr>`}).join("")}</table>`;
  h+=`<table class="q-inf" style="width:24%;margin-top:2mm"><tr><td class="q-k">TOTAL:</td><td class="q-v q-b">${fmt(mfTot(f,"sg","cant"))}</td></tr></table>`;
