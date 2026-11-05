@@ -341,6 +341,9 @@ nav.tabs button[aria-selected=true] svg{filter:drop-shadow(0 3px 4px color-mix(i
       <input type="file" id="asisFoto" accept="image/*" capture="user" hidden>
     </div>
     <div class="procs" id="procList"></div>
+    <div class="card" id="vbAudCard" hidden><div class="hd"><h3>Firmas pendientes (V°B°)</h3><span class="sub" id="vbAudSub"></span></div>
+      <p class="sub">Tienes poder de firmar. Revisa el PDF y toca <b>Dar V°B°</b>: tu firma sale en el espacio de Jefe de Aseg. de Calidad.</p>
+      <div id="vbFirmaHost"></div><div class="list" id="vbAudList"></div></div>
     <div class="card" id="corrCard" hidden><div class="hd"><h3>Correcciones autorizadas</h3><span class="sub">La jefatura de calidad te habilitó estos reportes</span></div><div class="list" id="corrList"></div></div>
     <div class="card" id="admQuick" hidden><div class="hd"><h3>Administradoras</h3><span class="sub">Solo administradora principal</span></div><p class="sub">Crea otra administradora (ADM) con su propio nombre y código.</p><button type="button" class="btn" id="admQuickBtn">➕ Crear otra administradora</button></div>
     <div class="card" id="procAdm" hidden>
@@ -865,17 +868,17 @@ $("tabs").onclick=e=>{const b=e.target.closest("[data-t]");if(b)go(b.dataset.t)}
 function go(t,pop){if(!pop&&S.tab!==t&&(S.token||S.admin)&&!["gate","pend","adm"].includes(t))try{history.pushState({cs:t},"")}catch(x){}S.tab=t;document.querySelectorAll(".view").forEach(v=>{const on=v.id==="v-"+t;v.hidden=!on;v.style.display=on?"flex":"none"});
   $("hTitle").textContent=t==="form"&&S.editing?"Corregir reporte":HT[t];$("hSub").textContent=t==="form"?"Calidad Samitex · "+MODULOS.af.cod:"Calidad Samitex";renderTabs();
   if(t==="form")requestAnimationFrame(()=>{pads.sA.size();pads.sT.size();pads.sA.load(S.form.firmaA);pads.sT.load(S.form.firmaT)});
-  if(t==="home"){cargarProcs();cargarCorr();cargarAsis()}if(t==="asis")cargarAsisAdm();if(t==="dash")cargarTablero();if(t==="hist")cargarHist();if(t==="team"){cargarTeam();cargarAdmins().then(cargarCfg);cargarFirma()}if(t==="time")cargarTiempos();scrollTo(0,0)}
+  if(t==="home"){cargarProcs();cargarCorr();cargarAsis()}if(t==="asis")cargarAsisAdm();if(t==="dash")cargarTablero();if(t==="hist")cargarHist();if(t==="team"){const fc=$("firmaCard"),cc=$("cfgCard");if(fc&&cc&&fc.nextElementSibling!==cc)cc.before(fc);cargarTeam();cargarAdmins().then(cargarCfg);cargarFirma()}if(t==="time")cargarTiempos();scrollTo(0,0)}
 
 /* ================= ingreso de auditores ================= */
 ["gDni","sDni","rDni"].forEach(id=>$(id)&&$(id).addEventListener("input",e=>{e.target.value=e.target.value.replace(/\D/g,"").slice(0,8)}));
 $("toReq").onclick=()=>{$("gForm").hidden=true;$("sForm").hidden=false;$("sDni").value=$("gDni").value;$("gErr").hidden=true};
 $("toIn").onclick=()=>{$("gForm").hidden=false;$("sForm").hidden=true};
 async function reLogin(){return false}
-function setSesion(r){setPerm(r.permisos);S.token=r.token;S.hasta=r.historialHasta||0;S.me={nombre:r.nombre};ls.set("af_ses",{tok:r.token,nombre:r.nombre,hasta:S.hasta});ls.set("af_pend",null);
+function setSesion(r){setPerm(r.permisos);S.token=r.token;S.hasta=r.historialHasta||0;S.firma=!!r.puedeFirmar;S.me={nombre:r.nombre};ls.set("af_ses",{tok:r.token,nombre:r.nombre,hasta:S.hasta,firma:S.firma});ls.set("af_pend",null);
   $("role").textContent=title(r.nombre);loadForm(ls.get("draft3",null)||blankForm());go("home");banner();usoIni();enviarCola()}
 function cerrarSesion(msg){usoFin();usoBeacon(usoPend());ls.set(USO,[]);ls.set(USOA,null);ls.set("af_ses",null);S.token=null;S.me=null;S.hasta=0;$("gForm").hidden=false;$("sForm").hidden=true;go("gate");$("role").textContent="Auditor";if(msg){$("gErr").textContent=msg;$("gErr").hidden=false}}
-async function verificar(){try{const r=await call("estado",S.token);if(r.ok){S.clv={sin:!!r.sinClave,tmp:!!r.claveTemporal};renderClv();setPerm(r.permisos);renderHome();S.hasta=r.historialHasta||0;S.me.nombre=r.nombre;ls.set("af_ses",{tok:S.token,nombre:r.nombre,hasta:S.hasta});renderTabs();banner()}
+async function verificar(){try{const r=await call("estado",S.token);if(r.ok){S.clv={sin:!!r.sinClave,tmp:!!r.claveTemporal};S.firma=!!r.puedeFirmar;renderClv();setPerm(r.permisos);renderHome();S.hasta=r.historialHasta||0;S.me.nombre=r.nombre;ls.set("af_ses",{tok:S.token,nombre:r.nombre,hasta:S.hasta,firma:S.firma});renderTabs();banner()}
   else cerrarSesion(r.estado==="BLOQUEADO"?"Tu acceso fue bloqueado por la jefatura de calidad.":r.estado==="PENDIENTE"?"Tu acceso está pendiente de aprobación.":"Este equipo ya no está autorizado. Vuelve a ingresar con tu DNI.")}catch(x){}}
 let gModo="";
 function gNuevo(modo,msg){gModo=modo;$("gNewBox").hidden=false;$("gNewMsg").textContent=msg||"";$("gPwdBox").hidden=modo!=="cambiar";$("gBtn").textContent="Guardar contraseña e ingresar";setTimeout(()=>$("gNew").focus(),50)}
@@ -981,7 +984,7 @@ function renderTeam(){if(S.tab!=="team")return;const now=Date.now(),ord={PENDIEN
       :`<button type="button" class="btn sm" data-a="reactivar" data-d="${dni}">Reactivar</button>`;
     return`<div class="card"><div class="hd"><b style="font-size:16px">${esc(title(a.NOMBRE))}</b><span class="pill ${pill}">${esc(title(st))}</span></div>
      <div class="sub">DNI ${dni} · ${esc(title(a.CARGO||""))} · ${fmt(a.REPORTES||0)} reportes · ${st==="PENDIENTE"?"pidió acceso "+dt(Number(a.SOLICITADO)):"último ingreso "+dt(Number(a["ULTIMO INGRESO"]))}</div>
-     ${clvAdm(a)}
+     ${clvAdm(a)}${firmCtl(a)}
      ${h>now?`<span class="pill ok" style="align-self:flex-start">Historial autorizado (solo ver) hasta ${dt(h)}</span>`:""}
      <div class="row">${acts}<button type="button" class="btn danger sm" data-delaud="${dni}" data-nom="${esc(title(a.NOMBRE))}">Eliminar</button></div>${st==="ACTIVO"?permCard(a):""}</div>`}).join(""):`<div class="empty">Aún no hay auditores. Cuando un auditor pida acceso aparecerá aquí, o regístralo tú abajo.</div>`;
   $("aqlTbl").innerHTML=`<tr>${["Lote","Muestra","May. Ac","May. Re","Men. Ac","Men. Re"].map(h=>`<th style="text-align:left;padding:6px;border-bottom:1px solid var(--base);color:var(--muted);font-size:11px">${h}</th>`).join("")}</tr>`+
@@ -1006,7 +1009,7 @@ function renderHome(){if(S.tab!=="home")return;const L=conModulos(PROCS||PROC_DE
   const nom=S.me&&S.me.nombre?title(S.me.nombre).split(" ")[0]:"";$("homeHi").textContent=nom&&nom!=="—"?`Hola, ${nom}`:"Calidad Samitex";
   $("homeSub").textContent="Control de calidad · elige el proceso";
   $("procList").innerHTML=L.length?L.map(p=>{const bi=!!MODULOS[p.id],usable=bi||!!p.url;return`<button type="button" class="proc${usable&&p.activo?"":" off"}" data-p="${esc(p.id)}"><span class="ic">${esc(bi?MODULOS[p.id].ic:ini2(p.nombre))}</span><span><b>${esc(p.nombre)}</b><small>${esc(bi?MODULOS[p.id].cod+" · "+MODULOS[p.id].d:p.desc||"")}${bi&&!S.admin?" · "+(puedeE(p.id)?"ingreso de datos":"visualizador"):""}${usable?"":(p.desc?" · ":"")+"En preparación"}${p.activo?"":" · oculto para auditores"}</small></span></button>`}).join(""):`<div class="empty">No hay procesos activos.</div>`;
-  $("procAdm").hidden=!S.admin;$("admQuick").hidden=!(S.admin&&S.principal);renderClv();$("salirHome").hidden=!!S.admin;if(S.admin)renderProcEd()}
+  $("procAdm").hidden=!S.admin;$("admQuick").hidden=!(S.admin&&S.principal);renderClv();cargarVBAud();$("salirHome").hidden=!!S.admin;if(S.admin)renderProcEd()}
 $("procList").onclick=e=>{const b=e.target.closest("[data-p]");if(!b)return;const p=(PROCS||PROC_DEF).find(x=>x.id===b.dataset.p);if(!p)return;
   if(abrirModulo(p.id))return;if(p.url){window.open(p.url,"_blank","noopener");return}toast("Este proceso aún está en preparación.")};
 function renderProcEd(){$("procEd").innerHTML=PED.map((p,i)=>`<div class="pe" data-i="${i}">
@@ -1107,11 +1110,12 @@ function firmaPad(){const cv=$("miFirmaCv");let ctx,dr=false,last=null,sucio=fal
   const end=()=>{dr=false};cv.addEventListener("pointerup",end);cv.addEventListener("pointercancel",end);
   return{size,sucio:()=>sucio,png:()=>{const o=document.createElement("canvas");o.width=480;o.height=Math.round(480*cv.height/cv.width);const c=o.getContext("2d");c.drawImage(cv,0,0,o.width,o.height);
     const d=c.getImageData(0,0,o.width,o.height);for(let i=0;i<d.data.length;i+=4){if(d.data[i]>235&&d.data[i+1]>235&&d.data[i+2]>235)d.data[i+3]=0}c.putImageData(d,0,0);return o.toDataURL("image/png")}}}
-async function cargarFirma(){if(!S.admin)return;if(!FPAD)FPAD=firmaPad();requestAnimationFrame(()=>FPAD.size());
-  try{const r=await admin("adminMiFirma");if(r.firma){$("miFirmaImg").src=r.firma;$("miFirmaVer").hidden=false}else $("miFirmaVer").hidden=true}catch(x){}}
+const apiX=(fn,...a)=>S.admin?admin(fn,...a):call(fn,S.token,...a);
+async function cargarFirma(){if(!S.admin&&!S.firma)return;if(!FPAD)FPAD=firmaPad();requestAnimationFrame(()=>FPAD.size());
+  try{const r=await apiX(S.admin?"adminMiFirma":"audMiFirma");if(r.firma){$("miFirmaImg").src=r.firma;$("miFirmaVer").hidden=false}else $("miFirmaVer").hidden=true}catch(x){}}
 $("miFirmaClr").onclick=()=>{if(FPAD)FPAD.size()};
 $("miFirmaSave").onclick=async()=>{const st=$("miFirmaSt");if(!FPAD||!FPAD.sucio()){st.textContent="Primero dibuja tu firma.";return}const b=$("miFirmaSave");b.disabled=true;st.textContent="Guardando…";
-  try{const png=FPAD.png(),r=await admin("adminGuardarFirma",png);if(!r.ok){st.textContent=r.msg;return}$("miFirmaImg").src=png;$("miFirmaVer").hidden=false;FPAD.size();st.textContent="";okSubido(false,"Firma guardada","Desde ahora, cuando des V°B° tu firma sale en el PDF en «Jefe de Aseg. de Calidad».")}catch(x){st.textContent="No se guardó. Inténtalo con señal."}finally{b.disabled=false}};
+  try{const png=FPAD.png(),r=await apiX(S.admin?"adminGuardarFirma":"audGuardarFirma",png);if(!r.ok){st.textContent=r.msg;return}$("miFirmaImg").src=png;$("miFirmaVer").hidden=false;FPAD.size();st.textContent="";okSubido(false,"Firma guardada","Desde ahora, cuando des V°B° tu firma sale en el PDF en «Jefe de Aseg. de Calidad».")}catch(x){st.textContent="No se guardó. Inténtalo con señal."}finally{b.disabled=false}};
 async function cargarAdmins(){try{ADMS=await admin("adminLista");S.principal=!!ADMS.principal}catch(x){}renderAdmins()}
 function renderAdmins(){if(!ADMS)return;const L=ADMS.lista||[];$("admSub").textContent=`${L.length} con acceso`;
   $("admList").innerHTML=L.map(a=>`<div class="row" style="justify-content:space-between;border-bottom:1px solid var(--line);padding:6px 0"><span><b>${esc(title(a.nombre))}</b> ${a.principal?`<span class="pill ok">Principal</span>`:""} ${a.id===ADMS.yo?`<span class="pill wait">Tú</span>`:""}</span>${ADMS.principal&&!a.principal?`<button type="button" class="btn danger sm" data-qa="${esc(a.id)}">Quitar acceso</button>`:""}</div>`).join("");
@@ -1484,8 +1488,8 @@ $("verList").addEventListener("click",e=>{const b=e.target.closest("[data-vpdf]"
 $("verRefresh").onclick=()=>abrirLista(S.verMod);
 /* ---- V°B° con el PDF del formato armado otra vez ---- */
 async function darVB(r,b){b.disabled=true;b.textContent="Armando PDF…";
-  try{const srv=await admin("imagenes",r.id),mf=await admin("adminMiFirma").catch(()=>({})),im={firmaA:srv.firmaA||"",firmaT:srv.firmaT||"",firmaVB:mf.firma||"",vbNom:mf.nombre||(S.me&&S.me.nombre)||"",fotos:(srv.fotos||[]).map(x=>x.src).filter(Boolean)};if(!mf.firma)toast("Aún no guardaste tu firma: el V°B° sale sin firma. Guárdala en Equipo › Mi firma.");
-    const pdf=await pdfDe({...r,vb:Date.now()},im);b.textContent="Registrando…";const x=await admin("adminVB",r.id,pdf);if(x.ok){toast("Visto bueno registrado");cargarHist()}else{toast(x.msg);b.disabled=false;b.textContent="Dar V°B°"}}
+  try{const srv=await apiX("imagenes",r.id),mf=await apiX(S.admin?"adminMiFirma":"audMiFirma").catch(()=>({})),im={firmaA:srv.firmaA||"",firmaT:srv.firmaT||"",firmaVB:mf.firma||"",vbNom:mf.nombre||(S.me&&S.me.nombre)||"",fotos:(srv.fotos||[]).map(x=>x.src).filter(Boolean)};if(!mf.firma)toast(S.admin?"Aún no guardaste tu firma: el V°B° sale sin firma. Guárdala en Equipo › Mi firma.":"Aún no guardaste tu firma: dibújala arriba en «Mi firma para el V°B°».");
+    const pdf=await pdfDe({...r,vb:Date.now()},im);b.textContent="Registrando…";const x=await apiX(S.admin?"adminVB":"audVB",r.id,pdf);if(x.ok){toast("Visto bueno registrado");if(S.admin)cargarHist();else{VBA=VBA.filter(z=>z.id!==r.id);renderVBAud()}}else{toast(x.msg);b.disabled=false;b.textContent="Dar V°B°"}}
   catch(x){toast("No se pudo registrar el V°B°.");b.disabled=false;b.textContent="Dar V°B°"}}
 /* ---- permisos de cada auditor por formato (administradora) ---- */
 const PERM_OP=[["","Sin acceso"],["E","Ingreso de datos"],["L","Visualizador"],["LE","Ingreso y visualizador"]];
@@ -1493,6 +1497,18 @@ const PERM_TX={E:"ingreso",L:"ver",LE:"ingreso y ver"};
 function permResumen(p,def){const L=MOD_IDS.filter(k=>p[k]).map(k=>`${MODULOS[k].ic} ${PERM_TX[p[k]]||p[k]}`);return(L.length?L.join(" · "):"sin formatos")+(def?" (sin roles guardados: solo Auditoría Final)":"")}
 function permCard(a){let p={af:"E"},def=!a.PERMISOS;try{if(a.PERMISOS)p=JSON.parse(a.PERMISOS)}catch(x){}
   return`<details class="perm"><summary>Rol por formato · ${MOD_IDS.filter(k=>p[k]).length} de ${MOD_IDS.length}</summary><p class="sub" data-pmres style="margin:6px 0">${esc(permResumen(p,def))}</p><div class="grid2" data-perm="${esc(a.DNI)}"><label class="fld full"><span>Aplicar a todos los formatos</span><select data-pmall="1"><option value="-">— elegir —</option>${PERM_OP.map(([v,t])=>`<option value="${v}">${t}</option>`).join("")}</select></label>${MOD_IDS.map(k=>`<label class="fld"><span>${esc(MODULOS[k].n)}</span><select data-pm="${k}">${PERM_OP.map(([v,t])=>`<option value="${v}"${(p[k]||"")===v?" selected":""}>${t}</option>`).join("")}</select></label>`).join("")}<button type="button" class="btn sm full" data-pmsave="1">Guardar roles</button><p class="note full" data-pmst hidden></p></div></details>`}
+/* ---- poder de firmar (V°B°) para auditores elegidos por la administradora principal ---- */
+let VBA=[];
+async function cargarVBAud(){const c=$("vbAudCard");if(S.admin||!S.token||!S.firma){c.hidden=true;return}c.hidden=false;
+  const fc=$("firmaCard");if(fc&&fc.parentElement!==$("vbFirmaHost"))$("vbFirmaHost").appendChild(fc);cargarFirma();$("vbAudSub").textContent="Cargando…";
+  try{const r=await call("audFirmasPend",S.token);if(!r.ok){$("vbAudSub").textContent=r.msg||"";VBA=[];renderVBAud();return}VBA=r.rows||[];renderVBAud()}catch(x){$("vbAudSub").textContent="Sin conexión."}}
+function renderVBAud(){$("vbAudSub").textContent=`${VBA.length} sin V°B° (últimos 4 meses)`;
+  $("vbAudList").innerHTML=VBA.length?VBA.map(r=>`<article class="item${r.rej?" rej":""}"><div class="t"><b><span class="pill wait">${esc(MODULOS[r.mod||"af"].n)}</span> ${esc((r.mod||"af")==="af"?`OF ${r.of||"—"} · ${r.art||"—"}`:resumen(r))}</b></div><div class="m">${dmy(r.fecha)} · Auditor ${esc(title(r.aud))}${r.res?" · "+esc(title(r.res)):""}</div><div class="acts"><button type="button" class="btn gold sm" data-vpdf="${esc(r.id)}">⬇ PDF</button><button type="button" class="btn sm" data-vvb="${esc(r.id)}">Dar V°B°</button></div></article>`).join(""):`<div class="empty">No hay reportes pendientes de V°B°.</div>`}
+$("vbAudList").addEventListener("click",e=>{const p=e.target.closest("[data-vpdf]"),v=e.target.closest("[data-vvb]");if(p)bajarPdf(p.dataset.vpdf,p);if(v){const r=VBA.find(x=>x.id===v.dataset.vvb);if(r)darVB(r,v)}});
+$("teamList").addEventListener("click",async e=>{const b=e.target.closest("[data-firm] button");if(!b)return;const g=b.parentElement,on=b.dataset.v==="1";
+  try{const r=await admin("adminFirmante",g.dataset.firm,on);if(!r.ok){toast(r.msg);return}const a=TEAM.find(x=>String(x.DNI)===g.dataset.firm);if(a)a["PUEDE FIRMAR"]=on?"SÍ":"";g.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));toast(on?"Ahora puede dar V°B° con su firma":"Ya no puede firmar")}catch(x){}});
+function firmCtl(a){if(!S.principal||a.ESTADO!=="ACTIVO")return"";const on=String(a["PUEDE FIRMAR"]||"").toUpperCase().startsWith("S");
+  return`<div class="row" style="align-items:center;gap:8px"><span class="sub">Poder de firmar (V°B°):</span><span class="seg" data-firm="${esc(a.DNI)}"><button type="button" data-v="1" aria-pressed="${on}">Sí</button><button type="button" data-v="0" aria-pressed="${!on}">No</button></span></div>`}
 async function guardarRoles(g){const p={},st=g.querySelector("[data-pmst]"),b=g.querySelector("[data-pmsave]");g.querySelectorAll("[data-pm]").forEach(x=>{if(x.value)p[x.dataset.pm]=x.value});
   st.hidden=false;st.className="note full";st.textContent="Guardando…";if(b)b.disabled=true;
   try{const r=await admin("adminPermisos",g.dataset.perm,p);if(!r.ok){st.className="note err full";st.textContent="No se guardó: "+(r.msg||"inténtalo otra vez");return}
@@ -1742,7 +1758,7 @@ addEventListener("popstate",e=>{if(!S.token&&!S.admin)return;const st=e.state&&e
   if(!API){$("banner").className="note err";$("banner").textContent="Falta configurar el servidor (config.js).";$("banner").hidden=false}
   if(MODO==="admin"){$("role").textContent="Administradora";$("role").className="role adm";go("adm");return}
   const ses=ls.get("af_ses",null),p=ls.get("af_pend",null);
-  if(ses&&ses.tok){S.token=ses.tok;S.hasta=ses.hasta||0;S.me={nombre:ses.nombre};$("role").textContent=title(ses.nombre);loadForm(ls.get("draft3",null)||blankForm());go("home");banner();usoIni();
+  if(ses&&ses.tok){S.token=ses.tok;S.hasta=ses.hasta||0;S.firma=!!ses.firma;S.me={nombre:ses.nombre};$("role").textContent=title(ses.nombre);loadForm(ls.get("draft3",null)||blankForm());go("home");banner();usoIni();
     if(navigator.onLine){await verificar();enviarCola();usoEnviar()}return}
   if(p){showPend("",p);try{const r=await call("ingresar",p);if(r.ok)setSesion(r);else if(/CLAVE/.test(r.estado||"")){clearInterval(pendT);aprobadoPedirClave(p,r)}else if(r.estado==="PENDIENTE")$("pNom").textContent=`${title(r.nombre)} · DNI ••••${p.slice(-4)}`;else{ls.set("af_pend",null);go("gate")}}catch(x){}return}
   go("gate");rstVer()})();
