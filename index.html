@@ -953,7 +953,7 @@ function renderHist(){if(S.tab!=="hist")return;const q=NORM($("hiQ").value);
   $("hiList").innerHTML=T.length?T.slice(0,200).map(r=>`<article class="item${r.rej?" rej":""}${HSEL.has(r.id)?" sel":""}">
     ${selOn?`<label class="selck"><input type="checkbox" data-hsel="${esc(r.id)}"${HSEL.has(r.id)?" checked":""}> Seleccionar para borrar</label>`:""}
     <div class="t"><b>${(r.mod||"af")!=="af"?`<span class="pill wait">${esc(MODULOS[r.mod].n)}</span> `:""}${esc((r.mod||"af")==="af"?`OF ${r.of||"—"} · ${r.art||"—"}`:resumen(r))}</b><span class="pill ${r.rej?"bad":"ok"}">${esc(title(r.res||(r.rej?"Rechazado":"Aprobado")))}</span></div>
-    ${(r.mod||"af")!=="af"?`<div class="m">${dmy(r.fecha)} · Auditor ${esc(title(r.aud))}</div>`:`<div class="m">${dmy(r.fecha)} · ${esc(title(r.tipo||"Aud. final"))} · ${esc(title(r.op))} · ${esc(title(r.cli))} · ${esc(title(r.lin))} · ${esc(title(r.tal||r.proc))}</div>
+    ${(r.mod||"af")!=="af"?`<div class="m">${dmy(r.fecha)}${hRep(r)} · Auditor ${esc(title(r.aud))}</div>`:`<div class="m">${dmy(r.fecha)}${hRep(r)} · ${esc(title(r.tipo||"Aud. final"))} · ${esc(title(r.op))} · ${esc(title(r.cli))} · ${esc(title(r.lin))} · ${esc(title(r.tal||r.proc))}</div>
     <div class="m">Auditor ${esc(title(r.aud))} · lote ${fmt(r.lote)} · muestra ${fmt(r.mue)} · ${fmt(r.may)} may. (≤${r.acM??"—"}) · ${fmt(r.men)} men. (≤${r.acm??"—"})</div>
     ${Object.keys(r.d||{}).length?`<div class="d">${Object.entries(r.d).map(([c,x])=>`${esc(c)} ${esc(title((r.nombres||{})[c]||""))} (${(x.M||0)+(x.m||0)})`).join(" · ")}</div>`:""}`}
     <div class="m">${r.geo?`<a class="pill ok" style="text-decoration:none" target="_blank" rel="noopener" href="https://www.google.com/maps?q=${encodeURIComponent(r.geo.lat+","+r.geo.lng)}">Ver ubicación</a> `:""}${autPill(r)}${r.editado?`<span class="pill wait">corregido${r.corrPor?" por "+esc(title(r.corrPor)):""}</span> `:""}${r.vb?`<span class="pill ok">V°B° ${dt(r.vb)}</span> `:""}${(r.fotos||[]).length?`${r.fotos.length} foto${r.fotos.length>1?"s":""}`:""}</div>
@@ -1051,6 +1051,7 @@ setInterval(()=>usoEnviar(),90000);
 let TIM=null;S.tiDias=30;S.tiAud="";
 const hm=m=>{m=Number(m)||0;if(m<1)return`${Math.round(m*60)} s`;m=Math.round(m);return m>=60?`${Math.floor(m/60)} h ${String(m%60).padStart(2,"0")} min`:`${m} min`};
 const hora=t=>t?new Date(t).toLocaleTimeString("es-PE",{hour:"2-digit",minute:"2-digit"}):"—";
+function hRep(r){if(!r||!r.ts)return"";return` · hora ${hora(r.ts)}${r.tIni&&r.tIni<r.ts?` (inició ${hora(r.tIni)})`:""}${r.editado?` · corregido ${dt(r.editado)}`:""}`}
 async function cargarTiempos(force){if(!S.principal){go("home");return}if(TIM&&TIM.d===S.tiDias)renderTiempos();$("tiSub").textContent="Actualizando…";
   try{const R=await admin("adminTiempos",S.tiDias);if(R&&R.ok===false){toast(R.msg);go("home");return}TIM={d:S.tiDias,rows:R||[],at:Date.now()};renderTiempos()}catch(x){}}
 setInterval(()=>{if(S.tab==="time"&&S.admin&&S.principal&&!document.hidden&&!TSEL.size)cargarTiempos(true)},60000);
@@ -1482,7 +1483,7 @@ function resumen(r){const m=r.mod||"af";if(m==="af")return`OF ${r.of||"—"} · 
 function renderLista(){const q=NORM($("verQ").value),T=VER.filter(r=>!q||NORM(JSON.stringify(r.cab||[])+" "+resumen(r)+" "+r.aud).includes(q));
   $("verSub").textContent=`${fmt(T.length)} reportes · visualizador`;
   $("verList").innerHTML=T.length?T.slice(0,200).map(r=>`<article class="item${r.rej?" rej":""}"><div class="t"><b>${esc(resumen(r))}</b><span class="pill ${r.rej?"bad":"ok"}">${esc(title(r.res||(r.rej?"Rechazado":"Aprobado")))}</span></div>
-    <div class="m">${dmy(r.fecha)} · Auditor ${esc(title(r.aud))}${r.vb?` · V°B° ${dt(r.vb)}`:""}</div><div class="acts"><button type="button" class="btn gold sm" data-vpdf="${esc(r.id)}">⬇ PDF</button></div></article>`).join(""):`<div class="empty">Aún no hay reportes de este formato.</div>`}
+    <div class="m">${dmy(r.fecha)}${hRep(r)} · Auditor ${esc(title(r.aud))}${r.vb?` · V°B° ${dt(r.vb)}`:""}</div><div class="acts"><button type="button" class="btn gold sm" data-vpdf="${esc(r.id)}">⬇ PDF</button></div></article>`).join(""):`<div class="empty">Aún no hay reportes de este formato.</div>`}
 $("verQ").oninput=()=>renderLista();
 $("verList").addEventListener("click",e=>{const b=e.target.closest("[data-vpdf]");if(b)bajarPdf(b.dataset.vpdf,b)});
 $("verRefresh").onclick=()=>abrirLista(S.verMod);
@@ -1503,7 +1504,7 @@ async function cargarVBAud(){const c=$("vbAudCard");if(S.admin||!S.token||!S.fir
   const fc=$("firmaCard");if(fc&&fc.parentElement!==$("vbFirmaHost"))$("vbFirmaHost").appendChild(fc);cargarFirma();$("vbAudSub").textContent="Cargando…";
   try{const r=await call("audFirmasPend",S.token);if(!r.ok){$("vbAudSub").textContent=r.msg||"";VBA=[];renderVBAud();return}VBA=r.rows||[];renderVBAud()}catch(x){$("vbAudSub").textContent="Sin conexión."}}
 function renderVBAud(){$("vbAudSub").textContent=`${VBA.length} sin V°B° (últimos 4 meses)`;
-  $("vbAudList").innerHTML=VBA.length?VBA.map(r=>`<article class="item${r.rej?" rej":""}"><div class="t"><b><span class="pill wait">${esc(MODULOS[r.mod||"af"].n)}</span> ${esc((r.mod||"af")==="af"?`OF ${r.of||"—"} · ${r.art||"—"}`:resumen(r))}</b></div><div class="m">${dmy(r.fecha)} · Auditor ${esc(title(r.aud))}${r.res?" · "+esc(title(r.res)):""}</div><div class="acts"><button type="button" class="btn gold sm" data-vpdf="${esc(r.id)}">⬇ PDF</button><button type="button" class="btn sm" data-vvb="${esc(r.id)}">Dar V°B°</button></div></article>`).join(""):`<div class="empty">No hay reportes pendientes de V°B°.</div>`}
+  $("vbAudList").innerHTML=VBA.length?VBA.map(r=>`<article class="item${r.rej?" rej":""}"><div class="t"><b><span class="pill wait">${esc(MODULOS[r.mod||"af"].n)}</span> ${esc((r.mod||"af")==="af"?`OF ${r.of||"—"} · ${r.art||"—"}`:resumen(r))}</b></div><div class="m">${dmy(r.fecha)}${hRep(r)} · Auditor ${esc(title(r.aud))}${r.res?" · "+esc(title(r.res)):""}</div><div class="acts"><button type="button" class="btn gold sm" data-vpdf="${esc(r.id)}">⬇ PDF</button><button type="button" class="btn sm" data-vvb="${esc(r.id)}">Dar V°B°</button></div></article>`).join(""):`<div class="empty">No hay reportes pendientes de V°B°.</div>`}
 $("vbAudList").addEventListener("click",e=>{const p=e.target.closest("[data-vpdf]"),v=e.target.closest("[data-vvb]");if(p)bajarPdf(p.dataset.vpdf,p);if(v){const r=VBA.find(x=>x.id===v.dataset.vvb);if(r)darVB(r,v)}});
 $("teamList").addEventListener("click",async e=>{const b=e.target.closest("[data-firm] button");if(!b)return;const g=b.parentElement,on=b.dataset.v==="1";
   try{const r=await admin("adminFirmante",g.dataset.firm,on);if(!r.ok){toast(r.msg);return}const a=TEAM.find(x=>String(x.DNI)===g.dataset.firm);if(a)a["PUEDE FIRMAR"]=on?"SÍ":"";g.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));toast(on?"Ahora puede dar V°B° con su firma":"Ya no puede firmar")}catch(x){}});
@@ -1541,7 +1542,7 @@ let CORR=[];
 async function cargarCorr(){if(S.admin||!S.token){$("corrCard").hidden=true;return}
   try{const r=await call("misCorrecciones",S.token);CORR=r&&r.ok?r.rows||[]:[]}catch(x){}renderCorr()}
 function renderCorr(){const c=$("corrCard");c.hidden=!!S.admin||!CORR.length;if(c.hidden)return;
-  $("corrList").innerHTML=CORR.map(r=>`<article class="item${r.rej?" rej":""}"><div class="t"><b><span class="pill wait">${esc(MODULOS[r.mod||"af"].n)}</span> ${esc(resumen(r))}</b></div><div class="m">${dmy(r.fecha)} · Auditor ${esc(title(r.aud))}</div><div class="acts"><button type="button" class="btn sm" data-ced="${esc(r.id)}">Corregir</button><button type="button" class="btn gold sm" data-cpdf="${esc(r.id)}">⬇ PDF</button></div></article>`).join("")}
+  $("corrList").innerHTML=CORR.map(r=>`<article class="item${r.rej?" rej":""}"><div class="t"><b><span class="pill wait">${esc(MODULOS[r.mod||"af"].n)}</span> ${esc(resumen(r))}</b></div><div class="m">${dmy(r.fecha)}${hRep(r)} · Auditor ${esc(title(r.aud))}</div><div class="acts"><button type="button" class="btn sm" data-ced="${esc(r.id)}">Corregir</button><button type="button" class="btn gold sm" data-cpdf="${esc(r.id)}">⬇ PDF</button></div></article>`).join("")}
 $("corrList").addEventListener("click",e=>{const a=e.target.closest("[data-ced]"),p=e.target.closest("[data-cpdf]");if(p)bajarPdf(p.dataset.cpdf,p);
   if(a){const r=CORR.find(x=>x.id===a.dataset.ced);if(r){if((r.mod||"af")==="af")editRecord(r);else abrirMF(r.mod,r)}}});
 /* rol para todos los formatos de un auditor de una vez */
