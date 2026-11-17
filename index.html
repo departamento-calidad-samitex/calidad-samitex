@@ -1144,7 +1144,10 @@ const MODULOS={
  avios:{n:"Auditoría de Avíos",cod:"SA-AC-PR-002.02",ver:"V.02 - 29/12/2025",d:"Avíos · AQL 2.5 inspección general nivel II",ic:"AV",t:"REPORTE DE AUDITORIA DE CALIDAD - AVIOS"},
  corte:{n:"Auditoría de Corte",cod:"SA-AC-PR-03.01",ver:"V.02 - 21/10/2026",d:"Camisería · sacos · pantalón y falda",ic:"CO",t:"REPORTE DE AUDITORIA DE CORTE"},
  segundas:{n:"Reporte de Segundas",cod:"SA-AC-PR.02.01",ver:"V.01 - 16/01/2026",d:"Control de productos no conformes",ic:"SE",t:"REPORTE DE CONTROL DE PRODUCTOS NO CONFORMES",land:1},
- muestra:{n:"Primera Muestra",cod:"SA-AC-PR-03.01",ver:"V.02 - 16/01/2026",d:"Evaluación de prototipo / muestra",ic:"PM",t:"REPORTE DE EVALUACIÓN DE PROTOTIPO/MUESTRA - VARIOS"}};
+ muestra:{n:"Primera Muestra",cod:"SA-AC-PR-03.01",ver:"V.02 - 16/01/2026",d:"Evaluación de prototipo / muestra",ic:"PM",t:"REPORTE DE EVALUACIÓN DE PROTOTIPO/MUESTRA - VARIOS"},
+ proceso:{n:"Auditoría de Proceso",cod:"QC-E-036.03",ver:"V.01 - 17/11/2026",d:"Proceso en línea · planta · diario",ic:"PR",t:"REPORTE DE AUDITORIA DE PROCESO PLANTA SAMITEX"}};
+/* v9: defectos del formato de proceso QC-E-036.03 (C001–C070) */
+const PDEF_PR="ACORDONADO|ADHESIVO SIN RETIRAR|BOTON FALTANTE|BOTON FUERA DE POSICIÓN|BOTON INCORRECTO|COSTURA ABIERTA (DESCOSIDO)|COSTURA ASIMETRICA|COSTURA CON EMPATE|COSTURA CURVA|COSTURA DESGARRADA|COSTURA DESVIADA|COSTURA INCOMPLETA|COSTURA INVERTIDA|COSTURA MAL REPARADA|COSTURA ONDEADA|COSTURA RECOGIDA /FRUNCIDA|COSTURA SOBRANTE|COSTURA SUELTA|COSTURA TENSIONADA|COSTURA VENCIDA|DESCAZADO|ERROR DE N° DE PUNTADAS /UND|ETIQUETA DESALINEADA|ETIQUETA DESCENTRADA|ETIQUETA FALTANTE|ETIQUETA FUERA DE POSICIÓN|ETIQUETA INCORRECTA|HILO INCORRECTO|HILO INSERTADO|HILO POR RECORTAR|HILO SUCIO|HILOS SUELTOS|HUECOS|MAL COMPARTIDO|MAL MARCADO|MAL PLANCHADO|MAL PREFORMADO|MAL RECORTADO|MANCHAS|MARGEN DE COSTURA DISPAREJO|MARGEN DE COSTURA INCORRECTO|OJAL CERRADO|OJAL DEFECTUOSO|OJAL FUERA DE POSICION|OJAL SIN REALCE|PEGADO DE BOTON DEFECTUOSO|PEGADO DE CIERRE DEFECTUOSO|PELUSA INSERTADA|PICADO POR LIMPIEZA|PICADO POR MAQUINA|PIEZA ASIMETRICA|PIEZA DIFERENTE TELA|PIEZA INVERTIDA|PIEZA SIN COSTURA|PIQUETE FUERA DE MEDIDA|PLIEGUES|PUNTADA RECORTADA /ROTA|PUNTADA SALTADA|REMALLE FLOTANTE (VACIADO)|REMALLE EXCESIVO|REVIRADO|SENTIDO DE TELA INCORRECTA|SIN ATRAQUE|SIN OJAL|TALLA INCORRECTA|TALLAS MEZCLADAS|TIPO DE COSTURA INCORRECTA|TONO ENTRE PIEZAS|TONO ENTRE PRENDAS|VARIACION DE MEDIDA".split("|").map((n,i)=>["C"+String(i+1).padStart(3,"0"),n]);
 const MOD_IDS=Object.keys(MODULOS);
 const seqCat=(p,s)=>s.split("|").map((n,i)=>[p+String(i+1).padStart(2,"0"),n]);
 const CATS={
@@ -1187,7 +1190,12 @@ const FORMS={
   ["tabla","Evaluación","ev",19,[["desc","Descripción"],["base","Bases"],["mue","Muestra +/-"],["est","Corr. / No corr.","cnc"],["obs","Observaciones"]]],
   ["campos","Reporte de medidas",[["ent","Entalle"],["talla","Talla"]]],
   ["tabla","Medidas","md",9,[["desc","Descripción"],["tol","Tol +/-"],["base","Base","num"],["pre","Prenda (muestra)","num"],["dif","Diferencia","num"]]],
-  ["obs","Observaciones","obs",3],["fotos","Fotos de defectos u observaciones",6],["res","Resultado",["APROBADO","RECHAZADO","APROBADO CON OBSERVACIÓN"]],["firmas",[["A","Auditor"],["T","Analista de calidad"]]]]};
+  ["obs","Observaciones","obs",3],["fotos","Fotos de defectos u observaciones",6],["res","Resultado",["APROBADO","RECHAZADO","APROBADO CON OBSERVACIÓN"]],["firmas",[["A","Auditor"],["T","Analista de calidad"]]]],
+ proceso:[["nota","Tu avance se guarda solo en este celular: puedes cerrar la app y seguir llenando durante el día (también sin señal). Toca «Guardar reporte» al terminar la jornada o la OF."],
+  ["campos","Datos",[["cli","Cliente"],["planta","Planta"],["desc","Descripción"],["lin","Línea"],["art","Artículo"],["color","Color"],["of","OF"],["hora","Hora"],["fecha","Fecha","fecha"],["aud","Auditor","aud"]]],
+  ["tabla","Avance del proceso","av",19,[["avance","Avance / operación"],["pct","% de avance","num"],["obs","Obs. del avance"],["st","Estatus","aob"],["hora","Hora","auto"]]],
+  ["defcnt","Defectos encontrados"],["pmue","Muestreo · AQL 2.5"],["res","Resultado",["APROBADO","RECHAZADO"]],
+  ["obs","Observaciones","obs",5],["fotos","Fotos de defectos u observaciones",6],["firmas",[["A","Auditor"],["T","Planta"]]]]};
 
 /* ---- permisos por formato: L = solo lectura · E = ingreso de datos ---- */
 S.perm=ls.get("af_perm",{af:"E"});
@@ -1197,7 +1205,7 @@ function setPerm(p){if(p){S.perm=p;ls.set("af_perm",p)}}
 
 /* ---- formulario genérico de los formatos ---- */
 const rowsDe=(f,k)=>(f.t[k]=f.t[k]||[]);
-function blankMF(mod){return{id:newId(),mod,sub:mod==="corte"?"cam":"",c:{fecha:today()},t:{},p:{},ck:{},obs:{},fotos:[],firmaA:"",firmaT:"",res:"",n:{}}}
+function blankMF(mod){return{id:newId(),mod,sub:mod==="corte"?"cam":"",dc:{},c:mod==="proceso"?{fecha:today(),hora:new Date().toTimeString().slice(0,5),planta:"SAMITEX"}:{fecha:today()},t:{},p:{},ck:{},obs:{},fotos:[],firmaA:"",firmaT:"",res:"",n:{}}}
 function secs(f){return FORMS[f.mod]||[]}
 function ckItems(f,key){if(f.mod==="corte"){const c=CORTE[f.sub||"cam"];return key==="PZ"?c.pz:c.av}return key}
 function aqlN2(lote){const p=aql(lote);return p?{n:p.n,ac:p.acM,re:p.reM}:null}
@@ -1206,6 +1214,7 @@ function txMed(n){return String(Math.round(n*100)/100)}
 function autoFila(f,tk,r){const R=rowsDe(f,tk)[r]||{};
   if(f.mod==="avios"&&tk==="it"){const p=aqlN2(R.lote);R.mue=p?String(p.n):"";R.def=catNom(up(R.cod));if(!R.arM)R.ar=R.cd===""||R.cd==null||!p?"":(Number(R.cd)>=p.re?"R":"A")}
   if(f.mod==="corte"&&tk==="df")R.def=catNom(up(R.cod));
+  if(f.mod==="proceso"&&tk==="av"&&R.avance&&!R.hora)R.hora=new Date().toTimeString().slice(0,5);
   if(f.mod==="muestra"&&tk==="md"){const b=numMed(R.base),q=numMed(R.pre),d=numMed(R.dif),t=numMed(R.tol);
     if(R._ed==="dif"){if(!isNaN(b)&&!isNaN(d))R.pre=txMed(b+d);else if(!isNaN(q)&&!isNaN(d)&&isNaN(b))R.base=txMed(q-d)}
     else if(!isNaN(b)&&!isNaN(q))R.dif=txMed(q-b);
@@ -1214,7 +1223,10 @@ function autoFila(f,tk,r){const R=rowsDe(f,tk)[r]||{};
   return R}
 function mfMuestreo(f){const p=aql(f.c.lote);return p?{n:p.n,acM:p.acM,reM:p.reM,acm:p.acm,rem:p.rem}:null}
 function mfTot(f,tk,col){return rowsDe(f,tk).reduce((s,r)=>s+(Number(r&&r[col])||0),0)}
+const procTot=f=>Object.values(f.dc||{}).reduce((a,b)=>a+(Number(b)||0),0);
+function procPlan(f){const p=aql(f.c.cant);return p?`<div><b>${p.n}</b><span>Muestra</span></div><div><b>${p.acM}/${p.reM}</b><span>AQL 2.5 Ac/Re</span></div><div><b>${fmt(procTot(f))}</b><span>Defectos</span></div><div><b style="color:${procTot(f)>=p.reM?"var(--crit)":"var(--good)"}">${procTot(f)>=p.reM?"RE":"AP"}</b><span>Resultado</span></div>`:`<span class="cap">Escribe la cantidad total para calcular la muestra.</span>`}
 function mfSugerido(f){
+  if(f.mod==="proceso"){const p=aql(f.c.cant);return p?(procTot(f)>=p.reM?"RECHAZADO":"APROBADO"):""}
   if(f.mod==="avios"){const r=rowsDe(f,"it").some(x=>x&&x.ar==="R")||Object.values(f.ck.tst||{}).includes("X");return r?"RECHAZADO":"APROBADO"}
   if(f.mod==="corte"){const p=mfMuestreo(f),t=mfTot(f,"df","cant");return p&&t>=p.reM?"RECHAZADO":"APROBADO"}
   if(f.mod==="telas"){const r=rowsDe(f,"rol").some(x=>x&&x.ar==="R")||Object.values(f.p).some(x=>x&&x.ar==="R");return r?"RECHAZADO":"APROBADO"}
@@ -1224,13 +1236,16 @@ function celda(f,tk,r,c){const [k,l,ty,cat]=c,R=rowsDe(f,tk)[r]||{},v=R[k]??"",a
   if(ty==="auto")return`<label class="fld"><span>${esc(l)}</span><input ${a} value="${esc(v)}" readonly tabindex="-1"></label>`;
   if(k==="dif"&&f.mod==="muestra")return`<label class="fld"><span>${esc(l)} <small class="fueraTol"${R.fuera?"":" hidden"} style="color:var(--crit)">fuera de tolerancia</small></span><input ${a} value="${esc(v)}" inputmode="decimal"${R.fuera?' style="border-color:var(--crit);color:var(--crit)"':""}></label>`;
   if(ty==="falla3"){const sel=FALLA3.find(([kk])=>R[kk]!==""&&R[kk]!=null&&R[kk]!==0&&R[kk]!=="0");return`<div class="fld full"><span>${esc(l)}</span><span class="seg wide" ${a}>${FALLA3.map(([kk,t])=>`<button type="button" data-v="${kk}" aria-pressed="${!!sel&&sel[0]===kk}">${t}</button>`).join("")}</span></div>`}
-  if(ty==="ar"||ty==="cnc"){const o=ty==="ar"?[["A","A"],["R","R"]]:[["C","Corr."],["NC","No corr."]];return`<div class="fld"><span>${esc(l)}</span><span class="tri" ${a}>${o.map(([x,t])=>`<button type="button" data-v="${x}" aria-pressed="${v===x}">${t}</button>`).join("")}</span></div>`}
+  if(ty==="ar"||ty==="cnc"||ty==="aob"){const o=ty==="ar"?[["A","A"],["R","R"]]:ty==="aob"?[["AP","AP"],["RE","RE"],["OB","OB"]]:[["C","Corr."],["NC","No corr."]];return`<div class="fld"><span>${esc(l)}</span><span class="tri" ${a}>${o.map(([x,t])=>`<button type="button" data-v="${x}" aria-pressed="${v===x}">${t}</button>`).join("")}</span></div>`}
   if(ty==="def"||ty==="defs")return`<label class="fld${ty==="defs"?" full":""}"><span>${esc(l)}</span><input ${a} list="dl${cat}" value="${esc(v)}" autocapitalize="characters" placeholder="${cat}…"></label>`;
   return`<label class="fld"><span>${esc(l)}</span><input ${a} value="${esc(v)}"${ty==="num"?' inputmode="decimal"':""}></label>`}
 function renderMF(){const f=S.mf,M=MODULOS[f.mod];let h="";
   $("mfTitle").textContent=M.n+(f.mod==="corte"?" · "+title(CORTE[f.sub||"cam"].t):"");$("mfSub").textContent=`${f.mod==="corte"?CORTE[f.sub||"cam"].cod:M.cod} · ${M.ver} · Elaborado: ${ELAB}`;
   secs(f).forEach((s,si)=>{const [ty]=s;
    if(ty==="sub")h+=`<div class="card"><h3>${s[1]}</h3><div class="seg wide" data-sub="1">${Object.entries(s[2]).map(([k,t])=>`<button type="button" data-v="${k}" aria-pressed="${f.sub===k}">${t}</button>`).join("")}</div></div>`;
+   if(ty==="nota")h+=`<div class="note">${esc(s[1])}</div>`;
+   if(ty==="defcnt"){const dc=f.dc=f.dc||{};h+=`<div class="card"><div class="hd"><h3>${s[1]}</h3><span class="sub">Total: <b id="dcTot">${fmt(procTot(f))}</b></span></div><input data-dcq="1" placeholder="Buscar defecto o código…" aria-label="Buscar defecto" style="width:100%;margin-bottom:8px"><div id="dcList">${PDEF_PR.map(([c,n])=>{const v=Number(dc[c])||0;return`<div class="trow" data-dcrow="${c}" data-txt="${esc(c+" "+n)}"${v?' style="background:var(--gold-soft)"':""}><span class="nm"><small>${c}</small> ${esc(title(n))}</span><span class="row" style="gap:6px;flex-wrap:nowrap"><button type="button" class="btn ghost sm" data-dc="${c}" data-d="-1" aria-label="Restar">−</button><b data-dcv="${c}" style="min-width:2ch;text-align:center">${v||""}</b><button type="button" class="btn sm" data-dc="${c}" data-d="1" aria-label="Sumar">+</button></span></div>`}).join("")}</div></div>`}
+   if(ty==="pmue")h+=`<div class="card"><h3>${s[1]}</h3><div class="grid2"><label class="fld"><span>Cant. total</span><input data-c="cant" inputmode="numeric" value="${esc(f.c.cant||"")}"></label><label class="fld"><span>AQL</span><input value="2.5" readonly tabindex="-1"></label></div><div class="plan" id="mfPlan">${procPlan(f)}</div></div>`;
    if(ty==="campos")h+=`<div class="card"><h3>${s[1]}</h3><div class="grid2">${s[2].map(([k,l,t])=>`<label class="fld${t==="aud"?"":(l.length>16?" full":"")}"><span>${esc(k==="tp"&&f.mod==="corte"?title(CORTE[f.sub||"cam"].tp):l)}</span><input data-c="${k}" ${t==="fecha"?'type="date"':""} ${t==="aud"?"readonly":""} value="${esc(t==="aud"?title(f.c.aud||(S.me&&S.me.nombre)||""):f.c[k]??"")}"${k==="tp"&&f.mod==="corte"?` placeholder="${esc(CORTE[f.sub||"cam"].leg)}"`:""}></label>`).join("")}</div></div>`;
    if(ty==="op")h+=`<div class="card"><h3>${s[1]}</h3><div class="seg wide" data-op="${s[2]}">${s[3].map(o=>`<button type="button" data-v="${esc(o)}" aria-pressed="${f.c[s[2]]===o}">${esc(title(o))}</button>`).join("")}</div></div>`;
    if(ty==="pruebas")h+=`<div class="card"><h3>${s[1]}</h3><p class="sub">Dos lecturas por prueba · A = aprobado · R = rechazado</p>${s[3].map(([k,l,std,rq])=>`<div class="mrow"><b>${esc(l)}</b><span class="sub">STD ${esc(std)}</span>${[0,1].map(i=>{const P=f.p[k+i]||{};return`<div class="grid3">${rq?`<input data-p="${k+i}" data-f="req" value="${esc(P.req||"")}" placeholder="Requer. ${i+1}">`:"<span></span>"}<input data-p="${k+i}" data-f="res" value="${esc(P.res||"")}" placeholder="Resultado ${i+1}"><span class="tri" data-p="${k+i}" data-f="ar">${["A","R"].map(x=>`<button type="button" data-v="${x}" aria-pressed="${P.ar===x}">${x}</button>`).join("")}</span></div>`}).join("")}</div>`).join("")}</div>`;
@@ -1246,11 +1261,12 @@ function renderMF(){const f=S.mf,M=MODULOS[f.mod];let h="";
   $("mfBody").innerHTML=h;renderMFPhotos();
   requestAnimationFrame(()=>{["A","T"].forEach(k=>{if($("mf"+k)){mpads[k]=mpads[k]&&mpads[k].cv===$("mf"+k)?mpads[k]:MPad(k);mpads[k].size();mpads[k].load(S.mf["firma"+k])}})})}
 function saveMF(){const f=S.mf;if(!f||S.mfEdit)return;if(!f.tIni)f.tIni=Date.now();ls.set("mf_"+f.mod,f)}
-function refreshMFbits(){const f=S.mf,p=$("mfPlan");if(p&&f.mod==="corte"){const m=mfMuestreo(f);p.innerHTML=m?`<div><b>${m.n}</b><span>Muestra</span></div><div><b>${m.acM}/${m.reM}</b><span>Mayor Ac/Re</span></div><div><b>${m.acm}/${m.rem}</b><span>Menor Ac/Re</span></div><div><b>${fmt(mfTot(f,"df","cant"))}</b><span>Defectos</span></div>`:`<span class="cap">Escribe el lote auditado para calcular la muestra.</span>`}
+function refreshMFbits(){const f=S.mf,p=$("mfPlan");if(p&&f.mod==="proceso")p.innerHTML=procPlan(f);const dt=$("dcTot");if(dt)dt.textContent=fmt(procTot(f));if(p&&f.mod==="corte"){const m=mfMuestreo(f);p.innerHTML=m?`<div><b>${m.n}</b><span>Muestra</span></div><div><b>${m.acM}/${m.reM}</b><span>Mayor Ac/Re</span></div><div><b>${m.acm}/${m.rem}</b><span>Menor Ac/Re</span></div><div><b>${fmt(mfTot(f,"df","cant"))}</b><span>Defectos</span></div>`:`<span class="cap">Escribe el lote auditado para calcular la muestra.</span>`}
   ["df","sg"].forEach(k=>{const e=$("tot_"+k);if(e)e.textContent=fmt(mfTot(f,k,"cant"))});
   const rs=document.querySelector("#mfBody [data-res]");if(rs&&!f.res){const sg=mfSugerido(f);rs.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===sg)));const n=rs.previousElementSibling;if(n&&n.tagName==="P")n.innerHTML=`Según los datos: <b>${sg}</b>`}}
 $("mfBody").addEventListener("input",e=>{const x=e.target,f=S.mf;if(!f)return;
-  if(x.dataset.c){f.c[x.dataset.c]=x.value;if(x.dataset.c==="lote")refreshMFbits()}
+  if(x.dataset.dcq){const q=NORM(x.value);document.querySelectorAll("#dcList [data-dcrow]").forEach(r=>r.hidden=!!q&&!NORM(r.dataset.txt).includes(q));return}
+  if(x.dataset.c){f.c[x.dataset.c]=x.value;if(x.dataset.c==="lote"||x.dataset.c==="cant")refreshMFbits()}
   else if(x.dataset.tk){const R=rowsDe(f,x.dataset.tk),r=+x.dataset.r;R[r]=R[r]||{};R[r][x.dataset.k]=x.value;R[r]._ed=x.dataset.k;autoFila(f,x.dataset.tk,r);if(x.dataset.tk==="sg"&&x.dataset.k==="cant")FALLA3.forEach(([kk])=>{if(R[r][kk])R[r][kk]=Number(String(x.value).replace(",","."))||1});
     x.closest(".mrow").querySelectorAll("input[data-tk]").forEach(i=>{if(i!==x&&i.value!==String(R[r][i.dataset.k]??""))i.value=R[r][i.dataset.k]??""});
     if(f.mod==="muestra"&&x.dataset.tk==="md"){const di=x.closest(".mrow").querySelector('input[data-k="dif"]'),fl=x.closest(".mrow").querySelector(".fueraTol");if(di){di.style.borderColor=R[r].fuera?"var(--crit)":"";di.style.color=R[r].fuera?"var(--crit)":""}if(fl)fl.hidden=!R[r].fuera}
@@ -1260,6 +1276,8 @@ $("mfBody").addEventListener("input",e=>{const x=e.target,f=S.mf;if(!f)return;
   else if(x.dataset.fcap!=null){(f.fcap=f.fcap||[])[+x.dataset.fcap]=x.value}
   saveMF()});
 $("mfBody").addEventListener("click",e=>{const f=S.mf;if(!f)return;const b=e.target.closest("button");if(!b)return;const g=b.parentElement;
+  if(b.dataset.dc){const c=b.dataset.dc,dc=f.dc=f.dc||{},v=Math.max(0,(Number(dc[c])||0)+Number(b.dataset.d));if(v)dc[c]=v;else delete dc[c];
+    const e=document.querySelector(`[data-dcv="${c}"]`);if(e)e.textContent=v||"";const row=b.closest("[data-dcrow]");if(row)row.style.background=v?"var(--gold-soft)":"";refreshMFbits();saveMF();return}
   if(b.dataset.addrow){f.n[b.dataset.addrow]=(f.n[b.dataset.addrow]||1)+1;renderMF();saveMF();return}
   if(b.dataset.mclr){mpads[b.dataset.mclr].clear();saveMF();return}
   if(g.dataset.sub){f.sub=b.dataset.v;f.ck={};renderMF();saveMF();return}
@@ -1304,6 +1322,7 @@ function mfRecord(f){const M=MODULOS[f.mod],cab=[],ss=secs(f),c=f.c;
   ss.forEach(s=>{if(s[0]==="campos")s[2].forEach(([k,l])=>cab.push([up(k==="tp"&&f.mod==="corte"?CORTE[f.sub].tp:l),k==="aud"?"":up(c[k])]));if(s[0]==="op")cab.push([up(s[1]),c[s[2]]||""])});
   if(f.mod==="corte"){const p=mfMuestreo(f);cab.unshift(["TIPO DE CORTE",CORTE[f.sub].t]);cab.push(["CANT. DE CORTE",c.cc||""],["LOTE AUDITADO",c.lote||""],["CANT. DE MUESTRA",p?p.n:""],["TOTAL DEFECTOS",mfTot(f,"df","cant")],["PIEZAS NO CONFORMES",Object.values(f.ck.pz||{}).filter(v=>v==="X").length],["AVÍOS NO CONFORMES",Object.values(f.ck.av||{}).filter(v=>v==="X").length])}
   if(f.mod==="telas")[["den","DENSIDAD"],["fro","SOLIDEZ AL FROTE"],["enc","% ENCOGIMIENTO"],["rev","REVIRADO"],["lav","SOLIDEZ AL LAVADO"]].forEach(([k,l])=>[0,1].forEach(i=>{const P=f.p[k+i]||{};if(P.res||P.req||P.ar)cab.push([l+" "+(i+1),[P.req,P.res,P.ar].filter(Boolean).join(" · ")])}));
+  if(f.mod==="proceso"){const p=aql(c.cant);cab.push(["AQL","2.5"],["CANT. TOTAL",c.cant||""],["TAMAÑO DE MUESTRA",p?p.n:""],["AC / RE",p?p.acM+" / "+p.reM:""],["TOTAL DEFECTOS",procTot(f)],["DEFECTOS",PDEF_PR.filter(([k])=>f.dc&&f.dc[k]).map(([k,n])=>`${k} ${n}: ${f.dc[k]}`).join(" | ")])}
   if(f.mod==="avios")cab.push(["TESTS NO CONFORMES",Object.entries(f.ck.tst||{}).filter(([,v])=>v==="X").map(([i])=>FORMS.avios[2][3][i][0]).join(" | ")]);
   const ob=Object.values(f.obs||{}).filter(Boolean);if(ob.length)cab.push(["OBSERVACIONES",ob.join(" | ")]);
   const tb=ss.find(s=>s[0]==="tabla"),lin={cols:[],filas:[]};
@@ -1318,7 +1337,7 @@ async function imgsDe(f,id){const tieneVB=!!((S.editing&&S.editSrc&&S.editSrc.vb
   return{firmaVB:srv&&srv.ok?srv.firmaVB||"":"",vbNom:srv&&srv.ok?srv.vbNom||"":"",firmaA:g("firmaA"),firmaT:g("firmaT"),fotos:f.fotos.map(x=>x.b64?"data:image/jpeg;base64,"+x.b64:x.src||(srv&&srv.ok?((srv.fotos||[]).find(y=>y.id===x.id)||{}).src:"")||"").filter(Boolean)}}
 /* ---- guardar formato genérico (con cola sin señal) ---- */
 $("mfForm").addEventListener("submit",async e=>{e.preventDefault();const f=S.mf,err=$("mfErr");err.hidden=true;$("mfDone").hidden=true;
-  const req={telas:[["prov","Proveedor"],["fecha","Fecha"]],avios:[["prov","Proveedor"],["fecha","Fecha"]],corte:[...(S.mfEdit?[]:[["tcor","Tipo de corte"]]),["cli","Cliente"],["fecha","Fecha"],["lote","Lote auditado"]],segundas:[["fecha","Fecha"],["lin","Línea"]],muestra:[["cli","Cliente"],["fecha","Fecha"]]}[f.mod]||[];
+  const req={telas:[["prov","Proveedor"],["fecha","Fecha"]],avios:[["prov","Proveedor"],["fecha","Fecha"]],corte:[...(S.mfEdit?[]:[["tcor","Tipo de corte"]]),["cli","Cliente"],["fecha","Fecha"],["lote","Lote auditado"]],segundas:[["fecha","Fecha"],["lin","Línea"]],proceso:[["cli","Cliente"],["lin","Línea"],["of","OF"],["fecha","Fecha"],["cant","Cant. total"]],muestra:[["cli","Cliente"],["fecha","Fecha"]]}[f.mod]||[];
   const miss=req.filter(([k])=>!String(f.c[k]||"").trim()).map(([,l])=>l);if(!f.c.aud)miss.push("Auditor");
   if(miss.length){err.textContent="Completa: "+miss.join(", ")+".";err.hidden=false;return}
   if(!isSig(f.firmaA)&&!String(f.firmaA).startsWith("drive:")){err.textContent="Falta la firma del auditor.";err.hidden=false;return}
@@ -1458,7 +1477,20 @@ function pdfAF(r0,im){const r=afDer(r0),D=r.d||{},G={};FCAT.def.forEach(g=>G[g.k
  h+=qSig([["AUDITOR DE CALIDAD","A",r.aud],["TALLER","T",r.talResp||r.tal],["JEFE DE CALIDAD/GER. DE PRODUCCIÓN","VB"]],im,qVB(r));
  const pg=[pagina(h)];if(im.fotos.length)pg.push(pagina(qFotos(r,im,"FOTOS DEL DEFECTO · OF "+(r.of||""))));return pg}
 /* ---- arma el PDF: cada página se dibuja a tamaño A4 y se guarda como imagen ---- */
-function paginasDe(r,im){const m=r.mod||"af";return m==="af"?pdfAF(r,im):m==="telas"?pdfTelas(r,im):m==="avios"?pdfAvios(r,im):m==="corte"?pdfCorte(r,im):m==="segundas"?pdfSegundas(r,im):pdfMuestra(r,im)}
+/* ---- AUDITORÍA DE PROCESO PLANTA (QC-E-036.03) ---- */
+function pdfProceso(r,im){const f=r.f,c=f.c,A=rowsDe(f,"av"),dc=f.dc||{},M=MODULOS.proceso,p=aql(c.cant),tot=procTot(f);
+ let h=qHead(M.t,M.cod,M.ver,"DPTO. DE ASEGURAMIENTO DE CALIDAD")+'<div class="q-gap"></div>'+qInf([[["CLIENTE:",c.cli],["LÍNEA:",c.lin],["OF:",c.of]],[["PLANTA:",c.planta],["ARTÍCULO:",c.art],["HORA:",c.hora]],[["DESCRIPCIÓN:",c.desc],["COLOR:",c.color],["FECHA:",dmy(c.fecha)]]])+'<div class="q-gap"></div>';
+ const stc=v=>v==="RE"?"color:#c00":v==="OB"?"color:#b45309":v==="AP"?"color:#0b7a2a":"";
+ h+=`<table style="font-size:7pt"><colgroup><col style="width:34%"><col style="width:9%"><col><col style="width:9%"></colgroup><tr><th>AVANCE</th><th>% DE AVANCE</th><th>OBSERVACIONES</th><th>ESTATUS</th></tr>${Array.from({length:19},(_,i)=>{const x=A[i]||{};return`<tr style="height:4.6mm"><td class="q-l">${x.avance?`<span style="font-size:5.5pt;color:#555">${Q(x.hora||"")}</span> `:""}${Q(x.avance)}</td><td>${x.pct!==""&&x.pct!=null?Q(x.pct)+(String(x.pct).includes("%")?"":"%"):""}</td><td class="q-l">${Q(x.obs)}</td><td class="q-b" style="${stc(x.st)}">${Q(x.st)}</td></tr>`}).join("")}</table><div class="q-gap"></div>`;
+ const col=(a,b)=>`<table style="font-size:5.4pt"><colgroup><col style="width:15%"><col><col style="width:17%"></colgroup><tr><th>COD.</th><th>DEFECTOS</th><th>CANT.</th></tr>${Array.from({length:26},(_,i)=>{const x=PDEF_PR[a+i];if(!x||a+i>=b)return'<tr style="height:2.75mm"><td></td><td></td><td></td></tr>';const v=Number(dc[x[0]])||0;return`<tr style="height:2.75mm${v?";background:#fff3c4":""}"><td>${x[0]}</td><td class="q-l">${Q(x[1])}</td><td class="q-b">${v||""}</td></tr>`}).join("")}</table>`;
+ h+=`<div style="display:flex;gap:2mm"><div style="flex:1">${col(0,26)}</div><div style="flex:1">${col(26,52)}</div><div style="flex:1">${col(52,70)}</div></div><div class="q-gap"></div>`;
+ h+=`<table class="q-inf"><tr><td class="q-k">AQL:</td><td class="q-v q-b">2.5</td><td class="q-k">TAMAÑO DE MUESTRA:</td><td class="q-v q-b">${p?p.n:""}</td><td class="q-k">APROBADO:</td><td>${qBox(r.res==="APROBADO")}</td><td rowspan="2" style="font-size:6.5pt;text-align:left;padding-left:3mm"><b>LEYENDA:</b><br><span style="color:#0b7a2a">APROBADO (AP)</span><br><span style="color:#c00">RECHAZADO (RE)</span><br><span style="color:#b45309">OBSERVADO (OB)</span></td></tr>
+  <tr><td class="q-k">CANT. TOTAL:</td><td class="q-v q-b">${Q(c.cant)}</td><td class="q-k">TOTAL DEFECTO:</td><td class="q-v q-b">${fmt(tot)}${p?` <span style="font-weight:normal">(Ac ${p.acM} / Re ${p.reM})</span>`:""}</td><td class="q-k">RECHAZADO:</td><td>${qBox(r.res==="RECHAZADO")}</td></tr></table><div class="q-gap"></div>`;
+ h+=`<div style="display:flex;gap:3mm;align-items:flex-start"><table style="font-size:5.4pt;width:38%"><colgroup><col style="width:26%"><col style="width:16%"><col><col><col><col></colgroup><tr><th colspan="6">TABLA DE MUESTREO DE PRENDAS</th></tr><tr><th rowspan="2">LOTE</th><th rowspan="2">MUESTRA</th><th colspan="2">2.5 (MAYOR)</th><th colspan="2">4% (MENOR)</th></tr><tr><th>AC</th><th>RE</th><th>AC</th><th>RE</th></tr>${TABLA.map(([,n,a,b],i)=>`<tr style="height:2.6mm"><td>${RANGO[i]}</td><td>${n}</td><td>${a}</td><td>${a+1}</td><td>${b}</td><td>${b+1}</td></tr>`).join("")}</table>
+  <table style="font-size:7pt;flex:1"><tr><th class="q-l">OBSERVACIONES:</th></tr>${Array.from({length:7},(_,i)=>`<tr style="height:4.6mm"><td class="q-l">${Q((f.obs||{})[i]||"")}</td></tr>`).join("")}</table></div>`;
+ h+=qSig([["PLANTA","T"],["AUDITOR","A",r.aud],["JEFE DE ASEGURAMIENTO DE CALIDAD","VB"]],im,qVB(r));
+ const pg=[pagina(h)];if(im.fotos.length)pg.push(pagina(qFotos(r,im,"FOTOS DE DEFECTOS U OBSERVACIONES")));return pg}
+function paginasDe(r,im){const m=r.mod||"af";return m==="proceso"?pdfProceso(r,im):m==="af"?pdfAF(r,im):m==="telas"?pdfTelas(r,im):m==="avios"?pdfAvios(r,im):m==="corte"?pdfCorte(r,im):m==="segundas"?pdfSegundas(r,im):pdfMuestra(r,im)}
 async function pdfDe(r,im){if(!window.html2canvas||!window.jspdf)throw new Error("faltan las librerías del PDF; abre la app una vez con internet");
   const land=!!MODULOS[r.mod||"af"].land,W=land?297:210,H=land?210:297,pages=paginasDe(r,im.fotos?im:{...im,fotos:[]});
   const host=document.createElement("div");host.style.cssText=`position:fixed;left:-20000px;top:0;width:${W}mm;background:#fff;z-index:-1`;document.body.appendChild(host);
