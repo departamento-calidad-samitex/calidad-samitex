@@ -776,7 +776,9 @@ const API=(window.AF_API||"").trim();
 async function call(fn,...a){if(!API)throw new Error("SIN_SERVIDOR");if(!navigator.onLine)throw new Error("NetworkError: sin señal");
   let res;try{res=await fetch(API,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({fn,args:a}),redirect:"follow"})}catch(x){throw new Error("NetworkError: "+x.message)}
   if(!res.ok)throw new Error("NetworkError: HTTP "+res.status);
-  const j=await res.json();if(!j.ok)throw new Error(j.e||"Error del servidor");return j.r}
+  const j=await res.json();if(j.ts)relojSync(j.ts);if(!j.ok)throw new Error(j.e||"Error del servidor");return j.r}
+/* v7: desfase entre el reloj del celular y la hora del servidor, medido en cada conexión */
+function relojSync(ts){try{ls.set("reloj",{sk:Number(ts)-Date.now(),srv:Number(ts)})}catch(x){}}
 const netErr=e=>/network|failed to fetch|NetworkError|timeout|SIN_SERVIDOR|load failed/i.test(String(e&&e.message||e))&&!/SESION/.test(String(e&&e.message));
 const sesErr=e=>/SESION/.test(String(e&&e.message||e));
 
@@ -1548,7 +1550,7 @@ $("corrList").addEventListener("click",e=>{const a=e.target.closest("[data-ced]"
 /* rol para todos los formatos de un auditor de una vez */
 $("teamList").addEventListener("change",e=>{const s=e.target.closest("[data-pmall]");if(!s||s.value==="-")return;const g=s.closest("[data-perm]");g.querySelectorAll("[data-pm]").forEach(x=>x.value=s.value);s.value="-";g.querySelector("[data-pm]").dispatchEvent(new Event("change",{bubbles:true}))});
 /* ---- v6: asistencia con foto, ubicación y hora (la hora la pone el servidor) ---- */
-function geoAhora(ms){return new Promise(res=>{if(!navigator.geolocation)return res(null);setTimeout(()=>res(null),(ms||15000)+3000);navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lng:p.coords.longitude,acc:Math.round(p.coords.accuracy),ts:Date.now()}),e=>res(e&&e.code===1?{denegado:1}:null),{enableHighAccuracy:true,timeout:ms||15000,maximumAge:60000})})}
+function geoAhora(ms){return new Promise(res=>{if(!navigator.geolocation)return res(null);setTimeout(()=>res(null),(ms||15000)+3000);navigator.geolocation.getCurrentPosition(p=>{const g={lat:p.coords.latitude,lng:p.coords.longitude,acc:Math.round(p.coords.accuracy),ts:Date.now()};try{ls.set("geo_ult",g)}catch(x){}res(g)},e=>res(e&&e.code===1?{denegado:1}:null),{enableHighAccuracy:true,timeout:ms||15000,maximumAge:60000})})}
 async function geoForm(){const g=await geoAhora(8000);return g&&!g.denegado?g:null}
 let ASIS={hoy:"",rows:[],hora:"08:30"},asisTipo=null;const ASCOLA="asis_cola";
 async function cargarAsis(){const c=$("asisCard");if(!S.token){c.hidden=true;return}c.hidden=false;renderAsis();enviarAsis();
@@ -1559,25 +1561,26 @@ function tallerActual(rows){let cur="";rows.slice().sort((a,b)=>asMinA(a.hora)-a
 function asisFilas(){const pend=ls.get(ASCOLA,[]);return[...(ASIS.rows||[]),...pend.map(m=>({tipo:m.tipo,taller:m.tipo==="TALLER_CAMBIO"?(m.tallerAnt||"")+" → "+m.taller:m.taller||"",hora:new Date(m.tLocal).toTimeString().slice(0,5),sinEnviar:1}))]}
 function renderAsis(){const rows=asisFilas().sort((a,b)=>asMinA(a.hora)-asMinA(b.hora)),cur=tallerActual(rows);
   $("asisHoy").textContent=dmy(ASIS.hoy||today())+" · entrada "+(ASIS.hora||"08:30");
-  $("asisMis").innerHTML=rows.length?rows.map(r=>`<div class="trow"><span class="nm"><b>${ASLAB[r.tipo]||r.tipo}</b> · ${esc(r.hora)}${r.taller?` · ${esc(title(r.taller))}`:""}</span>${r.sinEnviar?`<span class="pill wait">sin señal · se enviará</span>`:r.estado==="TARDE"?`<span class="pill bad">Tarde</span>`:r.estado?`<span class="pill ok">A tiempo</span>`:`<span class="pill ok">Registrada</span>`}</div>`).join(""):`<p class="sub">Aún no marcas hoy.</p>`;
+  $("asisMis").innerHTML=rows.length?rows.map(r=>`<div class="trow"><span class="nm"><b>${ASLAB[r.tipo]||r.tipo}</b> · ${esc(r.hora)}${r.taller?` · ${esc(title(r.taller))}`:""}</span>${r.sinEnviar?`<span class="pill wait">sin señal · se enviará</span>`:r.estado==="TARDE"?`<span class="pill bad">Tarde</span>`:r.reg?`<span class="pill ok">A tiempo · regularizado</span>`:r.estado?`<span class="pill ok">A tiempo</span>`:`<span class="pill ok">Registrada</span>`}</div>`).join(""):`<p class="sub">Aún no marcas hoy.</p>`;
   $("asisEn").textContent=cur?`· estás en ${title(cur)}`:"";$("asisLleg").textContent=cur?"Cambiar a este taller":"Llegada a taller";$("asisSalT").disabled=!cur}
-let asisTaller="",asisAnt="";
+let asisTaller="",asisAnt="",tMarca=0;
 function asisMarcar(tipo){const cur=tallerActual(asisFilas()),t=up($("asisTaller").value);asisAnt="";
   if(tipo==="TALLER_LLEGADA"){if(!t){toast("Escribe el nombre del taller.");$("asisTaller").focus();return}if(cur){if(cur===t){toast("Ya estás marcado en ese taller.");return}tipo="TALLER_CAMBIO";asisAnt=cur}}
   asisTaller=tipo==="TALLER_SALIDA"?cur:(tipo.indexOf("TALLER")===0?t:"");
-  asisTipo=tipo;$("asisFoto").value="";$("asisFoto").click()}
+  asisTipo=tipo;tMarca=Date.now();$("asisFoto").value="";$("asisFoto").click()}
 $("asisCard").addEventListener("click",e=>{const b=e.target.closest("[data-asis]");if(b)asisMarcar(b.dataset.asis)});
 $("asisFoto").onchange=async e=>{const file=e.target.files[0];if(!file||!asisTipo)return;const msg=$("asisMsg"),bs=[...$("asisCard").querySelectorAll("[data-asis]")];bs.forEach(b=>b.disabled=true);msg.className="note";msg.textContent="Obteniendo tu ubicación…";
-  try{const g=await geoAhora(20000);
+  try{let g=await geoAhora(20000);
+    if(!g){const u=ls.get("geo_ult",null);if(u&&Date.now()-u.ts<12*36e5)g={...u,aprox:1}}
     if(!g||g.denegado){msg.className="note err";msg.textContent=g&&g.denegado?"Para marcar asistencia debes permitir la ubicación (GPS) a la app en tu celular.":"No se pudo obtener la ubicación. Activa el GPS y vuelve a marcar.";return}
-    msg.textContent="Guardando…";const m={id:newId(),tipo:asisTipo,taller:asisTaller,tallerAnt:asisAnt,foto:await shrink(file),lat:g.lat,lng:g.lng,acc:g.acc,tLocal:Date.now()};
-    try{const r=await call("marcarAsistencia",S.token,m);if(!r.ok){msg.className="note err";msg.textContent=r.msg||"No se pudo marcar.";return}
+    msg.textContent="Guardando…";const rj=ls.get("reloj",null)||{},m={id:newId(),tipo:asisTipo,taller:asisTaller,tallerAnt:asisAnt,foto:await shrink(file),lat:g.lat,lng:g.lng,acc:g.acc,tLocal:tMarca,skew:rj.sk!=null?rj.sk:null,ultSrv:rj.srv||0,geoAprox:g.aprox?1:0,geoT:g.aprox?g.ts:0};
+    try{const r=await call("marcarAsistencia",S.token,{...m,tEnvio:Date.now()});if(!r.ok){msg.className="note err";msg.textContent=r.msg||"No se pudo marcar.";return}
       msg.className="note "+(r.estado==="TARDE"?"err":"ok");msg.textContent=`${ASLAB[r.tipo]||r.tipo}${r.taller?" ("+title(r.taller)+")":""}: registrado a las ${r.hora}${r.estado==="TARDE"?` · TARDE (después de las ${ASIS.hora||"08:30"})`:""}.`;toast(msg.textContent);cargarAsis()}
-    catch(x){if(netErr(x)){ls.set(ASCOLA,[...ls.get(ASCOLA,[]),{...m,sinSenal:true}]);msg.className="note";msg.textContent="Sin señal: tu marca quedó guardada en el celular con la hora del celular y se enviará sola al volver la conexión.";renderAsis()}else{msg.className="note err";msg.textContent="No se pudo marcar. Inténtalo otra vez."}}}
+    catch(x){if(netErr(x)){ls.set(ASCOLA,[...ls.get(ASCOLA,[]),{...m,sinSenal:true}]);msg.className="note";msg.textContent=`Sin señal: tu marca quedó guardada con la hora (${new Date(m.tLocal).toTimeString().slice(0,5)}) y la ubicación de este momento${m.geoAprox?" (última ubicación conocida)":""}. Se enviará sola al volver la conexión.`;renderAsis()}else{msg.className="note err";msg.textContent="No se pudo marcar. Inténtalo otra vez."}}}
   catch(x){msg.className="note err";msg.textContent="No se pudo leer la foto. Inténtalo otra vez."}finally{bs.forEach(b=>b.disabled=false);asisTipo=null;renderAsis()}};
 let asisEnv=false;
 async function enviarAsis(){const q=ls.get(ASCOLA,[]);if(asisEnv||!q.length||!S.token)return;asisEnv=true;let ok=0;
-  try{for(const m of q){try{const r=await call("marcarAsistencia",S.token,m);if(r.sesion)break;ls.set(ASCOLA,ls.get(ASCOLA,[]).filter(x=>x.id!==m.id));if(r.ok)ok++}catch(x){break}}}finally{asisEnv=false}
+  try{for(const m of q){try{const r=await call("marcarAsistencia",S.token,{...m,tEnvio:Date.now()});if(r.sesion)break;ls.set(ASCOLA,ls.get(ASCOLA,[]).filter(x=>x.id!==m.id));if(r.ok)ok++}catch(x){break}}}finally{asisEnv=false}
   if(ok){toast("Asistencia enviada");try{const r=await call("miAsistencia",S.token);if(r&&r.ok){ASIS=r;renderAsis()}}catch(x){}}}
 addEventListener("online",()=>enviarAsis());setInterval(()=>enviarAsis(),60000);
 /* administradora: asistencia por día */
@@ -1592,7 +1595,7 @@ function renderAsisAdm(){const f=asisFecha(),by={};ASD.forEach(r=>{const x=by[r.
   $("asSub").textContent=`${dmy(f)} · tardanza según el horario de cada auditor`;
   $("asKpis").innerHTML=[["Marcaron ingreso",L.filter(x=>x.ing.length).length,"auditores"],["Tardanzas",tarde,"después de su hora"],["Marcaron salida",L.filter(x=>x.sal.length).length,"auditores"]].map(([l,v,s2],i)=>`<div class="kpi${i===1&&v?" rej":""}"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s2}</div></div>`).join("");
   const selOn=S.admin&&S.principal;ASEL.forEach(id=>{if(!ASD.some(x=>x.id===id))ASEL.delete(id)});
-  const mk=r=>`<div class="trow"><span class="nm">${selOn?`<label class="selck" style="display:inline-flex;margin-right:6px"><input type="checkbox" data-asel="${esc(r.id)}"${ASEL.has(r.id)?" checked":""} aria-label="Seleccionar marca"></label>`:""}<b>${esc(r.hora)} · ${ASLAB[r.tipo]||r.tipo}</b>${r.taller?` · ${esc(title(r.taller))}`:""}${r.estado==="TARDE"?` <span class="pill bad">TARDE</span>`:r.estado?` <span class="pill ok">A tiempo</span>`:""}${r.sin?` <span class="pill wait">sin señal</span>`:""}</span><span class="row" style="gap:6px;flex-wrap:nowrap"><a class="btn ghost sm" style="text-decoration:none" target="_blank" rel="noopener" href="${esc(r.mapa)}">Mapa</a><button type="button" class="btn ghost sm" data-afoto="${esc(r.foto)}">Foto</button></span></div>`;
+  const mk=r=>`<div class="trow"><span class="nm">${selOn?`<label class="selck" style="display:inline-flex;margin-right:6px"><input type="checkbox" data-asel="${esc(r.id)}"${ASEL.has(r.id)?" checked":""} aria-label="Seleccionar marca"></label>`:""}<b>${esc(r.hora)} · ${ASLAB[r.tipo]||r.tipo}</b>${r.taller?` · ${esc(title(r.taller))}`:""}${r.estado==="TARDE"?` <span class="pill bad">TARDE</span>`:r.estado?` <span class="pill ok">A tiempo</span>`:""}${asTags(r)}</span><span class="row" style="gap:6px;flex-wrap:nowrap">${r.tipo==="INGRESO"&&r.estado==="TARDE"?`<button type="button" class="btn gold sm" data-areg="${esc(r.id)}">Regularizar</button>`:""}<a class="btn ghost sm" style="text-decoration:none" target="_blank" rel="noopener" href="${esc(r.mapa)}">Mapa</a><button type="button" class="btn ghost sm" data-afoto="${esc(r.foto)}">Foto</button></span></div>`;
   const hm=hmA;
   const hrs=x=>{const a=x.ing[0],b=x.sal[x.sal.length-1];if(!a||!b)return"";const m=asMin(b.hora)-asMin(a.hora);return m>0?`${hm(m)} de jornada`:""};
   const resum=x=>{const d=datosDia(x),out=[],tl={};let abierto="";
@@ -1601,7 +1604,25 @@ function renderAsisAdm(){const f=asisFecha(),by={};ASD.forEach(r=>{const x=by[r.
     const k=Object.keys(tl);if(k.length)out.push("Talleres: "+k.map(t=>`${title(t)} ${hm(tl[t])}`).join(" · "));if(abierto)out.push(`Aún en ${title(abierto)} (sin salida)`);
     return out.length?`<p class="sub" style="margin:4px 0 0">${esc(out.join(" | "))}</p>`:""};
   $("asList").innerHTML=L.length?L.map(x=>{const t=x.ing[0]&&x.ing[0].estado==="TARDE";
-    return`<article class="item${t?" rej":""}"><div class="t"><b>${esc(title(x.aud))}${/^ADM-/.test(x.dni)?' <span class="pill wait">ADM</span>':""}</b><span class="sub">entra ${limDe(x)} · ${x.ing.length?"":"sin ingreso · "}${x.sal.length?hrs(x):"sin salida"}</span></div>${resum(x)}<div class="acts"><button type="button" class="btn gold sm" data-apdf="${esc(x.dni)}">⬇ PDF del día</button></div>${x.all.map(mk).join("")}<div class="afoto"></div></article>`}).join(""):`<div class="empty">Nadie marcó asistencia este día.</div>`;aSelUI()}
+    return`<article class="item${t?" rej":""}"><div class="t"><b>${esc(title(x.aud))}${/^ADM-/.test(x.dni)?' <span class="pill wait">ADM</span>':""}</b><span class="sub">entra ${limDe(x)} · ${x.ing.length?"":"sin ingreso · "}${x.sal.length?hrs(x):"sin salida"}</span></div>${resum(x)}<div class="acts"><button type="button" class="btn gold sm" data-apdf="${esc(x.dni)}">⬇ PDF del día</button></div>${x.all.map(mk).join("")}<div class="areg"></div><div class="afoto"></div></article>`}).join(""):`<div class="empty">Nadie marcó asistencia este día.</div>`;aSelUI()}
+/* v7: etiquetas de cada marca (sin señal, ubicación aproximada, alerta de hora, regularizada) */
+function asTags(r){let t="";
+  if(r.sin)t+=` <span class="pill wait" title="Marcada sin señal; llegó al servidor ${esc(r.rec||"")}">OFFLINE${r.rec?" · recibida "+esc(r.rec):""}</span>`;
+  if(r.aprox)t+=` <span class="pill wait" title="Sin GPS al marcar: se usó la última ubicación conocida">ubicación aprox.</span>`;
+  if(r.alerta)t+=` <span class="pill bad" title="${esc(r.alerta)}">⚠ ${esc(r.alerta)}</span>`;
+  if(r.reg)t+=` <span class="pill ok" title="${esc("Motivo: "+r.motivo+" · por "+r.regPor+" · "+r.regFecha)}">Regularizado por ADM · original ${esc(r.horaOrig)}</span><br><span class="sub" style="font-size:12px">Motivo: ${esc(r.motivo)} · ${esc(title(r.regPor))} · ${esc(r.regFecha)}</span>`;
+  return t}
+$("asList").addEventListener("click",async e=>{const b=e.target.closest("[data-areg]"),g=e.target.closest("[data-aregok]"),c=e.target.closest("[data-aregno]");
+  if(c){const box=c.closest(".areg");box.innerHTML="";box.dataset.id="";return}
+  if(b){const r=ASD.find(x=>x.id===b.dataset.areg),box=b.closest("article").querySelector(".areg");if(!r)return;if(box.dataset.id===r.id){box.innerHTML="";box.dataset.id="";return}box.dataset.id=r.id;
+    box.innerHTML=`<div class="note" style="margin-top:6px"><b>Regularizar ingreso de ${esc(title(r.aud))}</b><br><span class="sub">Marcó ${esc(r.hora)} (TARDE, su hora es ${esc(r.lim)}). La selfie, el GPS y la hora original se conservan; el cambio queda en la hoja REGULARIZACIONES.</span>
+      <div class="row" style="gap:8px;margin-top:6px;flex-wrap:wrap"><label class="fld"><span>Hora real de llegada</span><input type="time" class="aregH" value="${esc(r.lim)}"></label><label class="fld full" style="flex:1;min-width:200px"><span>Motivo (obligatorio)</span><input class="aregM" maxlength="300" placeholder="Ej.: llegó 8:20, falla de señal al marcar"></label></div>
+      <p class="sub aregE" style="color:var(--crit)" hidden></p><div class="row" style="gap:6px;margin-top:6px"><button type="button" class="btn gold sm" data-aregok="${esc(r.id)}">Guardar regularización</button><button type="button" class="btn ghost sm" data-aregno="1">Cancelar</button></div></div>`;
+    box.querySelector(".aregM").focus();return}
+  if(g){const box=g.closest(".areg"),h=box.querySelector(".aregH").value,mo=box.querySelector(".aregM").value.trim(),er=box.querySelector(".aregE");er.hidden=true;
+    if(!/^\d{2}:\d{2}$/.test(h)){er.textContent="Escribe la hora real de llegada.";er.hidden=false;return}
+    if(mo.length<5){er.textContent="Escribe el motivo de la regularización.";er.hidden=false;return}
+    g.disabled=true;try{const r=await admin("adminRegularizarAsis",g.dataset.aregok,h,mo);if(!r.ok){er.textContent=r.msg||"No se pudo regularizar.";er.hidden=false;return}toast("Ingreso regularizado: "+r.hora+" · A TIEMPO");cargarAsisAdm()}catch(x){}finally{g.disabled=false}}});
 $("asFecha").onchange=()=>cargarAsisAdm();
 const asMover=n=>{const d=new Date(asisFecha()+"T12:00:00");d.setDate(d.getDate()+n);$("asFecha").value=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");cargarAsisAdm()};
 $("asPrev").onclick=()=>asMover(-1);$("asNext").onclick=()=>asMover(1);$("asRefresh").onclick=()=>cargarAsisAdm();
@@ -1643,7 +1664,7 @@ function htmlAsisDia(x,f,au,fotos){const d=datosDia(x),dn=new Date(f+"T12:00:00"
   const sec=t=>`<div style="background:#0a1f74;color:#fff;font-weight:bold;font-size:8pt;padding:1mm 2mm;margin-top:3mm">${t}</div>`;
   h+=sec("MARCAS DEL DÍA (en orden de hora)")+`<table style="font-size:7.5pt"><colgroup><col style="width:6%"><col style="width:9%"><col style="width:17%"><col style="width:25%"><col style="width:11%"><col style="width:19%"><col style="width:13%"></colgroup>
    <tr><th>N°</th><th>HORA</th><th>MOVIMIENTO</th><th>TALLER</th><th>ESTADO</th><th>UBICACIÓN (GPS)</th><th>FOTO</th></tr>
-   ${d.T.map((r,i)=>`<tr style="height:12mm;background:${fondo(r)}"><td>${i+1}</td><td class="q-b">${Q(r.hora)}</td><td>${Q(ASLAB[r.tipo]||r.tipo)}${r.sin?'<br><span style="font-size:6pt">(sin señal)</span>':""}</td><td style="white-space:normal">${Q(r.taller||"—")}</td><td${r.estado==="TARDE"?' style="color:#c00;font-weight:bold"':""}>${Q(r.estado||"—")}</td><td style="font-size:6.5pt">${Number(r.lat).toFixed(5)}, ${Number(r.lng).toFixed(5)}${r.acc?`<br>± ${Q(r.acc)} m`:""}</td><td>${fotos[r.foto]?`<img src="${fotos[r.foto]}" style="height:11mm;max-width:100%;object-fit:cover">`:"—"}</td></tr>`).join("")}</table>
+   ${d.T.map((r,i)=>`<tr style="height:12mm;background:${fondo(r)}"><td>${i+1}</td><td class="q-b">${Q(r.hora)}</td><td>${Q(ASLAB[r.tipo]||r.tipo)}${r.sin?`<br><span style="font-size:6pt">(offline${r.rec?", recibida "+Q(r.rec):""})</span>`:""}${r.reg?`<br><span style="font-size:6pt">(regularizado ADM · original ${Q(r.horaOrig)})</span>`:""}${r.alerta?'<br><span style="font-size:6pt;color:#b45309">(⚠ hora no confiable)</span>':""}</td><td style="white-space:normal">${Q(r.taller||"—")}</td><td${r.estado==="TARDE"?' style="color:#c00;font-weight:bold"':""}>${Q(r.estado||"—")}</td><td style="font-size:6.5pt">${Number(r.lat).toFixed(5)}, ${Number(r.lng).toFixed(5)}${r.acc?`<br>± ${Q(r.acc)} m`:""}${r.aprox?"<br>(aprox.)":""}</td><td>${fotos[r.foto]?`<img src="${fotos[r.foto]}" style="height:11mm;max-width:100%;object-fit:cover">`:"—"}</td></tr>`).join("")}</table>
    <div style="font-size:6.5pt;margin-top:1mm"><span style="background:#fff8e1;border:1px solid #bbb;padding:0 2mm">turno mañana</span> &nbsp; <span style="background:#e8f0fe;border:1px solid #bbb;padding:0 2mm">turno tarde</span></div>`;
   const nm=d.seg.filter(z=>z.turno==="Mañana").length,nt=d.seg.length-nm;
   h+=sec("RESUMEN DEL DÍA")+`<table style="font-size:7.5pt"><tr><th>INGRESO</th><th>SALIDA</th><th>JORNADA</th><th>ALMUERZO</th><th>TALLERES VISITADOS</th></tr>
@@ -1652,7 +1673,8 @@ function htmlAsisDia(x,f,au,fotos){const d=datosDia(x),dn=new Date(f+"T12:00:00"
   h+=`<table style="font-size:7.5pt;margin-top:2mm"><colgroup><col style="width:6%"><col><col style="width:12%"><col style="width:12%"><col style="width:12%"><col style="width:15%"></colgroup><tr><th>N°</th><th>TALLER</th><th>TURNO</th><th>LLEGADA</th><th>SALIDA</th><th>TIEMPO</th></tr>
    ${d.seg.length?d.seg.map((z,i)=>`<tr style="height:5mm"><td>${i+1}</td><td>${Q(z.taller)}</td><td>${z.turno}</td><td>${Q(z.lleg)}</td><td>${Q(z.sal||"—")}</td><td class="q-b">${z.min!=null?hmA(z.min):"sin salida"}</td></tr>`).join(""):`<tr><td colspan="6">No marcó llegada a talleres este día.</td></tr>`}
    <tr><td colspan="5" class="q-r q-b">TOTAL EN TALLERES</td><td class="q-b">${hmA(tot)}</td></tr></table>`;
-  h+=`<table class="q-inf" style="margin-top:2mm"><tr><td class="q-k" style="width:1%">OBSERVACIONES:</td><td class="q-v">&nbsp;</td></tr><tr><td></td><td class="q-v">&nbsp;</td></tr></table>`;
+  const obs=[];d.T.forEach(r=>{const L=(ASLAB[r.tipo]||r.tipo)+" "+r.hora;if(r.reg)obs.push(`${L}: regularizado por ${title(r.regPor)} el ${r.regFecha} (marcó ${r.horaOrig}). Motivo: ${r.motivo}`);if(r.alerta)obs.push(`${L}: ${r.alerta}`)});
+  h+=`<table class="q-inf" style="margin-top:2mm"><tr><td class="q-k" style="width:1%">OBSERVACIONES:</td><td class="q-v">${obs.length?obs.map(Q).join("<br>"):"&nbsp;"}</td></tr><tr><td></td><td class="q-v">&nbsp;</td></tr></table>`;
   h+=qSig([["AUDITOR DE CALIDAD","",title(x.aud)],["JEFATURA DE CALIDAD · V°B°",""]],{firmaA:"",firmaT:""},"");
   return h}
 async function pdfAsisDia(x,f,btn){const t0=btn.textContent;btn.disabled=true;btn.textContent="Armando PDF…";
