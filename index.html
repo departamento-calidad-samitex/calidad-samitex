@@ -329,7 +329,7 @@ nav.tabs button[aria-selected=true] svg{filter:drop-shadow(0 3px 4px color-mix(i
     <div><h2 id="homeHi">Calidad Samitex</h2><p class="sub" id="homeSub">Control de calidad · elige el proceso</p></div>
     <div class="card" id="asisCard" hidden>
       <div class="hd"><h3>Asistencia Auditoría Talleres</h3><span class="sub" id="asisHoy"></span></div>
-      <div class="list" id="asisMis"></div>
+      <div id="asisAviso"></div><div class="list" id="asisMis"></div>
       <span class="sub"><b>Jornada</b></span>
       <div class="row" style="flex-wrap:nowrap"><button type="button" class="btn block" data-asis="INGRESO" id="asisIn">Ingreso</button><button type="button" class="btn ghost block" data-asis="SALIDA" id="asisOut">Salida</button></div>
       <span class="sub"><b>Almuerzo</b></span>
@@ -1553,7 +1553,7 @@ $("teamList").addEventListener("change",e=>{const s=e.target.closest("[data-pmal
 /* ---- v6: asistencia con foto, ubicación y hora (la hora la pone el servidor) ---- */
 function geoAhora(ms){return new Promise(res=>{if(!navigator.geolocation)return res(null);setTimeout(()=>res(null),(ms||15000)+3000);navigator.geolocation.getCurrentPosition(p=>{const g={lat:p.coords.latitude,lng:p.coords.longitude,acc:Math.round(p.coords.accuracy),ts:Date.now()};try{ls.set("geo_ult",g)}catch(x){}res(g)},e=>res(e&&e.code===1?{denegado:1}:null),{enableHighAccuracy:true,timeout:ms||15000,maximumAge:60000})})}
 async function geoForm(){const g=await geoAhora(8000);return g&&!g.denegado?g:null}
-let ASIS={hoy:"",rows:[],hora:"08:30"},asisTipo=null;const ASCOLA="asis_cola";
+let ASIS={hoy:"",rows:[],hora:"08:30"},asisTipo=null;const ASCOLA="asis_cola",ASREJ="asis_rech";
 async function cargarAsis(){const c=$("asisCard");if(!S.token){c.hidden=true;return}c.hidden=false;renderAsis();enviarAsis();
   try{const r=await call("miAsistencia",S.token);if(r&&r.ok){ASIS=r;renderAsis()}}catch(x){}}
 const ASLAB={INGRESO:"Ingreso",SALIDA:"Salida",ALMUERZO_SALIDA:"Salida a almuerzo",ALMUERZO_REGRESO:"Regreso de almuerzo",TALLER_LLEGADA:"Llegada a taller",TALLER_SALIDA:"Salida de taller",TALLER_CAMBIO:"Cambio de taller"};
@@ -1563,7 +1563,7 @@ function asisFilas(){const pend=ls.get(ASCOLA,[]);return[...(ASIS.rows||[]),...p
 function renderAsis(){const rows=asisFilas().sort((a,b)=>asMinA(a.hora)-asMinA(b.hora)),cur=tallerActual(rows);
   $("asisHoy").textContent=dmy(ASIS.hoy||today())+" · entrada "+(ASIS.hora||"08:30");
   $("asisMis").innerHTML=rows.length?rows.map(r=>`<div class="trow"><span class="nm"><b>${ASLAB[r.tipo]||r.tipo}</b> · ${esc(r.hora)}${r.taller?` · ${esc(title(r.taller))}`:""}</span>${r.sinEnviar?`<span class="pill wait">sin señal · se enviará</span>`:r.estado==="TARDE"?`<span class="pill bad">Tarde</span>`:r.reg?`<span class="pill ok">A tiempo · regularizado</span>`:r.estado?`<span class="pill ok">A tiempo</span>`:`<span class="pill ok">Registrada</span>`}</div>`).join(""):`<p class="sub">Aún no marcas hoy.</p>`;
-  $("asisEn").textContent=cur?`· estás en ${title(cur)}`:"";$("asisLleg").textContent=cur?"Cambiar a este taller":"Llegada a taller";$("asisSalT").disabled=!cur}
+  asisAviso();$("asisEn").textContent=cur?`· estás en ${title(cur)}`:"";$("asisLleg").textContent=cur?"Cambiar a este taller":"Llegada a taller";$("asisSalT").disabled=!cur}
 let asisTaller="",asisAnt="",tMarca=0;
 function asisMarcar(tipo){const cur=tallerActual(asisFilas()),t=up($("asisTaller").value);asisAnt="";
   if(tipo==="TALLER_LLEGADA"){if(!t){toast("Escribe el nombre del taller.");$("asisTaller").focus();return}if(cur){if(cur===t){toast("Ya estás marcado en ese taller.");return}tipo="TALLER_CAMBIO";asisAnt=cur}}
@@ -1580,8 +1580,17 @@ $("asisFoto").onchange=async e=>{const file=e.target.files[0];if(!file||!asisTip
     catch(x){if(netErr(x)){ls.set(ASCOLA,[...ls.get(ASCOLA,[]),{...m,sinSenal:true}]);msg.className="note";msg.textContent=`Sin señal: tu marca quedó guardada con la hora (${new Date(m.tLocal).toTimeString().slice(0,5)}) y la ubicación de este momento${m.geoAprox?" (última ubicación conocida)":""}. Se enviará sola al volver la conexión.`;renderAsis()}else{msg.className="note err";msg.textContent="No se pudo marcar. Inténtalo otra vez."}}}
   catch(x){msg.className="note err";msg.textContent="No se pudo leer la foto. Inténtalo otra vez."}finally{bs.forEach(b=>b.disabled=false);asisTipo=null;renderAsis()}};
 let asisEnv=false;
-async function enviarAsis(){const q=ls.get(ASCOLA,[]);if(asisEnv||!q.length||!S.token)return;asisEnv=true;let ok=0;
-  try{for(const m of q){try{const r=await call("marcarAsistencia",S.token,{...m,tEnvio:Date.now()});if(r.sesion)break;ls.set(ASCOLA,ls.get(ASCOLA,[]).filter(x=>x.id!==m.id));if(r.ok)ok++}catch(x){break}}}finally{asisEnv=false}
+/* v8: avisos en la tarjeta de asistencia — marcas que esperan señal y marcas que el servidor no aceptó */
+function asisAviso(){const el=$("asisAviso");if(!el)return;const q=ls.get(ASCOLA,[]),rj=ls.get(ASREJ,[]);let h="";
+  if(rj.length)h+=`<div class="note err" style="margin:6px 0"><b>⚠ ${rj.length===1?"Esta marca NO se registró":"Estas marcas NO se registraron"}. Vuelve a marcar:</b>${rj.map(x=>`<br>• ${esc(ASLAB[x.tipo]||x.tipo)} de las ${esc(x.hora)}${x.taller?" · "+esc(title(x.taller)):""} — ${esc(x.msg)}`).join("")}<div style="margin-top:6px"><button type="button" class="btn sm ghost" id="asisRejOk">Entendido</button></div></div>`;
+  if(q.length)h+=`<div class="note" style="margin:6px 0"><b>${q.length} marca${q.length>1?"s":""} esperando señal.</b> Se ${q.length>1?"enviarán":"enviará"} sola${q.length>1?"s":""} con la hora en que marcaste. <button type="button" class="btn sm ghost" id="asisYa">Enviar ahora</button></div>`;
+  el.innerHTML=h;const b=$("asisRejOk");if(b)b.onclick=()=>{ls.set(ASREJ,[]);renderAsis()};
+  const y=$("asisYa");if(y)y.onclick=async()=>{if(!navigator.onLine){toast("Aún sin señal. Se enviará sola al reconectar.");return}y.disabled=true;y.textContent="Enviando…";await enviarAsis();renderAsis();if(ls.get(ASCOLA,[]).length)toast("No se pudo enviar todavía. Se intentará de nuevo cada minuto.")}}
+async function enviarAsis(){const q=ls.get(ASCOLA,[]);if(asisEnv||!q.length||!S.token)return;asisEnv=true;let ok=0,rech=0;
+  try{for(const m of q){try{const r=await call("marcarAsistencia",S.token,{...m,tEnvio:Date.now()});if(r.sesion)break;ls.set(ASCOLA,ls.get(ASCOLA,[]).filter(x=>x.id!==m.id));if(r.ok)ok++;
+      else{/* v8: el servidor no aceptó la marca → no se pierde en silencio: se avisa para volver a marcar */
+        ls.set(ASREJ,[...ls.get(ASREJ,[]),{id:m.id,tipo:m.tipo,taller:m.taller||"",hora:new Date(m.tLocal).toTimeString().slice(0,5),msg:r.msg||"El servidor no aceptó la marca."}]);rech++}}catch(x){break}}}finally{asisEnv=false}
+  if(rech){renderAsis();toast("Una marca de asistencia no se registró. Revisa el aviso y vuelve a marcar.")}
   if(ok){toast("Asistencia enviada");try{const r=await call("miAsistencia",S.token);if(r&&r.ok){ASIS=r;renderAsis()}}catch(x){}}}
 addEventListener("online",()=>enviarAsis());setInterval(()=>enviarAsis(),60000);
 /* administradora: asistencia por día */
