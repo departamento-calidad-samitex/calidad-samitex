@@ -372,9 +372,11 @@ nav.tabs button[aria-selected=true] svg{filter:drop-shadow(0 3px 4px color-mix(i
   <section id="v-mod" class="view" hidden style="flex-direction:column;gap:14px">
     <div class="row" style="justify-content:space-between"><div><h2 id="mfTitle"></h2><p class="sub" id="mfSub"></p></div><button type="button" class="btn ghost sm" id="mfVer">Ver reportes</button></div>
     <div class="note" id="mfEditNote" hidden></div>
+    <div id="libBar" hidden></div>
     <form id="mfForm" novalidate style="display:flex;flex-direction:column;gap:14px">
       <div id="mfBody" style="display:flex;flex-direction:column;gap:14px"></div>
       <input type="file" id="mfFoto" accept="image/*" capture="environment" multiple hidden>
+      <div id="libDots" hidden style="text-align:center;letter-spacing:5px;font-size:13px;color:var(--gold-ink)"></div>
       <div class="row" style="flex-wrap:nowrap"><button class="btn ghost" type="button" id="mfCancel" hidden>Cancelar</button><button class="btn block" type="submit" id="mfSave">Guardar reporte</button></div>
       <p class="note err" id="mfErr" hidden></p><div class="note ok" id="mfDone" hidden></div>
     </form>
@@ -1258,15 +1260,15 @@ function renderMF(){const f=S.mf,M=MODULOS[f.mod];let h="";
    if(ty==="fotos")h+=`<div class="card"><h3>${s[1]}</h3><p class="sub">Hasta ${s[2]} fotos con la cámara del celular. Debajo de cada foto escribe el defecto u observación que muestra.</p><div class="photos cap" id="mfPhotos" data-max="${s[2]}"></div></div>`;
    if(ty==="res"){const sg=mfSugerido(f);h+=`<div class="card"><h3>${s[1]}</h3>${sg?`<p class="sub">Según los datos: <b>${sg}</b></p>`:""}<div class="seg wide" data-res="1">${s[2].map(o=>`<button type="button" data-v="${esc(o)}" aria-pressed="${(f.res||sg)===o}">${esc(title(o))}</button>`).join("")}</div></div>`}
    if(ty==="firmas")h+=`<div class="card"><h3>Firmas</h3>${s[1].map(([k,l])=>`<div class="sig"><div class="row"><b>${esc(l)}</b><button type="button" class="btn ghost sm" data-mclr="${k}">Borrar</button></div><canvas id="mf${k}" aria-label="Firma ${esc(l)}"></canvas></div>`).join("")}<p class="sub">El V°B° de la jefatura se da desde el historial de la administradora.</p></div>`});
-  $("mfBody").innerHTML=h;renderMFPhotos();
+  $("mfBody").innerHTML=h;renderMFPhotos();libBarRender();
   requestAnimationFrame(()=>{["A","T"].forEach(k=>{if($("mf"+k)){mpads[k]=mpads[k]&&mpads[k].cv===$("mf"+k)?mpads[k]:MPad(k);mpads[k].size();mpads[k].load(S.mf["firma"+k])}})})}
-function saveMF(){const f=S.mf;if(!f||S.mfEdit)return;if(!f.tIni)f.tIni=Date.now();ls.set("mf_"+f.mod,f)}
+function saveMF(){const f=S.mf;if(!f||S.mfEdit)return;if(!f.tIni)f.tIni=Date.now();if(f.mod==="proceso"&&LIB.ok&&!f._tmp){libProg(f);return}ls.set("mf_"+f.mod,f)}
 function refreshMFbits(){const f=S.mf,p=$("mfPlan");if(p&&f.mod==="proceso")p.innerHTML=procPlan(f);const dt=$("dcTot");if(dt)dt.textContent=fmt(procTot(f));if(p&&f.mod==="corte"){const m=mfMuestreo(f);p.innerHTML=m?`<div><b>${m.n}</b><span>Muestra</span></div><div><b>${m.acM}/${m.reM}</b><span>Mayor Ac/Re</span></div><div><b>${m.acm}/${m.rem}</b><span>Menor Ac/Re</span></div><div><b>${fmt(mfTot(f,"df","cant"))}</b><span>Defectos</span></div>`:`<span class="cap">Escribe el lote auditado para calcular la muestra.</span>`}
   ["df","sg"].forEach(k=>{const e=$("tot_"+k);if(e)e.textContent=fmt(mfTot(f,k,"cant"))});
   const rs=document.querySelector("#mfBody [data-res]");if(rs&&!f.res){const sg=mfSugerido(f);rs.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===sg)));const n=rs.previousElementSibling;if(n&&n.tagName==="P")n.innerHTML=`Según los datos: <b>${sg}</b>`}}
 $("mfBody").addEventListener("input",e=>{const x=e.target,f=S.mf;if(!f)return;
   if(x.dataset.dcq){const q=NORM(x.value);document.querySelectorAll("#dcList [data-dcrow]").forEach(r=>r.hidden=!!q&&!NORM(r.dataset.txt).includes(q));return}
-  if(x.dataset.c){f.c[x.dataset.c]=x.value;if(x.dataset.c==="lote"||x.dataset.c==="cant")refreshMFbits()}
+  if(x.dataset.c){f.c[x.dataset.c]=x.value;if(x.dataset.c==="lote"||x.dataset.c==="cant")refreshMFbits();if(f.mod==="proceso"&&["of","art","lin"].includes(x.dataset.c))libBarRender()}
   else if(x.dataset.tk){const R=rowsDe(f,x.dataset.tk),r=+x.dataset.r;R[r]=R[r]||{};R[r][x.dataset.k]=x.value;R[r]._ed=x.dataset.k;autoFila(f,x.dataset.tk,r);if(x.dataset.tk==="sg"&&x.dataset.k==="cant")FALLA3.forEach(([kk])=>{if(R[r][kk])R[r][kk]=Number(String(x.value).replace(",","."))||1});
     x.closest(".mrow").querySelectorAll("input[data-tk]").forEach(i=>{if(i!==x&&i.value!==String(R[r][i.dataset.k]??""))i.value=R[r][i.dataset.k]??""});
     if(f.mod==="muestra"&&x.dataset.tk==="md"){const di=x.closest(".mrow").querySelector('input[data-k="dif"]'),fl=x.closest(".mrow").querySelector(".fueraTol");if(di){di.style.borderColor=R[r].fuera?"var(--crit)":"";di.style.color=R[r].fuera?"var(--crit)":""}if(fl)fl.hidden=!R[r].fuera}
@@ -1310,12 +1312,77 @@ document.addEventListener("click",e=>{const x=e.target.closest("[data-mx]");if(x
 $("mfFoto").onchange=async e=>{const max=+($("mfPhotos")||{dataset:{max:6}}).dataset.max,files=[...e.target.files].slice(0,max-S.mf.fotos.length);e.target.value="";
   for(const file of files){try{S.mf.fotos.push({b64:await shrink(file)})}catch(x){toast("No se pudo leer la foto.")}}renderMFPhotos();saveMF()};
 function abrirMF(mod,rec){S.mfEdit=rec?rec.id:null;S.mfSrc=rec||null;
-  S.mf=rec?{...blankMF(mod),...JSON.parse(JSON.stringify(rec.f||{})),id:rec.id,fotos:(rec.fotos||[]).map(id=>({id})),firmaA:rec.firmaA?"drive:"+rec.firmaA:"",firmaT:rec.firmaT?"drive:"+rec.firmaT:""}:(ls.get("mf_"+mod,null)||blankMF(mod));
+  S.mf=rec?{...blankMF(mod),...JSON.parse(JSON.stringify(rec.f||{})),id:rec.id,fotos:(rec.fotos||[]).map(id=>({id})),firmaA:rec.firmaA?"drive:"+rec.firmaA:"",firmaT:rec.firmaT?"drive:"+rec.firmaT:""}:(mod==="proceso"?libActual():(ls.get("mf_"+mod,null)||blankMF(mod)));
   if(!S.mf.c.aud||!rec)S.mf.c.aud=rec?rec.aud:(S.admin?S.mf.c.aud||"":S.me&&S.me.nombre);
   go("mod");$("hTitle").textContent=MODULOS[mod].n;$("mfVer").hidden=!puedeL(mod);renderMF();$("mfEditNote").hidden=!rec;$("mfCancel").hidden=!rec;$("mfSave").textContent=rec?"Guardar corrección":"Guardar reporte";
   if(rec)$("mfEditNote").innerHTML=`Corrigiendo el reporte del <b>${dmy(rec.fecha)}</b>. Las firmas y fotos guardadas se mantienen si no las cambias.`;$("mfDone").hidden=true;$("mfErr").hidden=true}
 $("mfCancel").onclick=()=>{S.mfEdit=null;S.mfSrc=null;go(S.admin||histOk()?"hist":"home")};
 $("mfVer").onclick=()=>abrirLista(S.mf.mod);
+/* ---- v10: Auditoría de Proceso como libro — una hoja por OF o artículo; se pasa de hoja deslizando de lado.
+   Cada hoja se guarda sola en el celular (IndexedDB, espacio grande para fotos; respaldo en localStorage) ---- */
+const LIB={ok:false,ids:[],h:{},act:null,err:""};let libDB=null,libT=null,libErrAvisado=false;
+document.head.insertAdjacentHTML("beforeend",`<style>.libtabs{display:flex;gap:6px;overflow-x:auto;padding:2px 0 4px;scrollbar-width:none}.libtabs::-webkit-scrollbar{display:none}.libtabs .btn{flex:none;white-space:nowrap}#v-mod{overflow-x:clip}#mfForm{touch-action:pan-y pinch-zoom}</style>`);
+function libIdx(){ls.set("proc_libro",{ids:LIB.ids,act:LIB.act})}
+function idbOpen(){return new Promise((res,rej)=>{try{const r=indexedDB.open("calidad_samitex",1);r.onupgradeneeded=()=>{r.result.createObjectStore("hojas",{keyPath:"id"})};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}catch(e){rej(e)}})}
+function idbAll(){return new Promise((res,rej)=>{const q=libDB.transaction("hojas").objectStore("hojas").getAll();q.onsuccess=()=>res(q.result||[]);q.onerror=()=>rej(q.error)})}
+function idbPut(o){return new Promise((res,rej)=>{const t=libDB.transaction("hojas","readwrite");t.objectStore("hojas").put(o);t.oncomplete=()=>res();t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error||new Error("sin espacio"))})}
+function idbDel(id){return new Promise(res=>{try{const t=libDB.transaction("hojas","readwrite");t.objectStore("hojas").delete(id);t.oncomplete=()=>res();t.onerror=()=>res()}catch(e){res()}})}
+async function libPut(o){if(!o||o._tmp)return;let ok=false,er="";const c=JSON.parse(JSON.stringify(o));
+  if(libDB){try{await idbPut(c);ok=true;try{localStorage.removeItem("mfp_"+o.id)}catch(e){}}catch(e){er=String(e&&(e.name||e.message)||e)}}
+  if(!ok){try{localStorage.setItem("mfp_"+o.id,JSON.stringify(c));ok=true}catch(e){er=er||String(e&&(e.name||e.message)||e)}}
+  const antes=!!LIB.err;LIB.err=ok?"":(/quota/i.test(er)?"el celular no tiene espacio":er||"error al guardar");
+  if(!ok&&!libErrAvisado){libErrAvisado=true;toast("⚠ No se pudo guardar la hoja en el celular. Envíala o libera espacio.")}if(ok)libErrAvisado=false;
+  if(antes!==!!LIB.err)libBarRender();else{const e=$("libEst");if(e&&ok)e.textContent="Guardado ✓ "+new Date().toTimeString().slice(0,5)}}
+function libProg(f){const e=$("libEst");if(e&&!LIB.err)e.textContent="Guardando…";clearTimeout(libT);libT=setTimeout(()=>{libT=null;libPut(f)},300)}
+function libFlush(){if(libT){clearTimeout(libT);libT=null;if(S.mf&&S.mf.mod==="proceso")libPut(S.mf)}}
+addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")libFlush()});addEventListener("pagehide",libFlush);
+const libKey=h=>{const c=(h&&h.c)||{},a=NORM(c.of||""),b=NORM(c.art||"");return a||b?a+"|"+b:""};
+function libNom(h){const c=(h&&h.c)||{};const t=[c.of?"OF "+String(c.of).trim():"",c.art?title(String(c.art).trim()):""].filter(Boolean).join(" · ")||"OF nueva";return t+(c.lin?" · "+String(c.lin).trim():"")}
+function libNueva(base){const b=blankMF("proceso");if(base&&base.c){["cli","planta","fecha"].forEach(k=>{if(base.c[k])b.c[k]=base.c[k]})}
+  b.c.aud=(base&&base.c&&base.c.aud)||(S.admin?"":S.me&&S.me.nombre)||"";
+  const i=LIB.ids.indexOf(LIB.act);LIB.ids.splice(i<0?LIB.ids.length:i+1,0,b.id);LIB.h[b.id]=b;LIB.act=b.id;libIdx();libPut(b);return b}
+function libActual(){if(!LIB.ok){const b=blankMF("proceso");b._tmp=1;return b}if(!LIB.ids.length)libNueva(null);return LIB.h[LIB.act]||LIB.h[LIB.ids[0]]}
+const libOn=()=>!!(S.mf&&S.mf.mod==="proceso"&&!S.mfEdit&&LIB.ok&&!S.mf._tmp);
+function libBarRender(){const bar=$("libBar"),dots=$("libDots");if(!bar)return;const on=libOn();bar.hidden=dots.hidden=!on;if(!on)return;
+  const i=LIB.ids.indexOf(S.mf.id),n=LIB.ids.length,k=libKey(S.mf),dup=k&&LIB.ids.find(id=>id!==S.mf.id&&libKey(LIB.h[id])===k);
+  bar.innerHTML=`<div class="libtabs">${LIB.ids.map(id=>`<button type="button" class="btn sm${id===S.mf.id?"":" ghost"}" data-lib="${esc(id)}">${esc(libNom(LIB.h[id]))}</button>`).join("")}<button type="button" class="btn sm ghost" data-libnew="1" id="libNew">＋ Nueva hoja</button></div>
+   <div class="row" style="justify-content:space-between;margin-top:6px;gap:8px;flex-wrap:nowrap"><span class="sub">📖 Hoja ${i+1} de ${n} · desliza de lado para pasar de hoja · <span id="libEst">${LIB.err?'<b style="color:var(--crit)">⚠ No guardado</b>':"Guardado ✓"}</span></span><button type="button" class="btn ghost sm" data-libdel="1" style="flex:none">Cerrar hoja</button></div>
+   ${LIB.err?`<div class="note err" style="margin-top:6px">⚠ No se pudo guardar esta hoja en el celular (${esc(LIB.err)}). Envíala con «Guardar reporte» o libera espacio en el celular.</div>`:""}
+   ${dup?`<div class="note err" style="margin-top:6px">Esa OF / artículo ya está abierta en la hoja «${esc(libNom(LIB.h[dup]))}». <button type="button" class="btn sm" data-lib="${esc(dup)}">Ir a esa hoja</button></div>`:""}`;
+  dots.innerHTML=n>1?LIB.ids.map(id=>id===S.mf.id?"●":"○").join(" "):"";
+  const tb=bar.querySelector(".libtabs"),a=bar.querySelector(`.libtabs [data-lib="${CSS.escape(S.mf.id)}"]`);if(tb&&a)tb.scrollLeft=a.offsetLeft-tb.clientWidth/2+a.offsetWidth/2}
+function libAnim(dir,fn){const b=$("mfBody");b.style.transition="transform .2s ease-in, opacity .2s";b.style.transform=`translateX(${-dir*105}%)`;b.style.opacity=".15";
+  setTimeout(()=>{fn();b.style.transition="none";b.style.transform=`translateX(${dir*105}%)`;b.style.opacity=".15";requestAnimationFrame(()=>requestAnimationFrame(()=>{b.style.transition="transform .24s ease-out, opacity .24s";b.style.transform="";b.style.opacity="";setTimeout(()=>{b.style.transition="";Object.values(mpads).forEach(p=>p.cv.isConnected&&p.size())},260)}))},200)}
+function libIr(id,dir){if(!LIB.h[id]||!S.mf||id===S.mf.id)return;libFlush();const i0=LIB.ids.indexOf(S.mf.id),i1=LIB.ids.indexOf(id);dir=dir||(i1>i0?1:-1);
+  libAnim(dir,()=>{LIB.act=id;libIdx();S.mf=LIB.h[id];$("mfDone").hidden=true;$("mfErr").hidden=true;renderMF();const t=$("libBar").getBoundingClientRect().top;if(t<0)scrollBy(0,t-80)})}
+function libQuitar(id,f){libFlush();delete LIB.h[id];const i=LIB.ids.indexOf(id);if(i>=0)LIB.ids.splice(i,1);idbDel(id);try{localStorage.removeItem("mfp_"+id)}catch(e){}
+  if(!LIB.ids.length){LIB.act=null;libNueva(f)}else LIB.act=LIB.ids[Math.min(Math.max(i,0),LIB.ids.length-1)];libIdx();S.mf=LIB.h[LIB.act];renderMF()}
+const libVacia=h=>{const c=h.c||{};return!c.of&&!c.art&&!c.cant&&!(h.t.av||[]).some(r=>r&&r.avance)&&!Object.keys(h.dc||{}).length&&!h.fotos.length};
+$("libBar").addEventListener("click",e=>{const b=e.target.closest("button");if(!b||!libOn())return;
+  if(b.dataset.lib){libIr(b.dataset.lib);return}
+  if(b.dataset.libnew){libFlush();const cur=S.mf;libAnim(1,()=>{S.mf=libNueva(cur);$("mfDone").hidden=true;$("mfErr").hidden=true;renderMF();setTimeout(()=>{const x=document.querySelector('#mfBody input[data-c="of"]');if(x)x.focus()},300)});return}
+  if(b.dataset.libdel){if(!libVacia(S.mf)&&b.dataset.arm!=="1"){b.dataset.arm="1";b.textContent="¿Cerrar y borrar? Toca otra vez";setTimeout(()=>{if(b.isConnected){b.dataset.arm="";b.textContent="Cerrar hoja"}},4000);return}
+    const id=S.mf.id,f=S.mf;libAnim(-1,()=>{libQuitar(id,f);toast("Hoja cerrada")})}});
+/* deslizar de lado (dedo o lápiz) para pasar de hoja como en un libro */
+let libSw=null,libSwJust=0;
+const libSwOk=t=>!t.closest("input,textarea,select,canvas,.sig,#libBar,.photos");
+$("mfForm").addEventListener("pointerdown",e=>{if(!libOn()||e.pointerType==="mouse"||LIB.ids.length<1||!libSwOk(e.target))return;libSw={x:e.clientX,y:e.clientY,id:e.pointerId,on:false}},{passive:true});
+$("mfForm").addEventListener("pointermove",e=>{const w=libSw;if(!w||e.pointerId!==w.id)return;const dx=e.clientX-w.x,dy=e.clientY-w.y;
+  if(!w.on){if(Math.abs(dy)>14&&Math.abs(dy)>Math.abs(dx)){libSw=null;return}if(Math.abs(dx)>18&&Math.abs(dx)>Math.abs(dy)*1.7)w.on=true;else return}
+  const i=LIB.ids.indexOf(S.mf.id),fin=(dx>0&&i<=0)||(dx<0&&i>=LIB.ids.length-1),b=$("mfBody");b.style.transition="none";b.style.transform=`translateX(${fin?dx/4:dx}px)`;b.style.opacity=String(1-Math.min(.5,Math.abs(dx)/900))},{passive:true});
+function libSwFin(e){const w=libSw;libSw=null;if(!w||!w.on)return;libSwJust=Date.now();const dx=e.clientX-w.x,b=$("mfBody"),W=b.clientWidth||320,i=LIB.ids.indexOf(S.mf.id);
+  const vuelve=()=>{b.style.transition="transform .2s ease-out, opacity .2s";b.style.transform="";b.style.opacity="";setTimeout(()=>b.style.transition="",220)};
+  if(e.type==="pointerup"&&Math.abs(dx)>W*.22){if(dx<0&&i<LIB.ids.length-1){libIr(LIB.ids[i+1],1);return}if(dx>0&&i>0){libIr(LIB.ids[i-1],-1);return}
+    vuelve();if(dx<0){toast("Es la última hoja. Toca «＋ Nueva hoja» para otra OF o artículo.");const n=$("libNew");if(n){n.classList.remove("ghost");setTimeout(()=>n.classList.add("ghost"),1500)}}else toast("Es la primera hoja.");return}
+  vuelve()}
+$("mfForm").addEventListener("pointerup",libSwFin);$("mfForm").addEventListener("pointercancel",libSwFin);
+$("mfForm").addEventListener("click",e=>{if(Date.now()-libSwJust<350){e.preventDefault();e.stopPropagation()}},true);
+const libReady=(async()=>{try{libDB=await idbOpen();(await idbAll()).forEach(o=>{if(o&&o.id&&o.mod==="proceso")LIB.h[o.id]=o})}catch(e){libDB=null}
+  const ix=ls.get("proc_libro",{ids:[],act:null})||{ids:[]};(ix.ids||[]).forEach(id=>{if(!LIB.h[id]){const o=ls.get("mfp_"+id,null);if(o)LIB.h[id]=o}});
+  LIB.ids=(ix.ids||[]).filter(id=>LIB.h[id]);Object.keys(LIB.h).forEach(id=>{if(!LIB.ids.includes(id))LIB.ids.push(id)});
+  const old=ls.get("mf_proceso",null);if(old&&old.id&&!LIB.h[old.id]){old.mod="proceso";LIB.h[old.id]=old;LIB.ids.push(old.id)}
+  LIB.act=LIB.h[ix.act]?ix.act:(LIB.ids[0]||null);LIB.ok=true;if(old&&LIB.h[old.id])await libPut(old);ls.set("mf_proceso",null);libIdx();
+  if(S.mf&&S.mf.mod==="proceso"&&S.mf._tmp&&!S.mfEdit){S.mf=libActual();if(!$("v-mod").hidden)renderMF()}})();
 
 /* ---- registro de un formato genérico: datos, cabecera para la hoja y filas ---- */
 function mfRecord(f){const M=MODULOS[f.mod],cab=[],ss=secs(f),c=f.c;
@@ -1337,8 +1404,9 @@ async function imgsDe(f,id){const tieneVB=!!((S.editing&&S.editSrc&&S.editSrc.vb
   return{firmaVB:srv&&srv.ok?srv.firmaVB||"":"",vbNom:srv&&srv.ok?srv.vbNom||"":"",firmaA:g("firmaA"),firmaT:g("firmaT"),fotos:f.fotos.map(x=>x.b64?"data:image/jpeg;base64,"+x.b64:x.src||(srv&&srv.ok?((srv.fotos||[]).find(y=>y.id===x.id)||{}).src:"")||"").filter(Boolean)}}
 /* ---- guardar formato genérico (con cola sin señal) ---- */
 $("mfForm").addEventListener("submit",async e=>{e.preventDefault();const f=S.mf,err=$("mfErr");err.hidden=true;$("mfDone").hidden=true;
-  const req={telas:[["prov","Proveedor"],["fecha","Fecha"]],avios:[["prov","Proveedor"],["fecha","Fecha"]],corte:[...(S.mfEdit?[]:[["tcor","Tipo de corte"]]),["cli","Cliente"],["fecha","Fecha"],["lote","Lote auditado"]],segundas:[["fecha","Fecha"],["lin","Línea"]],proceso:[["cli","Cliente"],["lin","Línea"],["of","OF"],["fecha","Fecha"],["cant","Cant. total"]],muestra:[["cli","Cliente"],["fecha","Fecha"]]}[f.mod]||[];
+  const req={telas:[["prov","Proveedor"],["fecha","Fecha"]],avios:[["prov","Proveedor"],["fecha","Fecha"]],corte:[...(S.mfEdit?[]:[["tcor","Tipo de corte"]]),["cli","Cliente"],["fecha","Fecha"],["lote","Lote auditado"]],segundas:[["fecha","Fecha"],["lin","Línea"]],proceso:[["cli","Cliente"],["lin","Línea"],["fecha","Fecha"],["cant","Cant. total"]],muestra:[["cli","Cliente"],["fecha","Fecha"]]}[f.mod]||[];
   const miss=req.filter(([k])=>!String(f.c[k]||"").trim()).map(([,l])=>l);if(!f.c.aud)miss.push("Auditor");
+  if(f.mod==="proceso"&&!String(f.c.of||"").trim()&&!String(f.c.art||"").trim())miss.unshift("OF o artículo");
   if(miss.length){err.textContent="Completa: "+miss.join(", ")+".";err.hidden=false;return}
   if(!isSig(f.firmaA)&&!String(f.firmaA).startsWith("drive:")){err.textContent="Falta la firma del auditor.";err.hidden=false;return}
   const bt=$("mfSave");bt.disabled=true;bt.textContent="Armando PDF…";const wasEdit=!!S.mfEdit;let estado="ok",resp=null;
@@ -1346,12 +1414,12 @@ $("mfForm").addEventListener("submit",async e=>{e.preventDefault();const f=S.mf,
     const pdf=await pdfDe(rec,im);bt.textContent="Guardando…";
     const sig=s=>isSig(s)?s.split(",")[1]:"",p={rec,fotos:f.fotos.filter(x=>x.b64).map(x=>x.b64),firmas:{A:sig(f.firmaA),T:sig(f.firmaT)},pdf};
     try{resp=await call("guardarReporte",S.token,p.rec,p.fotos,p.firmas,p.pdf);
-      if(!resp.ok&&resp.sesion){setCola([...cola().filter(c=>c.rec.id!==rec.id),p]);ls.set("mf_"+f.mod,null);cerrarSesion("Tu acceso ya no está activo. El reporte quedó guardado en el celular.");return}
+      if(!resp.ok&&resp.sesion){setCola([...cola().filter(c=>c.rec.id!==rec.id),p]);ls.set("mf_"+f.mod,null);if(f.mod==="proceso"&&LIB.ok&&!wasEdit)libQuitar(f.id,f);cerrarSesion("Tu acceso ya no está activo. El reporte quedó guardado en el celular.");return}
       if(!resp.ok){err.textContent=resp.msg||"No se pudo guardar.";err.hidden=false;return}}
     catch(x){if(netErr(x)&&!wasEdit){setCola([...cola().filter(c=>c.rec.id!==rec.id),p]);estado="cola"}else{err.textContent="No se pudo guardar. Revisa tu conexión y vuelve a tocar Guardar; tus datos siguen aquí.";err.hidden=false;return}}
     ls.set("mf_"+f.mod,null);const keep={c:{fecha:f.c.fecha,cli:f.c.cli,prov:f.c.prov,lin:f.c.lin}};S.mfEdit=null;S.mfSrc=null;
     if(wasEdit){toast("Corrección guardada");okSubido(false,"Corrección subida",`${MODULOS[f.mod].n}${rec.res?" · "+rec.res:""}. Ya está actualizada en el Excel y en Drive.`,rec);go(S.admin||histOk()?"hist":"home");return}
-    S.mf={...blankMF(f.mod),sub:f.sub,c:{...blankMF(f.mod).c,...keep.c}};renderMF();scrollTo(0,0);
+    if(f.mod==="proceso"&&LIB.ok)libQuitar(f.id,f);else{S.mf={...blankMF(f.mod),sub:f.sub,c:{...blankMF(f.mod).c,...keep.c}};renderMF()}scrollTo(0,0);
     const dn=$("mfDone");dn.className="note "+(estado==="cola"?"":"ok");dn.innerHTML=estado==="cola"?"Sin señal: el reporte quedó guardado en el celular y se enviará solo al volver la conexión.":`Reporte guardado${rec.res?` · <b>${esc(rec.res)}</b>`:""}.${puedeL(f.mod)?` <button type="button" class="btn gold sm" id="mfLastPdf">⬇ PDF</button>`:""} <button type="button" class="btn sm" id="mfLastWa">📲 WhatsApp</button>`;dn.hidden=false;
     const lp=$("mfLastPdf");if(lp)lp.onclick=()=>bajarPdf(rec.id,lp);const lw=$("mfLastWa");if(lw)lw.onclick=()=>compartirWA(rec,lw);toast(estado==="cola"?"Guardado en el celular":"Reporte guardado");okSubido(estado==="cola",estado==="cola"?"Guardado en el celular":"Reporte subido",estado==="cola"?"No hay señal. Se subirá solo cuando vuelva la conexión.":`${MODULOS[f.mod].n}${rec.res?" · "+rec.res:""}. Ya está en el Excel y en Drive.`,estado==="cola"?null:rec)}
   catch(x){err.textContent="No se pudo armar el PDF: "+(x&&x.message||x);err.hidden=false}
