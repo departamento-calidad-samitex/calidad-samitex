@@ -345,6 +345,7 @@ nav.tabs button[aria-selected=true] svg{filter:drop-shadow(0 3px 4px color-mix(i
       <p class="sub">Tienes poder de firmar. Revisa el PDF y toca <b>Dar V°B°</b>: tu firma sale en el espacio de Jefe de Aseg. de Calidad.</p>
       <div id="vbFirmaHost"></div><div class="list" id="vbAudList"></div></div>
     <div class="card" id="corrCard" hidden><div class="hd"><h3>Correcciones autorizadas</h3><span class="sub">La jefatura de calidad te habilitó estos reportes</span></div><div class="list" id="corrList"></div></div>
+    <div class="card" id="pruebaCard" hidden><div class="hd"><h3>👁 Ver como auditor</h3><span class="sub">Modo prueba</span></div><p class="sub">Elige un auditor y verás la app como él: sus formatos, su asistencia y sus permisos. Lo que llenes es de <b>prueba</b>: no entra al Excel, ni a Drive, ni a los correos.</p><div class="list" id="pruebaList"><p class="sub">Cargando auditores…</p></div></div>
     <div class="card" id="admQuick" hidden><div class="hd"><h3>Administradoras</h3><span class="sub">Solo administradora principal</span></div><p class="sub">Crea otra administradora (ADM) con su propio nombre y código.</p><button type="button" class="btn" id="admQuickBtn">➕ Crear otra administradora</button></div>
     <div class="card" id="procAdm" hidden>
       <div class="hd"><h3>Procesos del menú</h3><span class="sub">Ordena con ↑ ↓ · lo ven todos los auditores</span></div>
@@ -881,7 +882,7 @@ $("toIn").onclick=()=>{$("gForm").hidden=false;$("sForm").hidden=true};
 async function reLogin(){return false}
 function setSesion(r){setPerm(r.permisos);S.token=r.token;S.hasta=r.historialHasta||0;S.firma=!!r.puedeFirmar;S.me={nombre:r.nombre};ls.set("af_ses",{tok:r.token,nombre:r.nombre,hasta:S.hasta,firma:S.firma});ls.set("af_pend",null);
   $("role").textContent=title(r.nombre);loadForm(ls.get("draft3",null)||blankForm());go("home");banner();usoIni();enviarCola()}
-function cerrarSesion(msg){usoFin();usoBeacon(usoPend());ls.set(USO,[]);ls.set(USOA,null);ls.set("af_ses",null);S.token=null;S.me=null;S.hasta=0;$("gForm").hidden=false;$("sForm").hidden=true;go("gate");$("role").textContent="Auditor";if(msg){$("gErr").textContent=msg;$("gErr").hidden=false}}
+function cerrarSesion(msg){if(S.prueba){pruebaSalir();return}usoFin();usoBeacon(usoPend());ls.set(USO,[]);ls.set(USOA,null);ls.set("af_ses",null);S.token=null;S.me=null;S.hasta=0;$("gForm").hidden=false;$("sForm").hidden=true;go("gate");$("role").textContent="Auditor";if(msg){$("gErr").textContent=msg;$("gErr").hidden=false}}
 async function verificar(){try{const r=await call("estado",S.token);if(r.ok){S.clv={sin:!!r.sinClave,tmp:!!r.claveTemporal};S.firma=!!r.puedeFirmar;renderClv();setPerm(r.permisos);renderHome();S.hasta=r.historialHasta||0;S.me.nombre=r.nombre;ls.set("af_ses",{tok:S.token,nombre:r.nombre,hasta:S.hasta,firma:S.firma});renderTabs();banner()}
   else cerrarSesion(r.estado==="BLOQUEADO"?"Tu acceso fue bloqueado por la jefatura de calidad.":r.estado==="PENDIENTE"?"Tu acceso está pendiente de aprobación.":"Este equipo ya no está autorizado. Vuelve a ingresar con tu DNI.")}catch(x){}}
 let gModo="";
@@ -925,7 +926,7 @@ let pendT;function showPend(nombre,dni){go("pend");$("pNom").textContent=`${titl
 function aprobadoPedirClave(dni,r){ls.set("af_pend",null);$("gForm").hidden=false;$("sForm").hidden=true;go("gate");$("gDni").value=dni;gNormal();
   if(r.estado==="CREAR_CLAVE")gNuevo("crear","¡Te aprobaron! "+r.msg);else{$("gErr").className="note ok";$("gErr").textContent="¡Te aprobaron! Escribe tu contraseña para ingresar.";$("gErr").hidden=false;$("gPwd").focus()}}
 $("pOut").onclick=()=>{clearInterval(pendT);ls.set("af_pend",null);$("gForm").hidden=false;$("sForm").hidden=true;go("gate")};
-$("salir").onclick=()=>{if(cola().length){toast("Tienes reportes sin enviar. Conéctate a internet antes de salir.");return}cerrarSesion()};
+$("salir").onclick=()=>{if(S.prueba){pruebaSalir();return}if(cola().length){toast("Tienes reportes sin enviar. Conéctate a internet antes de salir.");return}cerrarSesion()};
 
 /* ================= administradora ================= */
 $("aForm").addEventListener("submit",async e=>{e.preventDefault();const c=$("aCod").value.trim(),er=$("aErr");er.hidden=true;const b=$("aBtn");b.disabled=true;b.textContent="Verificando…";
@@ -1014,7 +1015,7 @@ function renderHome(){if(S.tab!=="home")return;const L=conModulos(PROCS||PROC_DE
   const nom=S.me&&S.me.nombre?title(S.me.nombre).split(" ")[0]:"";$("homeHi").textContent=nom&&nom!=="—"?`Hola, ${nom}`:"Calidad Samitex";
   $("homeSub").textContent="Control de calidad · elige el proceso";
   $("procList").innerHTML=L.length?L.map(p=>{const bi=!!MODULOS[p.id],usable=bi||!!p.url;return`<button type="button" class="proc${usable&&p.activo?"":" off"}" data-p="${esc(p.id)}"><span class="ic">${esc(bi?MODULOS[p.id].ic:ini2(p.nombre))}</span><span><b>${esc(p.nombre)}</b><small>${esc(bi?MODULOS[p.id].cod+" · "+MODULOS[p.id].d:p.desc||"")}${bi&&!S.admin?" · "+(puedeE(p.id)?"ingreso de datos":"visualizador"):""}${usable?"":(p.desc?" · ":"")+"En preparación"}${p.activo?"":" · oculto para auditores"}</small></span></button>`}).join(""):`<div class="empty">No hay procesos activos.</div>`;
-  $("procAdm").hidden=!S.admin;$("admQuick").hidden=!(S.admin&&S.principal);renderClv();cargarVBAud();$("salirHome").hidden=!!S.admin;if(S.admin)renderProcEd()}
+  $("procAdm").hidden=!S.admin;$("admQuick").hidden=!(S.admin&&S.principal);pruebaCard();renderClv();cargarVBAud();$("salirHome").hidden=!!S.admin||!!S.prueba;if(S.admin)renderProcEd()}
 $("procList").onclick=e=>{const b=e.target.closest("[data-p]");if(!b)return;const p=(PROCS||PROC_DEF).find(x=>x.id===b.dataset.p);if(!p)return;
   if(abrirModulo(p.id))return;if(p.url){window.open(p.url,"_blank","noopener");return}toast("Este proceso aún está en preparación.")};
 function renderProcEd(){$("procEd").innerHTML=PED.map((p,i)=>`<div class="pe" data-i="${i}">
@@ -1338,7 +1339,7 @@ function libFlush(){if(libT){clearTimeout(libT);libT=null;if(S.mf&&S.mf.mod==="p
 addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")libFlush()});addEventListener("pagehide",libFlush);
 const libKey=h=>{const c=(h&&h.c)||{},a=NORM(c.of||""),b=NORM(c.art||"");return a||b?a+"|"+b:""};
 function libNom(h){const c=(h&&h.c)||{};const t=[c.of?"OF "+String(c.of).trim():"",c.art?title(String(c.art).trim()):""].filter(Boolean).join(" · ")||"OF nueva";return t+(c.lin?" · "+String(c.lin).trim():"")}
-function libNueva(base){const b=blankMF("proceso");if(base&&base.c){["cli","planta","fecha"].forEach(k=>{if(base.c[k])b.c[k]=base.c[k]})}
+function libNueva(base){const b=blankMF("proceso");if(S.prueba)b.prueba=1;if(base&&base.c){["cli","planta","fecha"].forEach(k=>{if(base.c[k])b.c[k]=base.c[k]})}
   b.c.aud=(base&&base.c&&base.c.aud)||(S.admin?"":S.me&&S.me.nombre)||"";
   const i=LIB.ids.indexOf(LIB.act);LIB.ids.splice(i<0?LIB.ids.length:i+1,0,b.id);LIB.h[b.id]=b;LIB.act=b.id;libIdx();libPut(b);return b}
 function libActual(){if(!LIB.ok){const b=blankMF("proceso");b._tmp=1;return b}if(!LIB.ids.length)libNueva(null);return LIB.h[LIB.act]||LIB.h[LIB.ids[0]]}
@@ -1383,6 +1384,41 @@ const libReady=(async()=>{try{libDB=await idbOpen();(await idbAll()).forEach(o=>
   const old=ls.get("mf_proceso",null);if(old&&old.id&&!LIB.h[old.id]){old.mod="proceso";LIB.h[old.id]=old;LIB.ids.push(old.id)}
   LIB.act=LIB.h[ix.act]?ix.act:(LIB.ids[0]||null);LIB.ok=true;if(old&&LIB.h[old.id])await libPut(old);ls.set("mf_proceso",null);libIdx();
   if(S.mf&&S.mf.mod==="proceso"&&S.mf._tmp&&!S.mfEdit){S.mf=libActual();if(!$("v-mod").hidden)renderMF()}})();
+/* ---- v11: «Ver como auditor» — la administradora prueba la app como un auditor. Las llamadas que guardan
+   se responden aquí mismo (no llegan al servidor): nada entra al Excel, a Drive ni a los correos ---- */
+const _callReal=call;
+call=async function(fn,...a){if(S.prueba&&PRB_FN[fn])return PRB_FN[fn](...a);return _callReal(fn,...a)};
+const PRB_FN={
+ guardarReporte:(t,rec,fotos,firmas,pdf)=>{S.prueba.pdf=pdf||"";S.prueba.pdfNom="PRUEBA · "+((rec&&rec.mod&&MODULOS[rec.mod])?MODULOS[rec.mod].n:"Auditoría Final")+" · "+(rec&&(rec.of||rec.art)||"")+".pdf";S.prueba.reps.push(rec&&rec.id);return{ok:true,prueba:1,rej:rec&&rec.rej?1:0,id:rec&&rec.id}},
+ marcarAsistencia:(t,m)=>{m=m||{};const h=new Date().toTimeString().slice(0,5),tipo=m.tipo||"INGRESO",tal=tipo==="TALLER_CAMBIO"?(m.tallerAnt||"")+" → "+(m.taller||""):(m.taller||"");
+   const r={id:m.id,tipo,taller:up(tal),hora:h,fecha:today(),estado:tipo==="INGRESO"?(h>S.prueba.hora?"TARDE":"A TIEMPO"):""};if(!S.prueba.marcas.some(x=>x.id===r.id))S.prueba.marcas.push(r);return{ok:true,prueba:1,...r}},
+ miAsistencia:()=>({ok:true,hoy:today(),hora:S.prueba.hora,rows:S.prueba.marcas.slice()}),
+ descargarPdf:()=>S.prueba.pdf?{ok:true,nombre:S.prueba.pdfNom||"PRUEBA.pdf",b64:S.prueba.pdf}:{ok:false,msg:"En modo prueba solo está el PDF del último reporte de prueba."},
+ imagenes:()=>({ok:true,fotos:[]}),registrarUso:()=>({ok:true}),misCorrecciones:()=>({ok:true,rows:[]}),audFirmasPend:()=>({ok:true,rows:[]}),
+ estado:()=>{throw new Error("NetworkError: modo prueba")},misReportes:()=>{throw new Error("NetworkError: modo prueba")},cambiarClave:()=>({ok:false,msg:"En modo prueba no se cambia la contraseña."})};
+function pruebaVerPdf(){const P=S.prueba;if(!P||!P.pdf){toast("Aún no hay un PDF de prueba.");return}const bin=atob(P.pdf),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([u],{type:"application/pdf"}));a.download=P.pdfNom||"PRUEBA.pdf";a.target="_blank";a.rel="noopener";document.body.appendChild(a);a.click();a.remove()}
+const PRB_KEYS=()=>["draft3","asis_cola","asis_rech",...Object.keys(MODULOS).map(k=>"mf_"+k)];
+async function pruebaCard(){const c=$("pruebaCard");if(!c)return;c.hidden=!S.admin||!!S.prueba;if(c.hidden)return;
+  try{if(!TEAM.length)TEAM=await admin("adminAuditores")}catch(x){$("pruebaList").innerHTML='<p class="sub">Sin conexión: no se pudo cargar la lista de auditores.</p>';return}
+  const L=(TEAM||[]).filter(a=>a&&a.DNI&&String(a.ESTADO||"").toUpperCase()==="ACTIVO");
+  $("pruebaList").innerHTML=L.length?L.map(a=>`<div class="trow"><span class="nm"><b>${esc(title(a.NOMBRE||""))}</b> <small>DNI ${esc(String(a.DNI))}</small></span><button type="button" class="btn sm" data-prb="${esc(String(a.DNI))}">Ver como este auditor</button></div>`).join(""):'<p class="sub">No hay auditores activos.</p>'}
+$("pruebaList").addEventListener("click",e=>{const b=e.target.closest("[data-prb]");if(!b)return;const a=TEAM.find(x=>String(x.DNI)===b.dataset.prb);if(a)pruebaEntrar(a)});
+function pruebaEntrar(a){if(S.prueba||!S.admin)return;libFlush();let p={af:"E"};try{if(a.PERMISOS)p=JSON.parse(a.PERMISOS)}catch(x){}
+  const hm=String(a["HORA INGRESO"]==null?"":a["HORA INGRESO"]).match(/(\d{1,2}):(\d{2})/),snap={};PRB_KEYS().forEach(k=>{try{snap[k]=localStorage.getItem(k)}catch(x){}});
+  S.prueba={a,hora:hm?hm[1].padStart(2,"0")+":"+hm[2]:"08:30",marcas:[],reps:[],pdf:"",snap,adm:{admin:S.admin,principal:S.principal,perm:S.perm,me:S.me,hasta:S.hasta,firma:S.firma,clv:S.clv}};
+  S.admin=false;S.principal=false;S.perm=p;S.me={nombre:a.NOMBRE||"AUDITOR"};S.hasta=0;S.firma=false;S.clv={sin:false,tmp:false};S.mf=null;S.mfEdit=null;S.editing=null;
+  ASIS={hoy:today(),rows:[],hora:S.prueba.hora};try{loadForm(blankForm())}catch(x){}
+  let bar=$("pruebaBar");if(!bar){bar=document.createElement("div");bar.id="pruebaBar";bar.style.cssText="display:flex;align-items:center;justify-content:space-between;gap:8px;background:#b45309;color:#fff;padding:6px 12px;font:600 13px var(--font-body)";(document.querySelector(".top")||document.body).appendChild(bar)}
+  bar.innerHTML=`<span>👁 MODO PRUEBA · como ${esc(title(a.NOMBRE||""))} · no se guarda nada</span><button type="button" class="btn sm" id="pruebaSalir" style="background:#fff;color:#b45309">Salir de la prueba</button>`;bar.hidden=false;$("pruebaSalir").onclick=pruebaSalir;
+  $("role").textContent=title(a.NOMBRE||"")+" (prueba)";$("role").className="role";go("home");renderHome();renderTabs();banner();cargarAsis();scrollTo(0,0);toast("Modo prueba: así ve la app "+title(a.NOMBRE||"el auditor"))}
+function pruebaSalir(){const P=S.prueba;if(!P)return;libFlush();
+  Object.entries(P.snap).forEach(([k,v])=>{try{if(v==null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(x){}});
+  if(LIB.ok){Object.keys(LIB.h).forEach(id=>{if(LIB.h[id].prueba){delete LIB.h[id];LIB.ids=LIB.ids.filter(x=>x!==id);idbDel(id);try{localStorage.removeItem("mfp_"+id)}catch(x){}}});if(!LIB.h[LIB.act])LIB.act=LIB.ids[0]||null;libIdx()}
+  const A=P.adm;S.admin=A.admin;S.principal=A.principal;S.perm=A.perm;S.me=A.me;S.hasta=A.hasta;S.firma=A.firma;S.clv=A.clv;S.prueba=null;S.mf=null;S.mfEdit=null;S.editing=null;
+  try{loadForm(ls.get("draft3",null)||blankForm())}catch(x){}ASIS={hoy:"",rows:[],hora:"08:30"};
+  const bar=$("pruebaBar");if(bar)bar.hidden=true;$("role").textContent=S.me&&S.me.nombre?title(S.me.nombre):"Administradora";$("role").className="role adm";
+  go("home");renderHome();renderTabs();banner();cargarAsis();scrollTo(0,0);toast("Saliste del modo prueba. Nada de la prueba se guardó.")}
 
 /* ---- registro de un formato genérico: datos, cabecera para la hoja y filas ---- */
 function mfRecord(f){const M=MODULOS[f.mod],cab=[],ss=secs(f),c=f.c;
@@ -1809,7 +1845,7 @@ $("asHorSave").onclick=async()=>{const L=Object.entries(HORS).map(([dni,hora])=>
   try{const r=await admin("adminHorarios",L);if(r.ok){L.forEach(({dni,hora})=>{const a=TEAM.find(x=>String(x.DNI)===dni);if(a)a["HORA INGRESO"]=hora});HORS={};toast(`Horarios guardados (${r.n})`);renderHor();renderAsisAdm()}else toast(r.msg)}catch(e){}finally{b.disabled=false;b.textContent="Guardar horarios"}};
 /* ---- ventana "OK, subido" al guardar un reporte ---- */
 let WA_OK=null;
-function okSubido(cola,t,m,wa){WA_OK=wa||null;const ow=$("okWa");ow.hidden=!WA_OK;ow.disabled=false;delete ow.dataset.t0;ow.textContent="📲 Compartir por WhatsApp";$("okIc").textContent=cola?"⏳":"✔";$("okIc").className="okic"+(cola?" wait":"");$("okT").textContent=t;$("okM").textContent=m||"";$("okDlg").hidden=false;setTimeout(()=>$("okBtn").focus(),50)}
+function okSubido(cola,t,m,wa){if(S.prueba&&/subid|guardad/i.test(t)){t="PRUEBA · "+t;m="Modo prueba: no se guardó en el Excel, ni en Drive, ni se envió correo.";wa=S.prueba.pdf?{id:"prueba",prueba:1}:null}WA_OK=wa||null;const ow=$("okWa");ow.hidden=!WA_OK;ow.disabled=false;delete ow.dataset.t0;ow.textContent=WA_OK&&WA_OK.prueba?"⬇ Ver PDF de prueba":"📲 Compartir por WhatsApp";$("okIc").textContent=cola?"⏳":"✔";$("okIc").className="okic"+(cola?" wait":"");$("okT").textContent=t;$("okM").textContent=m||"";$("okDlg").hidden=false;setTimeout(()=>$("okBtn").focus(),50)}
 $("okBtn").onclick=()=>{$("okDlg").hidden=true};
 $("okWa").onclick=()=>compartirWA(WA_OK,$("okWa"));
 /* ---- v8: compartir por WhatsApp — PDF + cada foto en tamaño completo (auditores y administradoras) ----
@@ -1827,7 +1863,7 @@ async function waPrep(r){const [p,im]=await Promise.all([call("descargarPdf",S.t
   const pdf=new File([b64u8(p.b64)],p.nombre||"Reporte.pdf",{type:"application/pdf"}),{t,res}=waTit(r);
   const txt=`*${t}*${res?"\n"+(/RECHAZ/.test(res)?"🔴 ":"🟢 ")+res:""}\n${dmy(r.fecha)}${r.aud?" · Auditor "+title(r.aud):""}${imgs.length?"\n\nFotos:\n"+imgs.map((f,i)=>`${i+1}. ${cap[i]||"Foto "+(i+1)}`).join("\n"):""}\n\nDepartamento de Calidad Samitex`;
   return{pdf,imgs,txt,t}}
-async function compartirWA(r,btn){if(!r||!r.id||!btn)return;const k=r.id,t0=btn.dataset.t0||(btn.dataset.t0=btn.textContent);
+async function compartirWA(r,btn){if(r&&r.prueba){pruebaVerPdf();return}if(S.prueba){toast("En modo prueba no se comparte por WhatsApp.");return}if(!r||!r.id||!btn)return;const k=r.id,t0=btn.dataset.t0||(btn.dataset.t0=btn.textContent);
   if(!WAP[k]){btn.disabled=true;btn.textContent="Preparando fotos…";
     try{WAP[k]=await waPrep(r)}catch(x){toast(sesErr(x)?"Tu sesión venció. Vuelve a ingresar.":netErr(x)?"Sin señal. Inténtalo con conexión.":String(x&&x.message||x));btn.disabled=false;btn.textContent=t0;return}
     btn.disabled=false;btn.textContent=`📲 Enviar ahora (PDF + ${WAP[k].imgs.length} foto${WAP[k].imgs.length===1?"":"s"})`;toast("Listo. Toca «Enviar ahora» y elige el grupo de WhatsApp.");return}
