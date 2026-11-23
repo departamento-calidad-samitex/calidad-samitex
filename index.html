@@ -296,6 +296,7 @@ nav.tabs button[aria-selected=true] svg{filter:drop-shadow(0 3px 4px color-mix(i
       <label class="fld"><span>Nombre y apellido</span><input id="sNom" autocapitalize="words" placeholder="Clara Ramos"></label>
       <label class="fld"><span>DNI</span><input id="sDni" inputmode="numeric" maxlength="8" placeholder="00000000"></label>
       <label class="fld"><span>Cargo</span><input id="sCargo" placeholder="Auditor de calidad"></label>
+      <label class="row" style="gap:8px;align-items:center;font-size:14px"><input type="checkbox" id="sSup" style="width:auto;min-height:0"> Soy supervisor de producción (firmo los reportes de mis líneas)</label>
       <label class="fld"><span>Crea tu contraseña (6 a 30 caracteres)</span><input id="sPwd" type="password" autocomplete="new-password" maxlength="30"></label>
       <label class="fld"><span>Repite tu contraseña</span><input id="sPwd2" type="password" autocomplete="new-password" maxlength="30"></label>
       <p class="sub">Tu contraseña es solo tuya: queda cifrada y nadie puede verla. Si la olvidas, pide restablecerla.</p>
@@ -344,6 +345,7 @@ nav.tabs button[aria-selected=true] svg{filter:drop-shadow(0 3px 4px color-mix(i
     <div class="card" id="vbAudCard" hidden><div class="hd"><h3>Firmas pendientes (V°B°)</h3><span class="sub" id="vbAudSub"></span></div>
       <p class="sub">Tienes poder de firmar. Revisa el PDF y toca <b>Dar V°B°</b>: tu firma sale en el espacio de Jefe de Aseg. de Calidad.</p>
       <div id="vbFirmaHost"></div><div class="list" id="vbAudList"></div></div>
+    <div class="card" id="supCard" hidden><div class="hd"><h3>✍ Reportes por firmar</h3><span class="sub" id="supSub"></span></div><div class="list" id="supList"></div><h3 style="margin:14px 0 6px">Firmados y devueltos</h3><div class="list" id="supHechos"></div></div>
     <div class="card" id="corrCard" hidden><div class="hd"><h3>Correcciones autorizadas</h3><span class="sub">La jefatura de calidad te habilitó estos reportes</span></div><div class="list" id="corrList"></div></div>
     <div class="card" id="pruebaCard" hidden><div class="hd"><h3>👁 Ver como auditor</h3><span class="sub">Modo prueba</span></div><p class="sub">Elige un auditor y verás la app como él: sus formatos, su asistencia y sus permisos. Lo que llenes es de <b>prueba</b>: no entra al Excel, ni a Drive, ni a los correos.</p><div class="list" id="pruebaList"><p class="sub">Cargando auditores…</p></div></div>
     <div class="card" id="admQuick" hidden><div class="hd"><h3>Administradoras</h3><span class="sub">Solo administradora principal</span></div><p class="sub">Crea otra administradora (ADM) con su propio nombre y código.</p><button type="button" class="btn" id="admQuickBtn">➕ Crear otra administradora</button></div>
@@ -381,6 +383,18 @@ nav.tabs button[aria-selected=true] svg{filter:drop-shadow(0 3px 4px color-mix(i
       <div class="row" style="flex-wrap:nowrap"><button class="btn ghost" type="button" id="mfCancel" hidden>Cancelar</button><button class="btn block" type="submit" id="mfSave">Guardar reporte</button></div>
       <p class="note err" id="mfErr" hidden></p><div class="note ok" id="mfDone" hidden></div>
     </form>
+  </section>
+  <section id="v-firma" class="view" hidden style="flex-direction:column;gap:14px">
+    <div class="row" style="justify-content:space-between"><div><h2 id="fiTitle">Firma de supervisor</h2><p class="sub" id="fiSub"></p></div><button type="button" class="btn ghost sm" id="fiVolver">Volver</button></div>
+    <div class="note" id="fiMsg" hidden></div>
+    <div class="card" id="fiDoc" style="overflow:hidden;padding:8px;background:#fff"></div>
+    <div class="card" id="fiAcc" hidden>
+      <div class="seg wide" id="fiModo"><button type="button" data-v="f" aria-pressed="true">✔ Firmar</button><button type="button" data-v="c" aria-pressed="false">💬 Comentarios</button></div>
+      <label class="fld full" id="fiNomL" style="margin:10px 0"><span>Tu nombre completo</span><input id="fiNom" autocapitalize="characters" autocomplete="name"></label>
+      <div id="fiFirmaBox"><div class="row" style="justify-content:space-between"><b>Tu firma</b><button type="button" class="btn ghost sm" id="fiClr">Borrar</button></div><canvas id="fiCv" aria-label="Recuadro para firmar" style="display:block;width:100%;height:170px;touch-action:none;background:#fff;border-radius:8px;margin:6px 0 10px"></canvas><button type="button" class="btn block" id="fiFirmar">✔ Firmar el reporte</button></div>
+      <div id="fiComBox" hidden><label class="fld full"><span>Comentarios para el auditor</span><textarea id="fiCom" rows="4" placeholder="Qué debe corregir el auditor"></textarea></label><button type="button" class="btn block" id="fiDevolver">💬 Devolver con comentarios</button></div>
+      <p class="note err" id="fiErr" hidden></p>
+    </div>
   </section>
   <section id="v-ver" class="view" hidden style="flex-direction:column;gap:12px">
     <div class="row" style="justify-content:space-between"><div><h2 id="verTitle"></h2><p class="sub" id="verSub"></p></div><button type="button" class="btn ghost sm" id="verRefresh">Actualizar</button></div>
@@ -500,11 +514,12 @@ nav.tabs button[aria-selected=true] svg{filter:drop-shadow(0 3px 4px color-mix(i
 
 
   <section id="v-hist" class="view" hidden style="flex-direction:column;gap:12px">
-    <div class="row" style="justify-content:space-between"><div><h2 id="hiTitle">Historial</h2><p class="sub" id="hiSub"></p></div><button type="button" class="btn ghost sm" id="hiRefresh">Actualizar</button></div>
+    <div class="row" style="justify-content:space-between"><div><h2 id="hiTitle">Reportes</h2><p class="sub" id="hiSub"></p></div><button type="button" class="btn ghost sm" id="hiRefresh">Actualizar</button></div>
     <div class="row">
       <input type="search" id="hiQ" placeholder="Buscar OF, artículo, cliente, auditor, fecha…" aria-label="Buscar" style="flex:1 1 220px">
       <div class="seg" role="group" aria-label="Estado"><button type="button" id="hiA" aria-pressed="true">Todas</button><button type="button" id="hiR" aria-pressed="false">Rechazadas</button></div>
     </div>
+    <div class="libtabs" id="hiTabs" role="tablist" aria-label="Reportes por auditoría"></div>
     <div class="selbar" id="hiSelBar" hidden><label><input type="checkbox" id="hiSelAll"> Seleccionar todos los de la lista</label><button type="button" class="btn danger sm" id="hiSelDel" disabled>Eliminar seleccionados (0)</button><span class="sub" id="hiSelMsg"></span></div>
     <div class="list" id="hiList"></div>
   </section>
@@ -863,10 +878,10 @@ async function bajarPdf(id,btn){const t=btn&&btn.textContent;if(btn){btn.disable
 
 /* ================= pestañas ================= */
 const ICON={asis:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4M8 15l3 3 5-6"/>',home:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',time:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/>',form:'<path d="M12 5v14M5 12h14"/>',dash:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',hist:'<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>',team:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/>'};
-const TLAB={asis:"Asistencia",home:"Inicio",form:"Auditoría",dash:"Tablero",hist:"Historial",time:"Tiempos",team:"Equipo"},HT={asis:"Asistencia",gate:"Ingreso",pend:"Ingreso",adm:"Administración",home:"Inicio",form:"Auditoría Final",dash:"Tablero",hist:"Historial",time:"Tiempos",team:"Equipo",mod:"Formato",ver:"Reportes"};
+const TLAB={asis:"Asistencia",home:"Inicio",form:"Auditoría",dash:"Tablero",hist:"Reportes",time:"Tiempos",team:"Equipo"},HT={asis:"Asistencia",gate:"Ingreso",pend:"Ingreso",adm:"Administración",home:"Inicio",form:"Auditoría Final",dash:"Tablero",hist:"Reportes",time:"Tiempos",team:"Equipo",mod:"Formato",ver:"Reportes",firma:"Firma de supervisor"};
 const histOk=()=>S.hasta>Date.now();
-function tabsFor(){if(["gate","pend","adm"].includes(S.tab))return[];return S.admin?["home","dash","hist","asis",...(S.principal?["time"]:[]),"team"]:["home",...(puedeE("af")?["form"]:[]),...(histOk()?["hist"]:[])]}
-function renderTabs(){const t=tabsFor();if(!["gate","pend","adm","form","mod","ver"].includes(S.tab)&&!t.includes(S.tab))S.tab="home";
+function tabsFor(){if(["gate","pend","adm"].includes(S.tab)||S.flink)return[];return S.admin?["home","dash","hist","asis",...(S.principal?["time"]:[]),"team"]:["home",...(puedeE("af")?["form"]:[]),...(histOk()?["hist"]:[])]}
+function renderTabs(){const t=tabsFor();if(!["gate","pend","adm","form","mod","ver","firma"].includes(S.tab)&&!t.includes(S.tab))S.tab="home";
   $("tabs").innerHTML=t.length>1?t.map(k=>`<button type="button" role="tab" data-t="${k}" aria-selected="${S.tab===k}"><svg viewBox="0 0 24 24">${ICON[k]}</svg>${TLAB[k]}</button>`).join(""):"";
   document.querySelector("nav.tabs").hidden=t.length<2}
 $("tabs").onclick=e=>{const b=e.target.closest("[data-t]");if(b)go(b.dataset.t)};
@@ -880,10 +895,10 @@ function go(t,pop){if(!pop&&S.tab!==t&&(S.token||S.admin)&&!["gate","pend","adm"
 $("toReq").onclick=()=>{$("gForm").hidden=true;$("sForm").hidden=false;$("sDni").value=$("gDni").value;$("gErr").hidden=true};
 $("toIn").onclick=()=>{$("gForm").hidden=false;$("sForm").hidden=true};
 async function reLogin(){return false}
-function setSesion(r){setPerm(r.permisos);S.token=r.token;S.hasta=r.historialHasta||0;S.firma=!!r.puedeFirmar;S.me={nombre:r.nombre};ls.set("af_ses",{tok:r.token,nombre:r.nombre,hasta:S.hasta,firma:S.firma});ls.set("af_pend",null);
+function setSesion(r){setPerm(r.permisos);S.token=r.token;S.hasta=r.historialHasta||0;S.firma=!!r.puedeFirmar;S.sup=!!r.sup;S.me={nombre:r.nombre};ls.set("af_ses",{tok:r.token,nombre:r.nombre,hasta:S.hasta,firma:S.firma,sup:S.sup});ls.set("af_pend",null);
   $("role").textContent=title(r.nombre);loadForm(ls.get("draft3",null)||blankForm());go("home");banner();usoIni();enviarCola()}
 function cerrarSesion(msg){if(S.prueba){pruebaSalir();return}usoFin();usoBeacon(usoPend());ls.set(USO,[]);ls.set(USOA,null);ls.set("af_ses",null);S.token=null;S.me=null;S.hasta=0;$("gForm").hidden=false;$("sForm").hidden=true;go("gate");$("role").textContent="Auditor";if(msg){$("gErr").textContent=msg;$("gErr").hidden=false}}
-async function verificar(){try{const r=await call("estado",S.token);if(r.ok){S.clv={sin:!!r.sinClave,tmp:!!r.claveTemporal};S.firma=!!r.puedeFirmar;renderClv();setPerm(r.permisos);renderHome();S.hasta=r.historialHasta||0;S.me.nombre=r.nombre;ls.set("af_ses",{tok:S.token,nombre:r.nombre,hasta:S.hasta,firma:S.firma});renderTabs();banner()}
+async function verificar(){try{const r=await call("estado",S.token);if(r.ok){S.clv={sin:!!r.sinClave,tmp:!!r.claveTemporal};S.firma=!!r.puedeFirmar;S.sup=!!r.sup;renderClv();setPerm(r.permisos);renderHome();S.hasta=r.historialHasta||0;S.me.nombre=r.nombre;ls.set("af_ses",{tok:S.token,nombre:r.nombre,hasta:S.hasta,firma:S.firma,sup:S.sup});renderTabs();banner()}
   else cerrarSesion(r.estado==="BLOQUEADO"?"Tu acceso fue bloqueado por la jefatura de calidad.":r.estado==="PENDIENTE"?"Tu acceso está pendiente de aprobación.":"Este equipo ya no está autorizado. Vuelve a ingresar con tu DNI.")}catch(x){}}
 let gModo="";
 function gNuevo(modo,msg){gModo=modo;$("gNewBox").hidden=false;$("gNewMsg").textContent=msg||"";$("gPwdBox").hidden=modo!=="cambiar";$("gBtn").textContent="Guardar contraseña e ingresar";setTimeout(()=>$("gNew").focus(),50)}
@@ -913,7 +928,7 @@ let rstT;async function rstVer(){const p=ls.get("af_rst",null),n=$("gRst");clear
     if(r.estado==="APROBADO"){$("gDni").value=p.dni;n.className="note ok";n.textContent="¡Aprobado! Crea tu nueva contraseña.";gNuevo("reset","Crea tu nueva contraseña (6 a 30 caracteres).");return}
     if(r.estado==="RECHAZADO"||r.estado==="NINGUNO"){ls.set("af_rst",null);n.className="note err";n.textContent=r.estado==="RECHAZADO"?"La jefatura no aprobó restablecer tu contraseña. Habla con ella.":"Tu solicitud ya no está vigente. Si aún no puedes entrar, pídela otra vez.";return}}catch(x){}
   if(S.tab==="gate")rstT=setTimeout(rstVer,20000)}
-$("sForm").addEventListener("submit",async e=>{e.preventDefault();const n=$("sNom").value.trim(),d=$("sDni").value,c=$("sCargo").value.trim(),er=$("sErr");er.hidden=true;er.className="note err";
+$("sForm").addEventListener("submit",async e=>{e.preventDefault();const n=$("sNom").value.trim(),d=$("sDni").value,c=$("sSup")&&$("sSup").checked?"SUPERVISOR DE PRODUCCIÓN":$("sCargo").value.trim(),er=$("sErr");er.hidden=true;er.className="note err";
   if(!n||!/^\d{8}$/.test(d)){er.textContent="Escribe tu nombre y un DNI de 8 dígitos.";er.hidden=false;return}
   const pw=$("sPwd").value;if(pw.length<6){er.textContent="Crea una contraseña de al menos 6 caracteres.";er.hidden=false;return}if(pw!==$("sPwd2").value){er.textContent="Las dos contraseñas no coinciden.";er.hidden=false;return}
   const b=$("sBtn");b.disabled=true;b.textContent="Enviando…";
@@ -949,10 +964,13 @@ let HIS=[];
 async function cargarHist(){$("hiSub").textContent="Cargando…";
   try{if(S.admin)HIS=await admin("adminReportes");else{const r=await call("misReportes",S.token);if(!r.ok){toast(r.msg);S.hasta=0;go("form");return}S.hasta=r.hasta;HIS=r.rows}}
   catch(x){if(!S.admin)toast("Sin conexión.");HIS=[]}renderHist()}
+let HI_MOD="all";
 function renderHist(){if(S.tab!=="hist")return;const q=NORM($("hiQ").value);
-  let T=HIS.slice();if(S.hiMode==="R")T=T.filter(r=>r.rej);
+  const mods=MOD_IDS.filter(k=>S.admin||puedeE(k)||puedeL(k)||HIS.some(r=>(r.mod||"af")===k)),cnt=k=>HIS.filter(r=>(r.mod||"af")===k).length;if(HI_MOD!=="all"&&!mods.includes(HI_MOD))HI_MOD="all";
+  $("hiTabs").innerHTML=[["all","Todos",HIS.length],...mods.map(k=>[k,MODULOS[k].n.replace(/^(Auditoría de |Reporte de )/,""),cnt(k)])].map(([k,n,c])=>`<button type="button" role="tab" class="btn sm${HI_MOD===k?"":" ghost"}" data-hm="${k}" aria-selected="${HI_MOD===k}">${esc(n)} (${fmt(c)})</button>`).join("");
+  let T=HIS.slice();if(HI_MOD!=="all")T=T.filter(r=>(r.mod||"af")===HI_MOD);if(S.hiMode==="R")T=T.filter(r=>r.rej);
   if(q)T=T.filter(r=>NORM([r.of,r.art,r.color,r.cli,r.tal,r.lin,r.aud,...(r.obs||[]).map(o=>o.t),...Object.keys(r.d||{}),...Object.values(r.nombres||{}),JSON.stringify(r.cab||[]),MODULOS[r.mod||"af"].n,dmy(r.fecha),r.fecha].join(" ")).includes(q));
-  $("hiTitle").textContent=S.admin?"Reportes":"Mi historial";
+  $("hiTitle").textContent=S.admin?"Reportes":"Mis reportes";
   $("hiSub").textContent=S.admin?`${fmt(T.length)} reportes registrados en la app · PDF, fotos y firmas en tu Drive`:`Autorizado hasta el ${dt(S.hasta)} · ${fmt(T.length)} reportes de los últimos 60 días`;
   const selOn=S.admin&&S.principal;HSEL.forEach(id=>{if(!HIS.some(x=>x.id===id))HSEL.delete(id)});HVIS=T.slice(0,200).map(r=>r.id);
   $("hiList").innerHTML=T.length?T.slice(0,200).map(r=>`<article class="item${r.rej?" rej":""}${HSEL.has(r.id)?" sel":""}">
@@ -961,15 +979,17 @@ function renderHist(){if(S.tab!=="hist")return;const q=NORM($("hiQ").value);
     ${(r.mod||"af")!=="af"?`<div class="m">${dmy(r.fecha)}${hRep(r)} · Auditor ${esc(title(r.aud))}</div>`:`<div class="m">${dmy(r.fecha)}${hRep(r)} · ${esc(title(r.tipo||"Aud. final"))} · ${esc(title(r.op))} · ${esc(title(r.cli))} · ${esc(title(r.lin))} · ${esc(title(r.tal||r.proc))}</div>
     <div class="m">Auditor ${esc(title(r.aud))} · lote ${fmt(r.lote)} · muestra ${fmt(r.mue)} · ${fmt(r.may)} may. (≤${r.acM??"—"}) · ${fmt(r.men)} men. (≤${r.acm??"—"})</div>
     ${Object.keys(r.d||{}).length?`<div class="d">${Object.entries(r.d).map(([c,x])=>`${esc(c)} ${esc(title((r.nombres||{})[c]||""))} (${(x.M||0)+(x.m||0)})`).join(" · ")}</div>`:""}`}
-    <div class="m">${r.geo?`<a class="pill ok" style="text-decoration:none" target="_blank" rel="noopener" href="https://www.google.com/maps?q=${encodeURIComponent(r.geo.lat+","+r.geo.lng)}">Ver ubicación</a> `:""}${autPill(r)}${r.editado?`<span class="pill wait">corregido${r.corrPor?" por "+esc(title(r.corrPor)):""}</span> `:""}${r.vb?`<span class="pill ok">V°B° ${dt(r.vb)}</span> `:""}${(r.fotos||[]).length?`${r.fotos.length} foto${r.fotos.length>1?"s":""}`:""}</div>
-    <div class="acts"><button type="button" class="btn gold sm" data-pdf="${esc(r.id)}">⬇ PDF</button><button type="button" class="btn sm" data-wa="${esc(r.id)}">📲 WhatsApp</button>${puedoCorregir(r)?`<button type="button" class="btn ghost sm" data-ed="${esc(r.id)}">Corregir</button>`:""}${S.admin?autCtl(r):""}${S.admin&&!r.vb?`<button type="button" class="btn sm" data-vb="${esc(r.id)}">Dar V°B°</button>`:""}${S.admin&&r.pdfId?`<a class="btn ghost sm" style="text-decoration:none;display:inline-flex;align-items:center" target="_blank" rel="noopener" href="https://drive.google.com/file/d/${encodeURIComponent(r.pdfId)}/view">Abrir en Drive</a>`:""}${S.admin?`<button type="button" class="btn danger sm" data-del="${esc(r.id)}">Eliminar</button>`:""}</div>
+    <div class="m">${r.geo?`<a class="pill ok" style="text-decoration:none" target="_blank" rel="noopener" href="https://www.google.com/maps?q=${encodeURIComponent(r.geo.lat+","+r.geo.lng)}">Ver ubicación</a> `:""}${autPill(r)}${r.editado?`<span class="pill wait">corregido${r.corrPor?" por "+esc(title(r.corrPor)):""}</span> `:""}${r.vb?`<span class="pill ok">V°B° ${dt(r.vb)}</span> `:""}${firmaPill(r)}${(r.fotos||[]).length?`${r.fotos.length} foto${r.fotos.length>1?"s":""}`:""}</div>
+    <div class="acts"><button type="button" class="btn gold sm" data-pdf="${esc(r.id)}">⬇ PDF</button><button type="button" class="btn sm" data-wa="${esc(r.id)}">📲 WhatsApp</button>${firmaBtn(r)}${puedoCorregir(r)?`<button type="button" class="btn ghost sm" data-ed="${esc(r.id)}">Corregir</button>`:""}${S.admin?autCtl(r):""}${S.admin&&!r.vb?`<button type="button" class="btn sm" data-vb="${esc(r.id)}">Dar V°B°</button>`:""}${S.admin&&r.pdfId?`<a class="btn ghost sm" style="text-decoration:none;display:inline-flex;align-items:center" target="_blank" rel="noopener" href="https://drive.google.com/file/d/${encodeURIComponent(r.pdfId)}/view">Abrir en Drive</a>`:""}${S.admin?`<button type="button" class="btn danger sm" data-del="${esc(r.id)}">Eliminar</button>`:""}</div>
   </article>`).join(""):`<div class="empty">${S.admin?"Todavía no hay reportes registrados desde la app.":"No tienes reportes de los últimos 60 días."}</div>`;hSelUI()}
 $("hiQ").oninput=()=>renderHist();
+$("hiTabs").addEventListener("click",e=>{const b=e.target.closest("[data-hm]");if(b){HI_MOD=b.dataset.hm;renderHist()}});
 $("hiA").onclick=()=>{S.hiMode="A";$("hiA").setAttribute("aria-pressed","true");$("hiR").setAttribute("aria-pressed","false");renderHist()};
 $("hiR").onclick=()=>{S.hiMode="R";$("hiR").setAttribute("aria-pressed","true");$("hiA").setAttribute("aria-pressed","false");renderHist()};
 $("hiList").addEventListener("click",async e=>{const g=a=>e.target.closest(`[data-${a}]`);const find=id=>HIS.find(x=>x.id===id);
   if(g("pdf"))bajarPdf(g("pdf").dataset.pdf,g("pdf"));
   if(g("wa")){const r=find(g("wa").dataset.wa);if(r)compartirWA(r,g("wa"))}
+  if(g("fpd")){const r=find(g("fpd").dataset.fpd);if(r)firmaEnviar(r,g("fpd"))}
   if(g("ed")){const r=find(g("ed").dataset.ed);if(r){if((r.mod||"af")==="af")editRecord(r);else abrirMF(r.mod,r)}}
   if(g("del")){const b=g("del");
     if(b.dataset.arm!=="1"){b.dataset.arm="1";b.textContent="¿Eliminar? Toca otra vez";setTimeout(()=>{if(b.isConnected){b.dataset.arm="";b.textContent="Eliminar"}},4000);return}
@@ -990,7 +1010,7 @@ function renderTeam(){if(S.tab!=="team")return;const now=Date.now(),ord={PENDIEN
       :`<button type="button" class="btn sm" data-a="reactivar" data-d="${dni}">Reactivar</button>`;
     return`<div class="card"><div class="hd"><b style="font-size:16px">${esc(title(a.NOMBRE))}</b><span class="pill ${pill}">${esc(title(st))}</span></div>
      <div class="sub">DNI ${dni} · ${esc(title(a.CARGO||""))} · ${fmt(a.REPORTES||0)} reportes · ${st==="PENDIENTE"?"pidió acceso "+dt(Number(a.SOLICITADO)):"último ingreso "+dt(Number(a["ULTIMO INGRESO"]))}</div>
-     ${clvAdm(a)}${firmCtl(a)}
+     ${clvAdm(a)}${firmCtl(a)}${supCtl(a)}
      ${h>now?`<span class="pill ok" style="align-self:flex-start">Historial autorizado (solo ver) hasta ${dt(h)}</span>`:""}
      <div class="row">${acts}<button type="button" class="btn danger sm" data-delaud="${dni}" data-nom="${esc(title(a.NOMBRE))}">Eliminar</button></div>${st==="ACTIVO"?permCard(a):""}</div>`}).join(""):`<div class="empty">Aún no hay auditores. Cuando un auditor pida acceso aparecerá aquí, o regístralo tú abajo.</div>`;
   $("aqlTbl").innerHTML=`<tr>${["Lote","Muestra","May. Ac","May. Re","Men. Ac","Men. Re"].map(h=>`<th style="text-align:left;padding:6px;border-bottom:1px solid var(--base);color:var(--muted);font-size:11px">${h}</th>`).join("")}</tr>`+
@@ -1015,7 +1035,7 @@ function renderHome(){if(S.tab!=="home")return;const L=conModulos(PROCS||PROC_DE
   const nom=S.me&&S.me.nombre?title(S.me.nombre).split(" ")[0]:"";$("homeHi").textContent=nom&&nom!=="—"?`Hola, ${nom}`:"Calidad Samitex";
   $("homeSub").textContent="Control de calidad · elige el proceso";
   $("procList").innerHTML=L.length?L.map(p=>{const bi=!!MODULOS[p.id],usable=bi||!!p.url;return`<button type="button" class="proc${usable&&p.activo?"":" off"}" data-p="${esc(p.id)}"><span class="ic">${esc(bi?MODULOS[p.id].ic:ini2(p.nombre))}</span><span><b>${esc(p.nombre)}</b><small>${esc(bi?MODULOS[p.id].cod+" · "+MODULOS[p.id].d:p.desc||"")}${bi&&!S.admin?" · "+(puedeE(p.id)?"ingreso de datos":"visualizador"):""}${usable?"":(p.desc?" · ":"")+"En preparación"}${p.activo?"":" · oculto para auditores"}</small></span></button>`}).join(""):`<div class="empty">No hay procesos activos.</div>`;
-  $("procAdm").hidden=!S.admin;$("admQuick").hidden=!(S.admin&&S.principal);pruebaCard();renderClv();cargarVBAud();$("salirHome").hidden=!!S.admin||!!S.prueba;if(S.admin)renderProcEd()}
+  $("procAdm").hidden=!S.admin;$("admQuick").hidden=!(S.admin&&S.principal);pruebaCard();supCargar();renderClv();cargarVBAud();$("salirHome").hidden=!!S.admin||!!S.prueba;if(S.admin)renderProcEd()}
 $("procList").onclick=e=>{const b=e.target.closest("[data-p]");if(!b)return;const p=(PROCS||PROC_DEF).find(x=>x.id===b.dataset.p);if(!p)return;
   if(abrirModulo(p.id))return;if(p.url){window.open(p.url,"_blank","noopener");return}toast("Este proceso aún está en preparación.")};
 function renderProcEd(){$("procEd").innerHTML=PED.map((p,i)=>`<div class="pe" data-i="${i}">
@@ -1228,6 +1248,11 @@ function mfMuestreo(f){const p=aql(f.c.lote);return p?{n:p.n,acM:p.acM,reM:p.reM
 function mfTot(f,tk,col){return rowsDe(f,tk).reduce((s,r)=>s+(Number(r&&r[col])||0),0)}
 const procTot=f=>Object.values(f.dc||{}).reduce((a,b)=>a+(Number(b)||0),0);
 function procPlan(f){const p=aql(f.c.cant);return p?`<div><b>${p.n}</b><span>Muestra</span></div><div><b>${p.acM}/${p.reM}</b><span>AQL 2.5 Ac/Re</span></div><div><b>${fmt(procTot(f))}</b><span>Defectos</span></div><div><b style="color:${procTot(f)>=p.reM?"var(--crit)":"var(--good)"}">${procTot(f)>=p.reM?"RE":"AP"}</b><span>Resultado</span></div>`:`<span class="cap">Escribe la cantidad total para calcular la muestra.</span>`}
+/* v12: defectos de proceso en lista desplegable — cerrada muestra solo los marcados */
+let DC_OPEN=false,DC_Q="";
+function dcRow(f,c,n){const v=Number((f.dc||{})[c])||0;return`<div class="trow" data-dcrow="${c}" data-txt="${esc(c+" "+n)}"${v?' style="background:var(--gold-soft)"':""}><span class="nm"><small>${c}</small> ${esc(title(n))}</span><span class="row" style="gap:6px;flex-wrap:nowrap"><button type="button" class="btn ghost sm" data-dc="${c}" data-d="-1" aria-label="Restar">−</button><b data-dcv="${c}" style="min-width:2ch;text-align:center">${v||""}</b><button type="button" class="btn sm" data-dc="${c}" data-d="1" aria-label="Sumar">+</button></span></div>`}
+function dcInner(f){if(!DC_OPEN){const L=PDEF_PR.filter(([c])=>f.dc&&f.dc[c]);return(L.length?L.map(([c,n])=>dcRow(f,c,n)).join(""):'<p class="sub" style="margin:0">Sin defectos marcados.</p>')+'<p class="sub" style="margin:6px 0 0">Toca «Defectos encontrados» para abrir la lista completa.</p>'}
+  const q=NORM(DC_Q);return`<input data-dcq="1" value="${esc(DC_Q)}" placeholder="Buscar defecto o código…" aria-label="Buscar defecto" style="width:100%;margin-bottom:8px"><div id="dcList">${PDEF_PR.map(([c,n])=>dcRow(f,c,n).replace('<div class="trow"',`<div class="trow"${q&&!NORM(c+" "+n).includes(q)?" hidden":""}`)).join("")}</div>`}
 function mfSugerido(f){
   if(f.mod==="proceso"){const p=aql(f.c.cant);return p?(procTot(f)>=p.reM?"RECHAZADO":"APROBADO"):""}
   if(f.mod==="avios"){const r=rowsDe(f,"it").some(x=>x&&x.ar==="R")||Object.values(f.ck.tst||{}).includes("X");return r?"RECHAZADO":"APROBADO"}
@@ -1247,7 +1272,7 @@ function renderMF(){const f=S.mf,M=MODULOS[f.mod];let h="";
   secs(f).forEach((s,si)=>{const [ty]=s;
    if(ty==="sub")h+=`<div class="card"><h3>${s[1]}</h3><div class="seg wide" data-sub="1">${Object.entries(s[2]).map(([k,t])=>`<button type="button" data-v="${k}" aria-pressed="${f.sub===k}">${t}</button>`).join("")}</div></div>`;
    if(ty==="nota")h+=`<div class="note">${esc(s[1])}</div>`;
-   if(ty==="defcnt"){const dc=f.dc=f.dc||{};h+=`<div class="card"><div class="hd"><h3>${s[1]}</h3><span class="sub">Total: <b id="dcTot">${fmt(procTot(f))}</b></span></div><input data-dcq="1" placeholder="Buscar defecto o código…" aria-label="Buscar defecto" style="width:100%;margin-bottom:8px"><div id="dcList">${PDEF_PR.map(([c,n])=>{const v=Number(dc[c])||0;return`<div class="trow" data-dcrow="${c}" data-txt="${esc(c+" "+n)}"${v?' style="background:var(--gold-soft)"':""}><span class="nm"><small>${c}</small> ${esc(title(n))}</span><span class="row" style="gap:6px;flex-wrap:nowrap"><button type="button" class="btn ghost sm" data-dc="${c}" data-d="-1" aria-label="Restar">−</button><b data-dcv="${c}" style="min-width:2ch;text-align:center">${v||""}</b><button type="button" class="btn sm" data-dc="${c}" data-d="1" aria-label="Sumar">+</button></span></div>`}).join("")}</div></div>`}
+   if(ty==="defcnt"){f.dc=f.dc||{};h+=`<div class="card"><button type="button" data-dctog="1" style="display:flex;width:100%;justify-content:space-between;align-items:center;background:none;border:0;padding:0;color:inherit;font:inherit;cursor:pointer"><h3 style="margin:0">${DC_OPEN?"▾":"▸"} ${s[1]}</h3><span class="sub">Total: <b id="dcTot">${fmt(procTot(f))}</b></span></button><div id="dcBox" style="margin-top:8px">${dcInner(f)}</div></div>`}
    if(ty==="pmue")h+=`<div class="card"><h3>${s[1]}</h3><div class="grid2"><label class="fld"><span>Cant. total</span><input data-c="cant" inputmode="numeric" value="${esc(f.c.cant||"")}"></label><label class="fld"><span>AQL</span><input value="2.5" readonly tabindex="-1"></label></div><div class="plan" id="mfPlan">${procPlan(f)}</div></div>`;
    if(ty==="campos")h+=`<div class="card"><h3>${s[1]}</h3><div class="grid2">${s[2].map(([k,l,t])=>`<label class="fld${t==="aud"?"":(l.length>16?" full":"")}"><span>${esc(k==="tp"&&f.mod==="corte"?title(CORTE[f.sub||"cam"].tp):l)}</span><input data-c="${k}" ${t==="fecha"?'type="date"':""} ${t==="aud"?"readonly":""} value="${esc(t==="aud"?title(f.c.aud||(S.me&&S.me.nombre)||""):f.c[k]??"")}"${k==="tp"&&f.mod==="corte"?` placeholder="${esc(CORTE[f.sub||"cam"].leg)}"`:""}></label>`).join("")}</div></div>`;
    if(ty==="op")h+=`<div class="card"><h3>${s[1]}</h3><div class="seg wide" data-op="${s[2]}">${s[3].map(o=>`<button type="button" data-v="${esc(o)}" aria-pressed="${f.c[s[2]]===o}">${esc(title(o))}</button>`).join("")}</div></div>`;
@@ -1263,13 +1288,13 @@ function renderMF(){const f=S.mf,M=MODULOS[f.mod];let h="";
    if(ty==="firmas")h+=`<div class="card"><h3>Firmas</h3>${s[1].map(([k,l])=>`<div class="sig"><div class="row"><b>${esc(l)}</b><button type="button" class="btn ghost sm" data-mclr="${k}">Borrar</button></div><canvas id="mf${k}" aria-label="Firma ${esc(l)}"></canvas></div>`).join("")}<p class="sub">El V°B° de la jefatura se da desde el historial de la administradora.</p></div>`});
   $("mfBody").innerHTML=h;renderMFPhotos();libBarRender();
   requestAnimationFrame(()=>{["A","T"].forEach(k=>{if($("mf"+k)){mpads[k]=mpads[k]&&mpads[k].cv===$("mf"+k)?mpads[k]:MPad(k);mpads[k].size();mpads[k].load(S.mf["firma"+k])}})})}
-function saveMF(){const f=S.mf;if(!f||S.mfEdit)return;if(!f.tIni)f.tIni=Date.now();if(f.mod==="proceso"&&LIB.ok&&!f._tmp){libProg(f);return}ls.set("mf_"+f.mod,f)}
+function saveMF(){const f=S.mf;if(!f||S.mfEdit)return;if(!f.tIni)f.tIni=Date.now();if(LIBS[f.mod]&&LIBS[f.mod].ok&&!f._tmp){libSet(f.mod);libProg(f);return}ls.set("mf_"+f.mod,f)}
 function refreshMFbits(){const f=S.mf,p=$("mfPlan");if(p&&f.mod==="proceso")p.innerHTML=procPlan(f);const dt=$("dcTot");if(dt)dt.textContent=fmt(procTot(f));if(p&&f.mod==="corte"){const m=mfMuestreo(f);p.innerHTML=m?`<div><b>${m.n}</b><span>Muestra</span></div><div><b>${m.acM}/${m.reM}</b><span>Mayor Ac/Re</span></div><div><b>${m.acm}/${m.rem}</b><span>Menor Ac/Re</span></div><div><b>${fmt(mfTot(f,"df","cant"))}</b><span>Defectos</span></div>`:`<span class="cap">Escribe el lote auditado para calcular la muestra.</span>`}
   ["df","sg"].forEach(k=>{const e=$("tot_"+k);if(e)e.textContent=fmt(mfTot(f,k,"cant"))});
   const rs=document.querySelector("#mfBody [data-res]");if(rs&&!f.res){const sg=mfSugerido(f);rs.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===sg)));const n=rs.previousElementSibling;if(n&&n.tagName==="P")n.innerHTML=`Según los datos: <b>${sg}</b>`}}
 $("mfBody").addEventListener("input",e=>{const x=e.target,f=S.mf;if(!f)return;
-  if(x.dataset.dcq){const q=NORM(x.value);document.querySelectorAll("#dcList [data-dcrow]").forEach(r=>r.hidden=!!q&&!NORM(r.dataset.txt).includes(q));return}
-  if(x.dataset.c){f.c[x.dataset.c]=x.value;if(x.dataset.c==="lote"||x.dataset.c==="cant")refreshMFbits();if(f.mod==="proceso"&&["of","art","lin"].includes(x.dataset.c))libBarRender()}
+  if(x.dataset.dcq){DC_Q=x.value;const q=NORM(x.value);document.querySelectorAll("#dcList [data-dcrow]").forEach(r=>r.hidden=!!q&&!NORM(r.dataset.txt).includes(q));return}
+  if(x.dataset.c){f.c[x.dataset.c]=x.value;if(x.dataset.c==="lote"||x.dataset.c==="cant")refreshMFbits();if(LIBS[f.mod]&&["of","art","lin","fecha"].includes(x.dataset.c))libBarRender()}
   else if(x.dataset.tk){const R=rowsDe(f,x.dataset.tk),r=+x.dataset.r;R[r]=R[r]||{};R[r][x.dataset.k]=x.value;R[r]._ed=x.dataset.k;autoFila(f,x.dataset.tk,r);if(x.dataset.tk==="sg"&&x.dataset.k==="cant")FALLA3.forEach(([kk])=>{if(R[r][kk])R[r][kk]=Number(String(x.value).replace(",","."))||1});
     x.closest(".mrow").querySelectorAll("input[data-tk]").forEach(i=>{if(i!==x&&i.value!==String(R[r][i.dataset.k]??""))i.value=R[r][i.dataset.k]??""});
     if(f.mod==="muestra"&&x.dataset.tk==="md"){const di=x.closest(".mrow").querySelector('input[data-k="dif"]'),fl=x.closest(".mrow").querySelector(".fueraTol");if(di){di.style.borderColor=R[r].fuera?"var(--crit)":"";di.style.color=R[r].fuera?"var(--crit)":""}if(fl)fl.hidden=!R[r].fuera}
@@ -1279,7 +1304,8 @@ $("mfBody").addEventListener("input",e=>{const x=e.target,f=S.mf;if(!f)return;
   else if(x.dataset.fcap!=null){(f.fcap=f.fcap||[])[+x.dataset.fcap]=x.value}
   saveMF()});
 $("mfBody").addEventListener("click",e=>{const f=S.mf;if(!f)return;const b=e.target.closest("button");if(!b)return;const g=b.parentElement;
-  if(b.dataset.dc){const c=b.dataset.dc,dc=f.dc=f.dc||{},v=Math.max(0,(Number(dc[c])||0)+Number(b.dataset.d));if(v)dc[c]=v;else delete dc[c];
+  if(b.dataset.dctog){DC_OPEN=!DC_OPEN;b.querySelector("h3").textContent=(DC_OPEN?"▾ ":"▸ ")+"Defectos encontrados";$("dcBox").innerHTML=dcInner(f);return}
+  if(b.dataset.dc){const c=b.dataset.dc,dc=f.dc=f.dc||{},v=Math.max(0,(Number(dc[c])||0)+Number(b.dataset.d));if(v)dc[c]=v;else delete dc[c];if(!DC_OPEN){$("dcBox").innerHTML=dcInner(f);refreshMFbits();saveMF();return}
     const e=document.querySelector(`[data-dcv="${c}"]`);if(e)e.textContent=v||"";const row=b.closest("[data-dcrow]");if(row)row.style.background=v?"var(--gold-soft)":"";refreshMFbits();saveMF();return}
   if(b.dataset.addrow){f.n[b.dataset.addrow]=(f.n[b.dataset.addrow]||1)+1;renderMF();saveMF();return}
   if(b.dataset.mclr){mpads[b.dataset.mclr].clear();saveMF();return}
@@ -1313,7 +1339,7 @@ document.addEventListener("click",e=>{const x=e.target.closest("[data-mx]");if(x
 $("mfFoto").onchange=async e=>{const max=+($("mfPhotos")||{dataset:{max:6}}).dataset.max,files=[...e.target.files].slice(0,max-S.mf.fotos.length);e.target.value="";
   for(const file of files){try{S.mf.fotos.push({b64:await shrink(file)})}catch(x){toast("No se pudo leer la foto.")}}renderMFPhotos();saveMF()};
 function abrirMF(mod,rec){S.mfEdit=rec?rec.id:null;S.mfSrc=rec||null;
-  S.mf=rec?{...blankMF(mod),...JSON.parse(JSON.stringify(rec.f||{})),id:rec.id,fotos:(rec.fotos||[]).map(id=>({id})),firmaA:rec.firmaA?"drive:"+rec.firmaA:"",firmaT:rec.firmaT?"drive:"+rec.firmaT:""}:(mod==="proceso"?libActual():(ls.get("mf_"+mod,null)||blankMF(mod)));
+  S.mf=rec?{...blankMF(mod),...JSON.parse(JSON.stringify(rec.f||{})),id:rec.id,fotos:(rec.fotos||[]).map(id=>({id})),firmaA:rec.firmaA?"drive:"+rec.firmaA:"",firmaT:rec.firmaT?"drive:"+rec.firmaT:""}:(LIBS[mod]?(libSet(mod),libActual()):(ls.get("mf_"+mod,null)||blankMF(mod)));
   if(!S.mf.c.aud||!rec)S.mf.c.aud=rec?rec.aud:(S.admin?S.mf.c.aud||"":S.me&&S.me.nombre);
   go("mod");$("hTitle").textContent=MODULOS[mod].n;$("mfVer").hidden=!puedeL(mod);renderMF();$("mfEditNote").hidden=!rec;$("mfCancel").hidden=!rec;$("mfSave").textContent=rec?"Guardar corrección":"Guardar reporte";
   if(rec)$("mfEditNote").innerHTML=`Corrigiendo el reporte del <b>${dmy(rec.fecha)}</b>. Las firmas y fotos guardadas se mantienen si no las cambias.`;$("mfDone").hidden=true;$("mfErr").hidden=true}
@@ -1321,9 +1347,11 @@ $("mfCancel").onclick=()=>{S.mfEdit=null;S.mfSrc=null;go(S.admin||histOk()?"hist
 $("mfVer").onclick=()=>abrirLista(S.mf.mod);
 /* ---- v10: Auditoría de Proceso como libro — una hoja por OF o artículo; se pasa de hoja deslizando de lado.
    Cada hoja se guarda sola en el celular (IndexedDB, espacio grande para fotos; respaldo en localStorage) ---- */
-const LIB={ok:false,ids:[],h:{},act:null,err:""};let libDB=null,libT=null,libErrAvisado=false;
+/* v14: libro de hojas también en Corte (por OF/artículo) y Segundas (por línea) */
+const LIBMODS=["proceso","corte","segundas"],LIBS={};LIBMODS.forEach(m=>LIBS[m]={mod:m,ok:false,ids:[],h:{},act:null,err:""});let LIB=LIBS.proceso;
+const libSet=m=>{if(LIBS[m])LIB=LIBS[m];return LIB};let libDB=null,libT=null,libErrAvisado=false;
 document.head.insertAdjacentHTML("beforeend",`<style>.libtabs{display:flex;gap:6px;overflow-x:auto;padding:2px 0 4px;scrollbar-width:none}.libtabs::-webkit-scrollbar{display:none}.libtabs .btn{flex:none;white-space:nowrap}#v-mod{overflow-x:clip}#mfForm{touch-action:pan-y pinch-zoom}</style>`);
-function libIdx(){ls.set("proc_libro",{ids:LIB.ids,act:LIB.act})}
+function libIdx(){ls.set(LIB.mod==="proceso"?"proc_libro":"libro_"+LIB.mod,{ids:LIB.ids,act:LIB.act})}
 function idbOpen(){return new Promise((res,rej)=>{try{const r=indexedDB.open("calidad_samitex",1);r.onupgradeneeded=()=>{r.result.createObjectStore("hojas",{keyPath:"id"})};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}catch(e){rej(e)}})}
 function idbAll(){return new Promise((res,rej)=>{const q=libDB.transaction("hojas").objectStore("hojas").getAll();q.onsuccess=()=>res(q.result||[]);q.onerror=()=>rej(q.error)})}
 function idbPut(o){return new Promise((res,rej)=>{const t=libDB.transaction("hojas","readwrite");t.objectStore("hojas").put(o);t.oncomplete=()=>res();t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error||new Error("sin espacio"))})}
@@ -1335,21 +1363,23 @@ async function libPut(o){if(!o||o._tmp)return;let ok=false,er="";const c=JSON.pa
   if(!ok&&!libErrAvisado){libErrAvisado=true;toast("⚠ No se pudo guardar la hoja en el celular. Envíala o libera espacio.")}if(ok)libErrAvisado=false;
   if(antes!==!!LIB.err)libBarRender();else{const e=$("libEst");if(e&&ok)e.textContent="Guardado ✓ "+new Date().toTimeString().slice(0,5)}}
 function libProg(f){const e=$("libEst");if(e&&!LIB.err)e.textContent="Guardando…";clearTimeout(libT);libT=setTimeout(()=>{libT=null;libPut(f)},300)}
-function libFlush(){if(libT){clearTimeout(libT);libT=null;if(S.mf&&S.mf.mod==="proceso")libPut(S.mf)}}
+function libFlush(){if(libT){clearTimeout(libT);libT=null;if(S.mf&&LIBS[S.mf.mod])libPut(S.mf)}}
 addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")libFlush()});addEventListener("pagehide",libFlush);
-const libKey=h=>{const c=(h&&h.c)||{},a=NORM(c.of||""),b=NORM(c.art||"");return a||b?a+"|"+b:""};
-function libNom(h){const c=(h&&h.c)||{};const t=[c.of?"OF "+String(c.of).trim():"",c.art?title(String(c.art).trim()):""].filter(Boolean).join(" · ")||"OF nueva";return t+(c.lin?" · "+String(c.lin).trim():"")}
-function libNueva(base){const b=blankMF("proceso");if(S.prueba)b.prueba=1;if(base&&base.c){["cli","planta","fecha"].forEach(k=>{if(base.c[k])b.c[k]=base.c[k]})}
+const libKey=h=>{const c=(h&&h.c)||{};if(h&&h.mod==="segundas"){const l=NORM(c.lin||"");return l?l+"|"+(c.fecha||""):""}const a=NORM(c.of||""),b=NORM(c.art||"");return a||b?a+"|"+b:""};
+function libNom(h){const c=(h&&h.c)||{};if(h&&h.mod==="segundas")return(c.lin?"Línea "+String(c.lin).trim():"Línea nueva")+(c.fecha?" · "+dmy(c.fecha).slice(0,5):"");
+  if(h&&h.mod==="corte"){const t0=[c.of?"OF "+String(c.of).trim():"",c.art?title(String(c.art).trim()):""].filter(Boolean).join(" · ")||"OF nueva",C=CORTE[h.sub||"cam"];return t0+(C?" · "+title(C.t).split(" ")[0]:"")}
+  const t=[c.of?"OF "+String(c.of).trim():"",c.art?title(String(c.art).trim()):""].filter(Boolean).join(" · ")||"OF nueva";return t+(c.lin?" · "+String(c.lin).trim():"")}
+function libNueva(base){const b=blankMF(LIB.mod);if(S.prueba)b.prueba=1;if(base&&base.c){({proceso:["cli","planta","fecha"],corte:["cli","prov","fecha"],segundas:["fecha","proc","org"]}[LIB.mod]||[]).forEach(k=>{if(base.c[k])b.c[k]=base.c[k]});if(LIB.mod==="corte"&&base.sub)b.sub=base.sub}
   b.c.aud=(base&&base.c&&base.c.aud)||(S.admin?"":S.me&&S.me.nombre)||"";
   const i=LIB.ids.indexOf(LIB.act);LIB.ids.splice(i<0?LIB.ids.length:i+1,0,b.id);LIB.h[b.id]=b;LIB.act=b.id;libIdx();libPut(b);return b}
-function libActual(){if(!LIB.ok){const b=blankMF("proceso");b._tmp=1;return b}if(!LIB.ids.length)libNueva(null);return LIB.h[LIB.act]||LIB.h[LIB.ids[0]]}
-const libOn=()=>!!(S.mf&&S.mf.mod==="proceso"&&!S.mfEdit&&LIB.ok&&!S.mf._tmp);
+function libActual(){if(!LIB.ok){const b=blankMF(LIB.mod);b._tmp=1;return b}if(!LIB.ids.length)libNueva(null);return LIB.h[LIB.act]||LIB.h[LIB.ids[0]]}
+const libOn=()=>!!(S.mf&&LIBS[S.mf.mod]===LIB&&!S.mfEdit&&LIB.ok&&!S.mf._tmp);
 function libBarRender(){const bar=$("libBar"),dots=$("libDots");if(!bar)return;const on=libOn();bar.hidden=dots.hidden=!on;if(!on)return;
   const i=LIB.ids.indexOf(S.mf.id),n=LIB.ids.length,k=libKey(S.mf),dup=k&&LIB.ids.find(id=>id!==S.mf.id&&libKey(LIB.h[id])===k);
   bar.innerHTML=`<div class="libtabs">${LIB.ids.map(id=>`<button type="button" class="btn sm${id===S.mf.id?"":" ghost"}" data-lib="${esc(id)}">${esc(libNom(LIB.h[id]))}</button>`).join("")}<button type="button" class="btn sm ghost" data-libnew="1" id="libNew">＋ Nueva hoja</button></div>
    <div class="row" style="justify-content:space-between;margin-top:6px;gap:8px;flex-wrap:nowrap"><span class="sub">📖 Hoja ${i+1} de ${n} · desliza de lado para pasar de hoja · <span id="libEst">${LIB.err?'<b style="color:var(--crit)">⚠ No guardado</b>':"Guardado ✓"}</span></span><button type="button" class="btn ghost sm" data-libdel="1" style="flex:none">Cerrar hoja</button></div>
    ${LIB.err?`<div class="note err" style="margin-top:6px">⚠ No se pudo guardar esta hoja en el celular (${esc(LIB.err)}). Envíala con «Guardar reporte» o libera espacio en el celular.</div>`:""}
-   ${dup?`<div class="note err" style="margin-top:6px">Esa OF / artículo ya está abierta en la hoja «${esc(libNom(LIB.h[dup]))}». <button type="button" class="btn sm" data-lib="${esc(dup)}">Ir a esa hoja</button></div>`:""}`;
+   ${dup?`<div class="note err" style="margin-top:6px">${LIB.mod==="segundas"?"Esa línea y fecha ya están abiertas":"Esa OF / artículo ya está abierta"} en la hoja «${esc(libNom(LIB.h[dup]))}». <button type="button" class="btn sm" data-lib="${esc(dup)}">Ir a esa hoja</button></div>`:""}`;
   dots.innerHTML=n>1?LIB.ids.map(id=>id===S.mf.id?"●":"○").join(" "):"";
   const tb=bar.querySelector(".libtabs"),a=bar.querySelector(`.libtabs [data-lib="${CSS.escape(S.mf.id)}"]`);if(tb&&a)tb.scrollLeft=a.offsetLeft-tb.clientWidth/2+a.offsetWidth/2}
 function libAnim(dir,fn){const b=$("mfBody");b.style.transition="transform .2s ease-in, opacity .2s";b.style.transform=`translateX(${-dir*105}%)`;b.style.opacity=".15";
@@ -1358,10 +1388,10 @@ function libIr(id,dir){if(!LIB.h[id]||!S.mf||id===S.mf.id)return;libFlush();cons
   libAnim(dir,()=>{LIB.act=id;libIdx();S.mf=LIB.h[id];$("mfDone").hidden=true;$("mfErr").hidden=true;renderMF();const t=$("libBar").getBoundingClientRect().top;if(t<0)scrollBy(0,t-80)})}
 function libQuitar(id,f){libFlush();delete LIB.h[id];const i=LIB.ids.indexOf(id);if(i>=0)LIB.ids.splice(i,1);idbDel(id);try{localStorage.removeItem("mfp_"+id)}catch(e){}
   if(!LIB.ids.length){LIB.act=null;libNueva(f)}else LIB.act=LIB.ids[Math.min(Math.max(i,0),LIB.ids.length-1)];libIdx();S.mf=LIB.h[LIB.act];renderMF()}
-const libVacia=h=>{const c=h.c||{};return!c.of&&!c.art&&!c.cant&&!(h.t.av||[]).some(r=>r&&r.avance)&&!Object.keys(h.dc||{}).length&&!h.fotos.length};
+const libVacia=h=>{const c=h.c||{};return!c.of&&!c.art&&!c.cant&&!c.lin&&!c.lote&&!Object.values(h.t||{}).some(R=>(R||[]).some(r=>r&&Object.entries(r).some(([k,v])=>k!=="hora"&&k!=="_ed"&&v!==""&&v!=null)))&&!Object.keys(h.dc||{}).length&&!(h.fotos||[]).length};
 $("libBar").addEventListener("click",e=>{const b=e.target.closest("button");if(!b||!libOn())return;
   if(b.dataset.lib){libIr(b.dataset.lib);return}
-  if(b.dataset.libnew){libFlush();const cur=S.mf;libAnim(1,()=>{S.mf=libNueva(cur);$("mfDone").hidden=true;$("mfErr").hidden=true;renderMF();setTimeout(()=>{const x=document.querySelector('#mfBody input[data-c="of"]');if(x)x.focus()},300)});return}
+  if(b.dataset.libnew){libFlush();const cur=S.mf;libAnim(1,()=>{S.mf=libNueva(cur);$("mfDone").hidden=true;$("mfErr").hidden=true;renderMF();setTimeout(()=>{const x=document.querySelector('#mfBody input[data-c="'+(LIB.mod==="segundas"?"lin":"of")+'"]');if(x)x.focus()},300)});return}
   if(b.dataset.libdel){if(!libVacia(S.mf)&&b.dataset.arm!=="1"){b.dataset.arm="1";b.textContent="¿Cerrar y borrar? Toca otra vez";setTimeout(()=>{if(b.isConnected){b.dataset.arm="";b.textContent="Cerrar hoja"}},4000);return}
     const id=S.mf.id,f=S.mf;libAnim(-1,()=>{libQuitar(id,f);toast("Hoja cerrada")})}});
 /* deslizar de lado (dedo o lápiz) para pasar de hoja como en un libro */
@@ -1378,14 +1408,76 @@ function libSwFin(e){const w=libSw;libSw=null;if(!w||!w.on)return;libSwJust=Date
   vuelve()}
 $("mfForm").addEventListener("pointerup",libSwFin);$("mfForm").addEventListener("pointercancel",libSwFin);
 $("mfForm").addEventListener("click",e=>{if(Date.now()-libSwJust<350){e.preventDefault();e.stopPropagation()}},true);
-const libReady=(async()=>{try{libDB=await idbOpen();(await idbAll()).forEach(o=>{if(o&&o.id&&o.mod==="proceso")LIB.h[o.id]=o})}catch(e){libDB=null}
-  const ix=ls.get("proc_libro",{ids:[],act:null})||{ids:[]};(ix.ids||[]).forEach(id=>{if(!LIB.h[id]){const o=ls.get("mfp_"+id,null);if(o)LIB.h[id]=o}});
-  LIB.ids=(ix.ids||[]).filter(id=>LIB.h[id]);Object.keys(LIB.h).forEach(id=>{if(!LIB.ids.includes(id))LIB.ids.push(id)});
-  const old=ls.get("mf_proceso",null);if(old&&old.id&&!LIB.h[old.id]){old.mod="proceso";LIB.h[old.id]=old;LIB.ids.push(old.id)}
-  LIB.act=LIB.h[ix.act]?ix.act:(LIB.ids[0]||null);LIB.ok=true;if(old&&LIB.h[old.id])await libPut(old);ls.set("mf_proceso",null);libIdx();
-  if(S.mf&&S.mf.mod==="proceso"&&S.mf._tmp&&!S.mfEdit){S.mf=libActual();if(!$("v-mod").hidden)renderMF()}})();
+const libReady=(async()=>{let all=[];try{libDB=await idbOpen();all=await idbAll()}catch(e){libDB=null}
+  for(const m of LIBMODS){const L=LIBS[m];all.forEach(o=>{if(o&&o.id&&o.mod===m)L.h[o.id]=o});
+    const ix=ls.get(m==="proceso"?"proc_libro":"libro_"+m,{ids:[],act:null})||{ids:[]};(ix.ids||[]).forEach(id=>{if(!L.h[id]){const o=ls.get("mfp_"+id,null);if(o)L.h[id]=o}});
+    L.ids=(ix.ids||[]).filter(id=>L.h[id]);Object.keys(L.h).forEach(id=>{if(!L.ids.includes(id))L.ids.push(id)});
+    const old=ls.get("mf_"+m,null);if(old&&old.id&&!L.h[old.id]){old.mod=m;L.h[old.id]=old;L.ids.push(old.id)}
+    L.act=L.h[ix.act]?ix.act:(L.ids[0]||null);L.ok=true;LIB=L;if(old&&L.h[old.id])await libPut(old);ls.set("mf_"+m,null);libIdx()}
+  LIB=LIBS.proceso;
+  if(S.mf&&LIBS[S.mf.mod]&&S.mf._tmp&&!S.mfEdit){libSet(S.mf.mod);S.mf=libActual();if(!$("v-mod").hidden)renderMF()}})();
 /* ---- v11: «Ver como auditor» — la administradora prueba la app como un auditor. Las llamadas que guardan
    se responden aquí mismo (no llegan al servidor): nada entra al Excel, a Drive ni a los correos ---- */
+/* ---- v13: firma de supervisor por línea (en su app) o por link (sin cuenta) ---- */
+const supIm=r=>{const f=r&&r.firmaSup;return f&&f.estado==="FIRMADO"?{supNom:f.por||"",supTs:f.ts?new Date(f.ts).toLocaleString("es-PE",{dateStyle:"short",timeStyle:"short"}):""}:{}};
+function firmaPill(r){const f=r&&r.firmaSup;if(!f||!f.estado)return"";const d=f.ts?" · "+dt(f.ts):"";
+  return f.estado==="FIRMADO"?`<span class="pill ok">✔ Firmado por ${esc(title(f.por||""))}${d}</span> `:f.estado==="DEVUELTO"?`<span class="pill bad">💬 Devuelto por ${esc(title(f.por||""))}${d}</span> `:`<span class="pill wait">✍ Pendiente de firma${f.lin?" · "+esc(f.lin):""}</span> `}
+function firmaBtn(r){const f=r.firmaSup||{};if(f.estado==="FIRMADO"||!(S.admin||(S.me&&up(r.aud||"")===up(S.me.nombre||""))))return"";return`<button type="button" class="btn sm" data-fpd="${esc(r.id)}">${f.estado==="PENDIENTE"?"✍ Reenviar link":"✍ Enviar a firma"}</button>`}
+async function firmaEnviar(r,b){if(S.prueba){toast("En modo prueba no se envía a firma.");return}b.disabled=true;try{const x=await call("firmaPedir",S.token,r.id);if(!x.ok){toast(x.msg||"No se pudo.");return}
+    r.firmaSup={...(r.firmaSup||{}),estado:"PENDIENTE",lin:x.lin};renderHist();const url=location.origin+location.pathname+"?firma="+encodeURIComponent(x.token);
+    const txt=`✍ Firma de reporte · ${MODULOS[r.mod||"af"].n}\n${resumen(r)}${x.lin?" · Línea "+x.lin:""}\nRevisa el PDF y firma o deja tus comentarios aquí:\n${url}`;
+    let ok=false;try{if(navigator.share){await navigator.share({text:txt});ok=true}}catch(e){if(e&&e.name==="AbortError")ok=true}
+    if(!ok){try{await navigator.clipboard.writeText(txt)}catch(e){}okSubido(false,"Link de firma listo","Se copió el mensaje: pégalo en el WhatsApp del supervisor. Link: "+url)}
+    else toast("Link enviado. Los supervisores de la línea también lo ven en su app.")}catch(e){toast("Sin conexión. Inténtalo con señal.")}finally{b.disabled=false}}
+/* supervisor en su app: lista de reportes de sus líneas */
+let SUP={pend:[],hechos:[],lineas:[]};
+async function supCargar(){const c=$("supCard");if(!c)return;const on=!!(S.sup&&S.token&&!S.admin&&!S.prueba);c.hidden=!on;$("procList").hidden=on;if(!on)return;
+  $("homeSub").textContent="Supervisor · firma los reportes de tus líneas";$("supSub").textContent="Cargando…";
+  try{const r=await call("supPendientes",S.token);if(!r.ok){$("supSub").textContent=r.msg||"";return}SUP=r;supRender()}catch(x){$("supSub").textContent="Sin conexión."}}
+function supRender(){$("supSub").textContent=`${SUP.pend.length} por firmar · líneas: ${(SUP.lineas||[]).join(", ")||"sin asignar (pídelas a la jefatura de calidad)"}`;
+  const it=(r,b)=>`<article class="item${r.rej?" rej":""}"><div class="t"><b><span class="pill wait">${esc(MODULOS[r.mod||"af"].n)}</span> ${esc(resumen(r))}</b></div><div class="m">${dmy(r.fecha)} · Línea ${esc((r.firmaSup&&r.firmaSup.lin)||"—")} · Auditor ${esc(title(r.aud))}</div>${b}</article>`;
+  $("supList").innerHTML=SUP.pend.length?SUP.pend.map(r=>it(r,`<div class="acts"><button type="button" class="btn sm" data-sfir="${esc(r.id)}">Revisar y firmar</button></div>`)).join(""):'<div class="empty">No tienes reportes por firmar.</div>';
+  $("supHechos").innerHTML=(SUP.hechos||[]).length?SUP.hechos.map(r=>it(r,`<div class="m">${firmaPill(r)}</div>`)).join(""):'<p class="sub">Aún nada.</p>'}
+$("supList").addEventListener("click",e=>{const b=e.target.closest("[data-sfir]");if(b)firmaAbrir(b.dataset.sfir,null)});
+/* pantalla de firma: ver el PDF, firmar o devolver con comentarios */
+let FI={};
+function fiPreview(rec,im){const land=!!MODULOS[rec.mod||"af"].land,W=land?297:210,H=land?210:297,box=$("fiDoc"),pg=paginasDe(rec,{...im,fotos:im.fotos||[]}),px=Math.max(260,box.clientWidth-16),sc=px/(W*3.7795);
+  box.innerHTML=`<style>${QCSS}${AFCSS}</style>`+pg.map((h,i)=>`<div style="width:${px}px;height:${Math.ceil(H*3.7795*sc)}px;overflow:hidden;margin:0 auto 8px;border:1px solid #ccc;background:#fff"><div style="width:${W}mm;min-height:${H}mm;background:#fff;transform:scale(${sc});transform-origin:0 0">${h.replace(/\{\{PAG\}\}/g,(i+1)+" de "+pg.length)}</div></div>`).join("")}
+const fiPad=(()=>{let cv,ctx,on=false,last=null;const P={dirty:false};
+  P.init=()=>{cv=$("fiCv");const r=cv.getBoundingClientRect();if(!r.width)return;cv.width=Math.round(r.width*2);cv.height=Math.round(r.height*2);ctx=cv.getContext("2d");ctx.lineWidth=4;ctx.lineCap="round";ctx.lineJoin="round";ctx.strokeStyle="#0b1030";P.dirty=false};
+  const pos=e=>{const r=cv.getBoundingClientRect();return[(e.clientX-r.left)*cv.width/r.width,(e.clientY-r.top)*cv.height/r.height]};
+  document.addEventListener("pointerdown",e=>{if(e.target.id!=="fiCv")return;if(!ctx)P.init();on=true;P.dirty=true;last=pos(e);cv.setPointerCapture(e.pointerId);ctx.beginPath();ctx.arc(last[0],last[1],2,0,7);ctx.fill()});
+  document.addEventListener("pointermove",e=>{if(!on||e.target.id!=="fiCv")return;const q=pos(e);ctx.beginPath();ctx.moveTo(...last);ctx.lineTo(...q);ctx.stroke();last=q});
+  document.addEventListener("pointerup",()=>{on=false});
+  P.png=()=>{const o=document.createElement("canvas");o.width=480;o.height=Math.round(480*cv.height/cv.width);o.getContext("2d").drawImage(cv,0,0,o.width,o.height);return o.toDataURL("image/png")};return P})();
+async function firmaAbrir(id,link){S.flink=link||null;FI={id:id||"",link:link||""};go("firma");$("fiTitle").textContent="Firma de supervisor";$("fiSub").textContent="";$("fiMsg").hidden=true;$("fiErr").hidden=true;$("fiAcc").hidden=true;
+  $("fiVolver").hidden=!!link;$("fiNomL").hidden=!link;$("fiDoc").innerHTML='<p class="sub" style="color:#333">Cargando reporte…</p>';
+  try{const r=await call("supVer",S.token||"",FI.id,FI.link);if(!r.ok){$("fiDoc").innerHTML=`<p class="note err">${esc(r.msg||"No se pudo abrir el reporte.")}</p>`;return}
+    FI.rec=r.rec;FI.id=r.rec.id;FI.im={firmaA:r.firmaA||"",firmaT:r.firmaT||"",firmaVB:r.firmaVB||"",vbNom:r.vbNom||"",fotos:r.fotos||[]};const f=r.rec.firmaSup||{};
+    $("fiSub").textContent=`${MODULOS[r.rec.mod||"af"].n} · ${resumen(r.rec)}${f.lin?" · Línea "+f.lin:""} · Auditor ${title(r.rec.aud||"")}`;
+    fiPreview(FI.rec,{...FI.im,...supIm(FI.rec)});
+    if(r.estado!=="PENDIENTE"){const m=$("fiMsg");m.className="note "+(r.estado==="FIRMADO"?"ok":"err");m.textContent=r.estado==="FIRMADO"?`Este reporte ya fue firmado por ${title(f.por||"")}${f.ts?" el "+dt(f.ts):""}.`:r.estado==="DEVUELTO"?`Este reporte fue devuelto con comentarios por ${title(f.por||"")}. Cuando el auditor lo corrija, vuelve a estar pendiente de firma.`:"Este reporte no está pendiente de firma.";m.hidden=false;return}
+    $("fiAcc").hidden=false;fiModo("f");requestAnimationFrame(()=>fiPad.init())}
+  catch(x){$("fiDoc").innerHTML='<p class="note err">Sin conexión. Revisa tu señal y vuelve a abrir el link.</p>'}}
+function fiModo(v){document.querySelectorAll("#fiModo button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===v)));$("fiFirmaBox").hidden=v!=="f";$("fiComBox").hidden=v!=="c";if(v==="f")requestAnimationFrame(()=>{if(!fiPad.dirty)fiPad.init()})}
+$("fiModo").onclick=e=>{const b=e.target.closest("[data-v]");if(b)fiModo(b.dataset.v)};
+$("fiClr").onclick=()=>fiPad.init();
+$("fiVolver").onclick=()=>{go("home");supCargar()};
+function fiQuien(){const er=$("fiErr");er.hidden=true;if(!FI.link)return(S.me&&S.me.nombre)||"SUPERVISOR";const n=$("fiNom").value.trim();if(n.length<5||!/\s/.test(n)){er.textContent="Escribe tu nombre y apellido.";er.hidden=false;$("fiNom").focus();return""}return up(n)}
+$("fiFirmar").onclick=async()=>{const q=fiQuien();if(!q)return;const er=$("fiErr"),b=$("fiFirmar");if(!fiPad.dirty){er.textContent="Firma con el dedo en el recuadro blanco.";er.hidden=false;return}
+  b.disabled=true;b.textContent="Armando el PDF con tu firma…";const png=fiPad.png(),ts=new Date().toLocaleString("es-PE",{dateStyle:"short",timeStyle:"short"}),im={...FI.im,firmaT:png,supNom:q,supTs:ts};
+  try{let pdf="";try{pdf=await pdfDe(FI.rec,im)}catch(x){if((FI.rec.mod||"af")!=="af"){er.textContent="No se pudo armar el PDF: "+(x&&x.message||x);er.hidden=false;return}}
+    b.textContent="Guardando firma…";const r=await call("supFirmar",S.token||"",FI.id,FI.link,q,png.split(",")[1],pdf);if(!r.ok){er.textContent=r.msg||"No se pudo firmar.";er.hidden=false;return}
+    FI.rec.firmaSup={...(FI.rec.firmaSup||{}),estado:"FIRMADO",por:r.por||q,ts:r.ts||Date.now()};fiPreview(FI.rec,im);$("fiAcc").hidden=true;const m=$("fiMsg");m.className="note ok";m.textContent="✔ Firmado. Tu firma ya está en el PDF del reporte y la jefatura de calidad lo ve en la app.";m.hidden=false;scrollTo(0,0);if(!FI.link)supCargar()}
+  catch(x){er.textContent="Sin conexión. Tu firma no se guardó: inténtalo otra vez con señal.";er.hidden=false}finally{b.disabled=false;b.textContent="✔ Firmar el reporte"}};
+$("fiDevolver").onclick=async()=>{const q=fiQuien();if(!q)return;const er=$("fiErr"),b=$("fiDevolver"),c=$("fiCom").value.trim();if(c.length<3){er.textContent="Escribe qué debe corregir el auditor.";er.hidden=false;return}
+  b.disabled=true;b.textContent="Enviando…";try{const r=await call("supDevolver",S.token||"",FI.id,FI.link,q,c);if(!r.ok){er.textContent=r.msg||"No se pudo enviar.";er.hidden=false;return}
+    $("fiAcc").hidden=true;const m=$("fiMsg");m.className="note ok";m.textContent="💬 Comentarios enviados. El reporte regresó al auditor para que lo corrija; cuando lo guarde, vuelve a estar pendiente de tu firma.";m.hidden=false;scrollTo(0,0);if(!FI.link)supCargar()}
+  catch(x){er.textContent="Sin conexión. Inténtalo otra vez con señal.";er.hidden=false}finally{b.disabled=false;b.textContent="💬 Devolver con comentarios"}};
+/* administradora: líneas que firma cada supervisor */
+function supCtl(a){if(!/SUPERVISOR/i.test(String(a.CARGO||"")))return"";return`<div class="row" style="gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:6px"><span class="pill wait">Supervisor</span><label class="fld" style="flex:1;min-width:200px"><span>Líneas que firma (separadas por coma, o TODAS)</span><input data-lin="${esc(a.DNI)}" value="${esc(a.LINEAS||"")}" list="lLin" autocapitalize="characters"></label><button type="button" class="btn sm" data-linsave="${esc(a.DNI)}">Guardar líneas</button></div>`}
+$("teamList").addEventListener("click",async e=>{const b=e.target.closest("[data-linsave]");if(!b)return;const i=document.querySelector(`[data-lin="${CSS.escape(b.dataset.linsave)}"]`);b.disabled=true;
+  try{const r=await admin("adminLineas",b.dataset.linsave,i?i.value:"");if(!r.ok){toast(r.msg);return}const a=TEAM.find(x=>String(x.DNI)===b.dataset.linsave);if(a)a.LINEAS=r.lineas;if(i)i.value=r.lineas;toast(r.lineas?"Líneas guardadas: "+r.lineas:"Sin líneas asignadas")}catch(x){}finally{b.disabled=false}});
 const _callReal=call;
 call=async function(fn,...a){if(S.prueba&&PRB_FN[fn])return PRB_FN[fn](...a);return _callReal(fn,...a)};
 const PRB_FN={
@@ -1394,7 +1486,7 @@ const PRB_FN={
    const r={id:m.id,tipo,taller:up(tal),hora:h,fecha:today(),estado:tipo==="INGRESO"?(h>S.prueba.hora?"TARDE":"A TIEMPO"):""};if(!S.prueba.marcas.some(x=>x.id===r.id))S.prueba.marcas.push(r);return{ok:true,prueba:1,...r}},
  miAsistencia:()=>({ok:true,hoy:today(),hora:S.prueba.hora,rows:S.prueba.marcas.slice()}),
  descargarPdf:()=>S.prueba.pdf?{ok:true,nombre:S.prueba.pdfNom||"PRUEBA.pdf",b64:S.prueba.pdf}:{ok:false,msg:"En modo prueba solo está el PDF del último reporte de prueba."},
- imagenes:()=>({ok:true,fotos:[]}),registrarUso:()=>({ok:true}),misCorrecciones:()=>({ok:true,rows:[]}),audFirmasPend:()=>({ok:true,rows:[]}),
+ imagenes:()=>({ok:true,fotos:[]}),firmaPedir:(t,id)=>({ok:true,token:"PRUEBA",lin:"PRUEBA"}),registrarUso:()=>({ok:true}),misCorrecciones:()=>({ok:true,rows:[]}),audFirmasPend:()=>({ok:true,rows:[]}),
  estado:()=>{throw new Error("NetworkError: modo prueba")},misReportes:()=>{throw new Error("NetworkError: modo prueba")},cambiarClave:()=>({ok:false,msg:"En modo prueba no se cambia la contraseña."})};
 function pruebaVerPdf(){const P=S.prueba;if(!P||!P.pdf){toast("Aún no hay un PDF de prueba.");return}const bin=atob(P.pdf),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([u],{type:"application/pdf"}));a.download=P.pdfNom||"PRUEBA.pdf";a.target="_blank";a.rel="noopener";document.body.appendChild(a);a.click();a.remove()}
@@ -1414,7 +1506,7 @@ function pruebaEntrar(a){if(S.prueba||!S.admin)return;libFlush();let p={af:"E"};
   $("role").textContent=title(a.NOMBRE||"")+" (prueba)";$("role").className="role";go("home");renderHome();renderTabs();banner();cargarAsis();scrollTo(0,0);toast("Modo prueba: así ve la app "+title(a.NOMBRE||"el auditor"))}
 function pruebaSalir(){const P=S.prueba;if(!P)return;libFlush();
   Object.entries(P.snap).forEach(([k,v])=>{try{if(v==null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(x){}});
-  if(LIB.ok){Object.keys(LIB.h).forEach(id=>{if(LIB.h[id].prueba){delete LIB.h[id];LIB.ids=LIB.ids.filter(x=>x!==id);idbDel(id);try{localStorage.removeItem("mfp_"+id)}catch(x){}}});if(!LIB.h[LIB.act])LIB.act=LIB.ids[0]||null;libIdx()}
+  LIBMODS.forEach(m=>{libSet(m);if(LIB.ok){Object.keys(LIB.h).forEach(id=>{if(LIB.h[id].prueba){delete LIB.h[id];LIB.ids=LIB.ids.filter(x=>x!==id);idbDel(id);try{localStorage.removeItem("mfp_"+id)}catch(x){}}});if(!LIB.h[LIB.act])LIB.act=LIB.ids[0]||null;libIdx()}});LIB=LIBS.proceso;
   const A=P.adm;S.admin=A.admin;S.principal=A.principal;S.perm=A.perm;S.me=A.me;S.hasta=A.hasta;S.firma=A.firma;S.clv=A.clv;S.prueba=null;S.mf=null;S.mfEdit=null;S.editing=null;
   try{loadForm(ls.get("draft3",null)||blankForm())}catch(x){}ASIS={hoy:"",rows:[],hora:"08:30"};
   const bar=$("pruebaBar");if(bar)bar.hidden=true;$("role").textContent=S.me&&S.me.nombre?title(S.me.nombre):"Administradora";$("role").className="role adm";
@@ -1437,7 +1529,7 @@ function mfRecord(f){const M=MODULOS[f.mod],cab=[],ss=secs(f),c=f.c;
 async function imgsDe(f,id){const tieneVB=!!((S.editing&&S.editSrc&&S.editSrc.vb)||(S.mfEdit&&S.mfSrc&&S.mfSrc.vb));const need=tieneVB||String(f.firmaA).startsWith("drive:")||String(f.firmaT).startsWith("drive:")||f.fotos.some(x=>x.id&&!x.src);let srv=null;
   if(need&&id){try{srv=await call("imagenes",S.token,id)}catch(x){}}
   const g=k=>isSig(f[k])?f[k]:(srv&&srv.ok?srv[k]:"");
-  return{firmaVB:srv&&srv.ok?srv.firmaVB||"":"",vbNom:srv&&srv.ok?srv.vbNom||"":"",firmaA:g("firmaA"),firmaT:g("firmaT"),fotos:f.fotos.map(x=>x.b64?"data:image/jpeg;base64,"+x.b64:x.src||(srv&&srv.ok?((srv.fotos||[]).find(y=>y.id===x.id)||{}).src:"")||"").filter(Boolean)}}
+  return{...supIm(S.mfSrc||S.editSrc||{}),firmaVB:srv&&srv.ok?srv.firmaVB||"":"",vbNom:srv&&srv.ok?srv.vbNom||"":"",firmaA:g("firmaA"),firmaT:g("firmaT"),fotos:f.fotos.map(x=>x.b64?"data:image/jpeg;base64,"+x.b64:x.src||(srv&&srv.ok?((srv.fotos||[]).find(y=>y.id===x.id)||{}).src:"")||"").filter(Boolean)}}
 /* ---- guardar formato genérico (con cola sin señal) ---- */
 $("mfForm").addEventListener("submit",async e=>{e.preventDefault();const f=S.mf,err=$("mfErr");err.hidden=true;$("mfDone").hidden=true;
   const req={telas:[["prov","Proveedor"],["fecha","Fecha"]],avios:[["prov","Proveedor"],["fecha","Fecha"]],corte:[...(S.mfEdit?[]:[["tcor","Tipo de corte"]]),["cli","Cliente"],["fecha","Fecha"],["lote","Lote auditado"]],segundas:[["fecha","Fecha"],["lin","Línea"]],proceso:[["cli","Cliente"],["lin","Línea"],["fecha","Fecha"],["cant","Cant. total"]],muestra:[["cli","Cliente"],["fecha","Fecha"]]}[f.mod]||[];
@@ -1450,12 +1542,12 @@ $("mfForm").addEventListener("submit",async e=>{e.preventDefault();const f=S.mf,
     const pdf=await pdfDe(rec,im);bt.textContent="Guardando…";
     const sig=s=>isSig(s)?s.split(",")[1]:"",p={rec,fotos:f.fotos.filter(x=>x.b64).map(x=>x.b64),firmas:{A:sig(f.firmaA),T:sig(f.firmaT)},pdf};
     try{resp=await call("guardarReporte",S.token,p.rec,p.fotos,p.firmas,p.pdf);
-      if(!resp.ok&&resp.sesion){setCola([...cola().filter(c=>c.rec.id!==rec.id),p]);ls.set("mf_"+f.mod,null);if(f.mod==="proceso"&&LIB.ok&&!wasEdit)libQuitar(f.id,f);cerrarSesion("Tu acceso ya no está activo. El reporte quedó guardado en el celular.");return}
+      if(!resp.ok&&resp.sesion){setCola([...cola().filter(c=>c.rec.id!==rec.id),p]);ls.set("mf_"+f.mod,null);if(LIBS[f.mod]&&LIBS[f.mod].ok&&!wasEdit){libSet(f.mod);libQuitar(f.id,f)}cerrarSesion("Tu acceso ya no está activo. El reporte quedó guardado en el celular.");return}
       if(!resp.ok){err.textContent=resp.msg||"No se pudo guardar.";err.hidden=false;return}}
     catch(x){if(netErr(x)&&!wasEdit){setCola([...cola().filter(c=>c.rec.id!==rec.id),p]);estado="cola"}else{err.textContent="No se pudo guardar. Revisa tu conexión y vuelve a tocar Guardar; tus datos siguen aquí.";err.hidden=false;return}}
     ls.set("mf_"+f.mod,null);const keep={c:{fecha:f.c.fecha,cli:f.c.cli,prov:f.c.prov,lin:f.c.lin}};S.mfEdit=null;S.mfSrc=null;
     if(wasEdit){toast("Corrección guardada");okSubido(false,"Corrección subida",`${MODULOS[f.mod].n}${rec.res?" · "+rec.res:""}. Ya está actualizada en el Excel y en Drive.`,rec);go(S.admin||histOk()?"hist":"home");return}
-    if(f.mod==="proceso"&&LIB.ok)libQuitar(f.id,f);else{S.mf={...blankMF(f.mod),sub:f.sub,c:{...blankMF(f.mod).c,...keep.c}};renderMF()}scrollTo(0,0);
+    if(LIBS[f.mod]&&LIBS[f.mod].ok){libSet(f.mod);libQuitar(f.id,f)}else{S.mf={...blankMF(f.mod),sub:f.sub,c:{...blankMF(f.mod).c,...keep.c}};renderMF()}scrollTo(0,0);
     const dn=$("mfDone");dn.className="note "+(estado==="cola"?"":"ok");dn.innerHTML=estado==="cola"?"Sin señal: el reporte quedó guardado en el celular y se enviará solo al volver la conexión.":`Reporte guardado${rec.res?` · <b>${esc(rec.res)}</b>`:""}.${puedeL(f.mod)?` <button type="button" class="btn gold sm" id="mfLastPdf">⬇ PDF</button>`:""} <button type="button" class="btn sm" id="mfLastWa">📲 WhatsApp</button>`;dn.hidden=false;
     const lp=$("mfLastPdf");if(lp)lp.onclick=()=>bajarPdf(rec.id,lp);const lw=$("mfLastWa");if(lw)lw.onclick=()=>compartirWA(rec,lw);toast(estado==="cola"?"Guardado en el celular":"Reporte guardado");okSubido(estado==="cola",estado==="cola"?"Guardado en el celular":"Reporte subido",estado==="cola"?"No hay señal. Se subirá solo cuando vuelva la conexión.":`${MODULOS[f.mod].n}${rec.res?" · "+rec.res:""}. Ya está en el Excel y en Drive.`,estado==="cola"?null:rec)}
   catch(x){err.textContent="No se pudo armar el PDF: "+(x&&x.message||x);err.hidden=false}
@@ -1480,7 +1572,7 @@ function qHead(titulo,cod,ver,sub){const m=String(ver||"").match(/V\.?\s*0*(\d+)
  <tr>${c("REVISADO POR:",REVISA)}</tr><tr>${c("APROBADO POR:",APRUEBA)}</tr><tr>${c("FORMATO:",cod)}</tr><tr>${c("FECHA:",vf)}</tr>
  <tr><td class="q-l" style="font-size:7pt"><b>VERSIÓN:</b> ${vn}</td><td class="q-l" style="font-size:7pt"><b>PÁG.:</b> {{PAG}}</td></tr></table>`}
 function qInf(rows){const n=rows[0].length;return`<table class="q-inf">${rows.map(r=>`<tr>${r.map(([k,v])=>`<td class="q-k" style="width:1%">${Q(k)}</td><td class="q-v" style="width:${Math.floor(88/n)}%">${Q(v)}</td>`).join("")}</tr>`).join("")}</table>`}
-function qSig(list,im,vb){return`<table class="q-sig" style="margin-top:auto"><tr>${list.map(([l,k,nm])=>`<td>${k==="A"&&im.firmaA?`<img src="${im.firmaA}">`:k==="T"&&im.firmaT?`<img src="${im.firmaT}">`:k==="VB"&&vb&&im.firmaVB?`<div style="position:relative"><img src="${im.firmaVB}"><div style="font-size:6pt;color:#0b7a2a;font-weight:normal">V°B° ${Q(vb)}</div></div>`:k==="VB"&&vb?`<div style="height:12mm;line-height:12mm;color:#0b7a2a">V°B° ${Q(vb)}</div>`:`<div style="height:12mm"></div>`}<div class="q-ln">${Q(l)}</div><div style="font-weight:normal;font-size:7pt">${Q(nm||"")}</div></td>`).join("")}</tr></table>`}
+function qSig(list,im,vb){return`<table class="q-sig" style="margin-top:auto"><tr>${list.map(([l,k,nm])=>`<td>${k==="A"&&im.firmaA?`<img src="${im.firmaA}">`:k==="T"&&im.firmaT?`<img src="${im.firmaT}">`:k==="VB"&&vb&&im.firmaVB?`<div style="position:relative"><img src="${im.firmaVB}"><div style="font-size:6pt;color:#0b7a2a;font-weight:normal">V°B° ${Q(vb)}</div></div>`:k==="VB"&&vb?`<div style="height:12mm;line-height:12mm;color:#0b7a2a">V°B° ${Q(vb)}</div>`:`<div style="height:12mm"></div>`}<div class="q-ln">${Q(l)}</div><div style="font-weight:normal;font-size:7pt">${Q((k==="T"&&im.supNom)||nm||"")}</div>${k==="T"&&im.supTs?`<div style="font-weight:normal;font-size:5.5pt;color:#0b7a2a">Firmado ${Q(im.supTs)}</div>`:""}</td>`).join("")}</tr></table>`}
 const qBox=b=>`<span class="q-box">${b?"X":""}</span>`;
 const qVB=r=>r.vb?new Date(r.vb).toLocaleString("es-PE",{dateStyle:"short",timeStyle:"short"}):"";
 function qFotos(r,im,titulo,off){off=off||0;const cp=((r.f&&r.f.fcap)||[]).slice(off);return im.fotos.length?`<div class="q-b" style="font-size:11pt;margin-bottom:3mm">${Q(titulo)} · ${Q(MODULOS[r.mod||"af"].n)} · ${dmy(r.fecha)}</div><div style="display:flex;flex-wrap:wrap;gap:4mm">${im.fotos.map((s,i)=>`<div style="width:88mm"><img src="${s}" style="width:88mm;max-height:100mm;object-fit:contain;border:1px solid #999;display:block">${cp[i]?`<div style="font-size:8.5pt;margin-top:1mm;white-space:normal"><b>Foto ${off+i+1}:</b> ${Q(cp[i])}</div>`:`<div style="font-size:8pt;margin-top:1mm;color:#666">Foto ${off+i+1}</div>`}</div>`).join("")}</div>`:""}
@@ -1628,7 +1720,7 @@ $("verList").addEventListener("click",e=>{const b=e.target.closest("[data-vpdf]"
 $("verRefresh").onclick=()=>abrirLista(S.verMod);
 /* ---- V°B° con el PDF del formato armado otra vez ---- */
 async function darVB(r,b){b.disabled=true;b.textContent="Armando PDF…";
-  try{const srv=await apiX("imagenes",r.id),mf=await apiX(S.admin?"adminMiFirma":"audMiFirma").catch(()=>({})),im={firmaA:srv.firmaA||"",firmaT:srv.firmaT||"",firmaVB:mf.firma||"",vbNom:mf.nombre||(S.me&&S.me.nombre)||"",fotos:(srv.fotos||[]).map(x=>x.src).filter(Boolean)};if(!mf.firma)toast(S.admin?"Aún no guardaste tu firma: el V°B° sale sin firma. Guárdala en Equipo › Mi firma.":"Aún no guardaste tu firma: dibújala arriba en «Mi firma para el V°B°».");
+  try{const srv=await apiX("imagenes",r.id),mf=await apiX(S.admin?"adminMiFirma":"audMiFirma").catch(()=>({})),im={firmaA:srv.firmaA||"",firmaT:srv.firmaT||"",firmaVB:mf.firma||"",vbNom:mf.nombre||(S.me&&S.me.nombre)||"",fotos:(srv.fotos||[]).map(x=>x.src).filter(Boolean),...supIm(r)};if(!mf.firma)toast(S.admin?"Aún no guardaste tu firma: el V°B° sale sin firma. Guárdala en Equipo › Mi firma.":"Aún no guardaste tu firma: dibújala arriba en «Mi firma para el V°B°».");
     const pdf=await pdfDe({...r,vb:Date.now()},im);b.textContent="Registrando…";const x=await apiX(S.admin?"adminVB":"audVB",r.id,pdf);if(x.ok){toast("Visto bueno registrado");if(S.admin)cargarHist();else{VBA=VBA.filter(z=>z.id!==r.id);renderVBAud()}}else{toast(x.msg);b.disabled=false;b.textContent="Dar V°B°"}}
   catch(x){toast("No se pudo registrar el V°B°.");b.disabled=false;b.textContent="Dar V°B°"}}
 /* ---- permisos de cada auditor por formato (administradora) ---- */
@@ -1681,7 +1773,7 @@ let CORR=[];
 async function cargarCorr(){if(S.admin||!S.token){$("corrCard").hidden=true;return}
   try{const r=await call("misCorrecciones",S.token);CORR=r&&r.ok?r.rows||[]:[]}catch(x){}renderCorr()}
 function renderCorr(){const c=$("corrCard");c.hidden=!!S.admin||!CORR.length;if(c.hidden)return;
-  $("corrList").innerHTML=CORR.map(r=>`<article class="item${r.rej?" rej":""}"><div class="t"><b><span class="pill wait">${esc(MODULOS[r.mod||"af"].n)}</span> ${esc(resumen(r))}</b></div><div class="m">${dmy(r.fecha)}${hRep(r)} · Auditor ${esc(title(r.aud))}</div><div class="acts"><button type="button" class="btn sm" data-ced="${esc(r.id)}">Corregir</button><button type="button" class="btn gold sm" data-cpdf="${esc(r.id)}">⬇ PDF</button></div></article>`).join("")}
+  $("corrList").innerHTML=CORR.map(r=>`<article class="item${r.rej?" rej":""}"><div class="t"><b><span class="pill wait">${esc(MODULOS[r.mod||"af"].n)}</span> ${esc(resumen(r))}</b></div><div class="m">${dmy(r.fecha)}${hRep(r)} · Auditor ${esc(title(r.aud))}</div>${r.firmaSup&&r.firmaSup.estado==="DEVUELTO"?`<div class="note err" style="margin-top:6px">💬 Devuelto por el supervisor ${esc(title(r.firmaSup.por||""))}: ${esc(r.firmaSup.com||"")}<br><small>Al guardar la corrección vuelve solo a firma.</small></div>`:""}<div class="acts"><button type="button" class="btn sm" data-ced="${esc(r.id)}">Corregir</button><button type="button" class="btn gold sm" data-cpdf="${esc(r.id)}">⬇ PDF</button></div></article>`).join("")}
 $("corrList").addEventListener("click",e=>{const a=e.target.closest("[data-ced]"),p=e.target.closest("[data-cpdf]");if(p)bajarPdf(p.dataset.cpdf,p);
   if(a){const r=CORR.find(x=>x.id===a.dataset.ced);if(r){if((r.mod||"af")==="af")editRecord(r);else abrirMF(r.mod,r)}}});
 /* rol para todos los formatos de un auditor de una vez */
@@ -1690,7 +1782,7 @@ $("teamList").addEventListener("change",e=>{const s=e.target.closest("[data-pmal
 function geoAhora(ms){return new Promise(res=>{if(!navigator.geolocation)return res(null);setTimeout(()=>res(null),(ms||15000)+3000);navigator.geolocation.getCurrentPosition(p=>{const g={lat:p.coords.latitude,lng:p.coords.longitude,acc:Math.round(p.coords.accuracy),ts:Date.now()};try{ls.set("geo_ult",g)}catch(x){}res(g)},e=>res(e&&e.code===1?{denegado:1}:null),{enableHighAccuracy:true,timeout:ms||15000,maximumAge:60000})})}
 async function geoForm(){const g=await geoAhora(8000);return g&&!g.denegado?g:null}
 let ASIS={hoy:"",rows:[],hora:"08:30"},asisTipo=null;const ASCOLA="asis_cola",ASREJ="asis_rech";
-async function cargarAsis(){const c=$("asisCard");if(!S.token){c.hidden=true;return}c.hidden=false;renderAsis();enviarAsis();
+async function cargarAsis(){const c=$("asisCard");if(!S.token||S.sup){c.hidden=true;return}c.hidden=false;renderAsis();enviarAsis();
   try{const r=await call("miAsistencia",S.token);if(r&&r.ok){ASIS=r;renderAsis()}}catch(x){}}
 const ASLAB={INGRESO:"Ingreso",SALIDA:"Salida",ALMUERZO_SALIDA:"Salida a almuerzo",ALMUERZO_REGRESO:"Regreso de almuerzo",TALLER_LLEGADA:"Llegada a taller",TALLER_SALIDA:"Salida de taller",TALLER_CAMBIO:"Cambio de taller"};
 const asMinA=h=>{const m=String(h||"").match(/^(\d{1,2}):(\d{2})/);return m?+m[1]*60+ +m[2]:NaN};
@@ -1953,9 +2045,10 @@ addEventListener("popstate",e=>{if(!S.token&&!S.admin)return;const st=e.state&&e
 (async function init(){
   S.form=blankForm();renderCola();
   if(!API){$("banner").className="note err";$("banner").textContent="Falta configurar el servidor (config.js).";$("banner").hidden=false}
+  const FLINK=new URLSearchParams(location.search).get("firma");if(FLINK){$("role").textContent="Supervisor";firmaAbrir(null,FLINK);return}
   if(MODO==="admin"){$("role").textContent="Administradora";$("role").className="role adm";go("adm");return}
   const ses=ls.get("af_ses",null),p=ls.get("af_pend",null);
-  if(ses&&ses.tok){S.token=ses.tok;S.hasta=ses.hasta||0;S.firma=!!ses.firma;S.me={nombre:ses.nombre};$("role").textContent=title(ses.nombre);loadForm(ls.get("draft3",null)||blankForm());go("home");banner();usoIni();
+  if(ses&&ses.tok){S.token=ses.tok;S.hasta=ses.hasta||0;S.firma=!!ses.firma;S.sup=!!ses.sup;S.me={nombre:ses.nombre};$("role").textContent=title(ses.nombre);loadForm(ls.get("draft3",null)||blankForm());go("home");banner();usoIni();
     if(navigator.onLine){await verificar();enviarCola();usoEnviar()}return}
   if(p){showPend("",p);try{const r=await call("ingresar",p);if(r.ok)setSesion(r);else if(/CLAVE/.test(r.estado||"")){clearInterval(pendT);aprobadoPedirClave(p,r)}else if(r.estado==="PENDIENTE")$("pNom").textContent=`${title(r.nombre)} · DNI ••••${p.slice(-4)}`;else{ls.set("af_pend",null);go("gate")}}catch(x){}return}
   go("gate");rstVer()})();
