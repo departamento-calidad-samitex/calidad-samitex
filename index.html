@@ -2062,11 +2062,19 @@ async function waPrep(r){const [p,im]=await Promise.all([call("descargarPdf",S.t
 async function compartirWA(r,btn){if(r&&r.prueba){pruebaVerPdf();return}if(S.prueba){toast("En modo prueba no se comparte por WhatsApp.");return}if(!r||!r.id||!btn)return;const k=r.id,t0=btn.dataset.t0||(btn.dataset.t0=btn.textContent);
   if(!WAP[k]){btn.disabled=true;btn.textContent="Preparando fotos…";
     try{WAP[k]=await waPrep(r)}catch(x){toast(sesErr(x)?"Tu sesión venció. Vuelve a ingresar.":netErr(x)?"Sin señal. Inténtalo con conexión.":String(x&&x.message||x));btn.disabled=false;btn.textContent=t0;return}
-    btn.disabled=false;btn.textContent=`📲 Enviar ahora (PDF + ${WAP[k].imgs.length} foto${WAP[k].imgs.length===1?"":"s"})`;toast("Listo. Toca «Enviar ahora» y elige el grupo de WhatsApp.");return}
-  const w=WAP[k],todos=[...w.imgs,w.pdf];delete WAP[k];btn.textContent=t0;
-  const opc=[{files:todos,text:w.txt,title:w.t},{files:todos},{files:w.imgs,text:w.txt},{files:[w.pdf],text:w.txt}].filter(d=>d.files.length);
-  const d=navigator.share&&navigator.canShare?opc.find(o=>{try{return navigator.canShare(o)}catch(x){return false}}):null;
-  if(d){try{await navigator.share(d);if(d.files.length<todos.length)toast("Tu celular no permitió enviar todo junto: se envió una parte.")}catch(x){if(x&&x.name!=="AbortError")toast("No se pudo compartir: "+(x.message||x.name))}return}
+    btn.disabled=false;btn.textContent=WAP[k].imgs.length?`📲 Enviar ahora (${WAP[k].imgs.length} foto${WAP[k].imgs.length===1?"":"s"} + PDF)`:"📲 Enviar ahora (PDF)";toast(WAP[k].imgs.length?"Listo. Primero se envían las fotos y luego el PDF, al mismo grupo.":"Listo. Toca «Enviar ahora» y elige el grupo de WhatsApp.");return}
+  const w=WAP[k],todos=[...w.imgs,w.pdf];
+  /* v21: fotos y PDF por separado — si van juntos WhatsApp manda las fotos como documento */
+  const puede=o=>{try{return!!(navigator.share&&navigator.canShare&&navigator.canShare(o))}catch(x){return false}};
+  if(w.imgs.length&&!w.solo){const o=[{files:w.imgs,text:w.txt},{files:w.imgs}].find(puede);
+    if(o){try{await navigator.share(o)}catch(x){if(x&&x.name==="AbortError"){btn.textContent=`📲 Enviar ahora (${w.imgs.length} foto${w.imgs.length===1?"":"s"} + PDF)`;return}toast("No se pudo compartir: "+(x.message||x.name));return}
+      w.solo="pdf";btn.textContent="📄 Ahora enviar el PDF";toast("Fotos enviadas como imagen. Toca «Ahora enviar el PDF» y elige el mismo grupo.");return}}
+  if(w.solo==="pdf"){const o=[{files:[w.pdf],title:w.t},{files:[w.pdf]}].find(puede);
+    if(o){try{await navigator.share(o);delete WAP[k];btn.textContent=t0}catch(x){if(x&&x.name!=="AbortError")toast("No se pudo compartir: "+(x.message||x.name))}return}}
+  delete WAP[k];btn.textContent=t0;
+  const opc=[{files:[w.pdf],text:w.txt,title:w.t},{files:[w.pdf]}];
+  const d=navigator.share&&navigator.canShare?opc.find(puede):null;
+  if(d){try{await navigator.share(d)}catch(x){if(x&&x.name!=="AbortError")toast("No se pudo compartir: "+(x.message||x.name))}return}
   /* computadora sin menú de compartir: descarga PDF y fotos y abre WhatsApp con el texto */
   todos.forEach((f,i)=>setTimeout(()=>{const a=document.createElement("a");a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();a.remove()},i*400));
   window.open("https://wa.me/?text="+encodeURIComponent(w.txt),"_blank","noopener");toast("Se descargaron el PDF y las fotos: adjúntalos en el chat de WhatsApp.")}
