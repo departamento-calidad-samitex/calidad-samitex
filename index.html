@@ -518,7 +518,7 @@ nav.tabs button[aria-selected=true] svg{filter:drop-shadow(0 3px 4px color-mix(i
 
 
   <section id="v-hist" class="view" hidden style="flex-direction:column;gap:12px">
-    <div class="row" style="justify-content:space-between"><div><h2 id="hiTitle">Reportes</h2><p class="sub" id="hiSub"></p></div><button type="button" class="btn ghost sm" id="hiRefresh">Actualizar</button></div>
+    <div class="row" style="justify-content:space-between"><div><h2 id="hiTitle">Reportes</h2><p class="sub" id="hiSub"></p></div><div class="row" style="gap:6px;flex-wrap:nowrap"><button type="button" class="btn ghost sm" id="hiSelTog" hidden>☑ Seleccionar</button><button type="button" class="btn ghost sm" id="hiRefresh">Actualizar</button></div></div>
     <div class="row">
       <input type="search" id="hiQ" placeholder="Buscar OF, artículo, cliente, auditor, fecha…" aria-label="Buscar" style="flex:1 1 220px">
       <div class="seg" role="group" aria-label="Estado"><button type="button" id="hiA" aria-pressed="true">Todas</button><button type="button" id="hiR" aria-pressed="false">Rechazadas</button></div>
@@ -970,27 +970,28 @@ async function cargarHist(){$("hiSub").textContent="Cargando…";
   try{if(S.admin)HIS=await admin("adminReportes");else{const r=await call("misReportes",S.token);if(!r.ok){toast(r.msg);S.hasta=0;go("form");return}S.hasta=r.hasta;HIS=r.rows}}
   catch(x){if(!S.admin)toast("Sin conexión.");HIS=[]}renderHist()}
 /* v16: filtros en Reportes (todas), tarjeta de firmas y PDF del día (administradoras) */
-const HF={f:"",d:"",aud:"",lin:"",fir:"",open:false};
+const HF={f:"",d:"",aud:"",lin:"",fir:"",sup:"",open:false};
 const isoD=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 const isoMas=n=>{const d=new Date();d.setDate(d.getDate()+n);return isoD(d)};
-const hfLin=r=>String((r&&(r.lin||(r.f&&r.f.c&&r.f.c.lin)||(r.c&&r.c.lin)))||"");
+const hfLin=r=>String((r&&((typeof r.lin==="string"&&r.lin)||(r.f&&r.f.c&&r.f.c.lin)||(r.c&&r.c.lin)))||"");
 function hfDia(){return HF.f==="hoy"?today():HF.f==="ayer"?isoMas(-1):HF.f==="d"&&HF.d?HF.d:""}
 function hfAplicar(A){const dia=hfDia(),sem=isoMas(-6);return A.filter(r=>{
   if(dia&&r.fecha!==dia)return false;if(HF.f==="sem"&&!(String(r.fecha||"")>=sem))return false;
-  if(HF.aud&&up(r.aud||"")!==HF.aud)return false;if(HF.lin&&up(hfLin(r))!==HF.lin)return false;
+  if(HF.aud&&up(r.aud||"")!==HF.aud)return false;if(HF.lin&&up(hfLin(r))!==HF.lin)return false;if(HF.sup){const f=r.firmaSup||{},v=!f.estado?"SIN":f.supNom?up(f.supNom):"LIN";if(v!==HF.sup)return false}
   if(HF.fir){const e=(r.firmaSup||{}).estado||"";if(HF.fir==="SIN"?!!e:e!==HF.fir)return false}return true})}
-const hfN=()=>["f","aud","lin","fir"].filter(k=>HF[k]).length;
+const hfN=()=>["f","aud","lin","fir","sup"].filter(k=>HF[k]).length;
 function hfRender(nT){const B=HI_MOD==="all"?HIS:HIS.filter(r=>(r.mod||"af")===HI_MOD),uq=a=>[...new Set(a.filter(Boolean))].sort((x,y)=>x.localeCompare(y,"es",{numeric:true}));
-  const auds=uq(B.map(r=>up(r.aud||""))),lins=uq(B.map(r=>up(hfLin(r)))),n=hfN(),dia=hfDia();
+  const auds=uq(B.map(r=>up(r.aud||""))),lins=uq(B.map(r=>up(hfLin(r)))),n=hfN(),dia=hfDia(),sups=uq([...B.map(r=>up((r.firmaSup||{}).supNom||"")),...(typeof SUPS!=="undefined"?SUPS:[]).map(x=>up(x.nombre||""))]);
   const ch=(k,v,t)=>`<button type="button" class="btn sm${HF[k]===v?"":" ghost"}" data-hf="${k}" data-v="${esc(v)}" aria-pressed="${HF[k]===v}">${esc(t)}</button>`;
   $("hiFil").innerHTML=`<div class="card" style="padding:10px 12px;gap:8px"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><button type="button" class="btn ghost sm" data-hfo="1" aria-expanded="${HF.open}">${HF.open?"▾":"▸"} Filtros${n?` (${n})`:""}</button><span class="sub">${fmt(nT)} reporte${nT===1?"":"s"}${n?` · <a href="#" data-hfx="1">Quitar filtros</a>`:""}</span></div>
+  <div class="row" style="gap:8px">${S.admin?`<label class="fld" style="flex:1 1 150px"><span>Auditora</span><select id="hfAud"><option value="">Todas</option>${auds.map(a=>`<option value="${esc(a)}"${HF.aud===a?" selected":""}>${esc(title(a))}</option>`).join("")}</select></label>`:""}<label class="fld" style="flex:1 1 150px"><span>Supervisor</span><select id="hfSup"><option value="">Todos</option>${sups.map(a=>`<option value="${esc(a)}"${HF.sup===a?" selected":""}>${esc(title(a))}</option>`).join("")}<option value="LIN"${HF.sup==="LIN"?" selected":""}>Cualquiera de la línea</option><option value="SIN"${HF.sup==="SIN"?" selected":""}>Sin enviar a firma</option></select></label></div>
   ${HF.open?`<div class="sub">Fecha</div><div class="row" style="gap:6px">${ch("f","","Todas")}${ch("f","hoy","Hoy")}${ch("f","ayer","Ayer")}${ch("f","sem","Esta semana")}<input type="date" id="hfDate" value="${esc(HF.f==="d"?HF.d:"")}" aria-label="Elegir día" style="flex:0 1 170px"></div>
-  <div class="row" style="gap:8px">${S.admin?`<label class="fld" style="flex:1 1 150px"><span>Auditora</span><select id="hfAud"><option value="">Todas</option>${auds.map(a=>`<option value="${esc(a)}"${HF.aud===a?" selected":""}>${esc(title(a))}</option>`).join("")}</select></label>`:""}<label class="fld" style="flex:1 1 120px"><span>Línea</span><select id="hfLin"><option value="">Todas</option>${lins.map(a=>`<option value="${esc(a)}"${HF.lin===a?" selected":""}>${esc(a)}</option>`).join("")}</select></label></div>
+  <div class="row" style="gap:8px"><label class="fld" style="flex:1 1 120px"><span>Línea</span><select id="hfLin"><option value="">Todas</option>${lins.map(a=>`<option value="${esc(a)}"${HF.lin===a?" selected":""}>${esc(a)}</option>`).join("")}</select></label></div>
   <div class="sub">Firma de supervisor</div><div class="row" style="gap:6px">${ch("fir","","Todas")}${ch("fir","PENDIENTE","Pendiente")}${ch("fir","FIRMADO","Firmado")}${ch("fir","DEVUELTO","Devuelto")}${ch("fir","SIN","Sin enviar")}</div>`:""}
   ${S.admin&&!S.prueba&&HI_MOD!=="all"&&MODULOS[HI_MOD]?`<button type="button" class="btn gold block" id="hfPdf">📅 PDF del día · ${esc(MODULOS[HI_MOD].n.replace(/^(Auditoría de |Reporte de )/,""))} · ${dmy(dia||today())}</button>`:""}</div>`}
 $("hiFil").addEventListener("click",e=>{const b=e.target.closest("[data-hf],[data-hfo],[data-hfx],#hfPdf");if(!b)return;
-  if(b.id==="hfPdf"){pdfDia(b);return}if(b.dataset.hfx){e.preventDefault();Object.assign(HF,{f:"",d:"",aud:"",lin:"",fir:""})}else if(b.dataset.hfo)HF.open=!HF.open;else{HF[b.dataset.hf]=b.dataset.v;if(b.dataset.hf==="f")HF.d=""}renderHist()});
-$("hiFil").addEventListener("change",e=>{const t=e.target;if(t.id==="hfDate"){HF.d=t.value;HF.f=t.value?"d":""}else if(t.id==="hfAud")HF.aud=t.value;else if(t.id==="hfLin")HF.lin=t.value;else return;renderHist()});
+  if(b.id==="hfPdf"){pdfDia(b);return}if(b.dataset.hfx){e.preventDefault();Object.assign(HF,{f:"",d:"",aud:"",lin:"",fir:"",sup:""})}else if(b.dataset.hfo)HF.open=!HF.open;else{HF[b.dataset.hf]=b.dataset.v;if(b.dataset.hf==="f")HF.d=""}renderHist()});
+$("hiFil").addEventListener("change",e=>{const t=e.target;if(t.id==="hfDate"){HF.d=t.value;HF.f=t.value?"d":""}else if(t.id==="hfAud")HF.aud=t.value;else if(t.id==="hfLin")HF.lin=t.value;else if(t.id==="hfSup")HF.sup=t.value;else return;renderHist()});
 function pdfLibCargar(){return window.PDFLib?Promise.resolve():new Promise((ok,no)=>{const x=document.createElement("script");x.src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js";x.onload=ok;x.onerror=()=>no(new Error("No se pudo cargar la herramienta para unir los PDF. Revisa tu conexión."));document.head.appendChild(x)})}
 async function pdfResumen(mod,dia,L){if(!window.html2canvas||!window.jspdf)throw new Error("Faltan las librerías del PDF; abre la app una vez con internet.");
   const cab=(r,re)=>{const x=(r.cab||[]).find(c=>re.test(String(c[0])));return x?x[1]:""},pr=mod==="proceso",ap=L.filter(r=>!r.rej).length,per=18,pages=[];
@@ -1029,7 +1030,7 @@ function fsRender(){const E=r=>(r.firmaSup||{}).estado||"",P=HIS.filter(r=>E(r)=
   const grp=(A,tit,est)=>{if(!A.length)return"";const m={};A.forEach(r=>{const k=MODULOS[r.mod||"af"]?r.mod||"af":"af";(m[k]=m[k]||[]).push(r)});
     return`<h4 class="grpH">${tit} <span>(${A.length})</span></h4>`+MOD_IDS.filter(k=>m[k]).map(k=>`<div class="sub" style="margin:6px 0 2px"><b>${esc(MODULOS[k].n)}</b> (${m[k].length})</div>`+m[k].slice(0,3).map(it).join("")+(m[k].length>3?`<button type="button" class="btn ghost sm" data-fsm="${k}" data-fse="${est}">Ver los ${m[k].length} ›</button>`:"")).join("")};
   $("fsBody").innerHTML=(grp(P,"✍ Pendientes de firma","PENDIENTE")+grp(D,"💬 Devueltos con comentarios","DEVUELTO")+(F.length?`<h4 class="grpH">✔ Firmados hoy <span>(${F.length})</span></h4><button type="button" class="btn ghost sm" data-fsm="all" data-fse="FIRMADO" data-fshoy="1">Ver los firmados de hoy ›</button>`:""))||'<p class="sub">Aún no hay reportes enviados a firma.</p>'}
-$("fsBody").addEventListener("click",e=>{const b=e.target.closest("[data-fsm]");if(!b)return;Object.assign(HF,{f:b.dataset.fshoy?"hoy":"",d:"",aud:"",lin:"",fir:b.dataset.fse||"",open:true});HI_MOD=b.dataset.fsm||"all";$("hiQ").value="";go("hist")});
+$("fsBody").addEventListener("click",e=>{const b=e.target.closest("[data-fsm]");if(!b)return;Object.assign(HF,{f:b.dataset.fshoy?"hoy":"",d:"",aud:"",lin:"",fir:b.dataset.fse||"",sup:"",open:true});HI_MOD=b.dataset.fsm||"all";$("hiQ").value="";go("hist")});
 $("fsBody").addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.closest("[data-fsm]"))e.target.click()});
 $("fsRef").onclick=()=>fsCargar(true);
 {const _rh=renderHome;renderHome=function(){_rh.apply(this,arguments);fsCargar()}}
@@ -1501,7 +1502,7 @@ async function firmaEnviar(r,b){if(S.prueba){toast("En modo prueba no se envía 
 /* v15: firma de supervisor asignada por reporte (al terminar el formato o desde Reportes) */
 let SUPS=ls.get("sups",[]),SUPS_T=0;
 async function supsCargar(){if(!S.token||Date.now()-SUPS_T<90000)return SUPS;SUPS_T=Date.now();try{const r=await call("supLista",S.token);if(r&&r.ok){SUPS=r.sups||[];ls.set("sups",SUPS)}}catch(e){}return SUPS}
-const linDe=r=>(r&&(r.lin||(r.f&&r.f.c&&r.f.c.lin)||(r.c&&r.c.lin)))||"";
+const linDe=r=>(r&&((typeof r.lin==="string"&&r.lin)||(r.f&&r.f.c&&r.f.c.lin)||(r.c&&r.c.lin)))||"";
 const supDeLin=(x,lin)=>{const L=(x.lineas||[]).map(NORM);return L.includes("TODAS")||(!!lin&&L.includes(NORM(lin)))};
 function supOpts(lin,cur,conNo){const A=SUPS.slice().sort((a,b)=>(supDeLin(b,lin)-supDeLin(a,lin))||String(a.nombre).localeCompare(String(b.nombre)));
   return(conNo?`<option value="">No enviar a firma</option>`:"")+`<option value="LINEA"${cur==="LINEA"?" selected":""}>Cualquier supervisor de la línea${lin?" "+esc(up(lin)):""}</option>`+
@@ -2144,6 +2145,27 @@ addEventListener("popstate",e=>{if(!S.token&&!S.admin)return;const st=e.state&&e
   if(S.tab==="mod"&&S.mfEdit){S.mfEdit=null;S.mfSrc=null}
   if(!st||st==="root"){if(Date.now()-atrasT<2500){history.back();return}atrasT=Date.now();try{history.pushState({cs:"home"},"")}catch(x){}if(S.tab!=="home")go("home",true);toast("Toca Atrás otra vez para salir de la app");return}
   let t=st;if(!["form","mod","ver"].includes(t)&&!tabsFor().includes(t))t="home";go(t,true)});
+/* ================= v18: Reportes ordenados — filas cortas, acciones al tocar ================= */
+document.head.insertAdjacentHTML("beforeend",`<style>
+#hiList .item{cursor:pointer;gap:3px;padding:12px 14px}
+#hiList .item:not(.open)>.m:not(.m1):not(.mp),#hiList .item:not(.open)>.d,#hiList .item:not(.open)>.acts{display:none}
+#hiList .item:not(.open)>.mp>a,#hiList .item:not(.open)>.mp.soloa,#hiList .item>.mp.vac{display:none}
+#hiList .item .t .pill.wait{display:none}
+#hiList .item .m1::after{content:"  ▾";color:var(--accent);font-weight:700}#hiList .item.open .m1::after{content:"  ▴"}
+#hiList .item.open{border-color:var(--accent)}#hiList .item.open>.acts{padding-top:6px;border-top:1px solid var(--line);margin-top:4px}
+#v-hist:not(.selm) #hiSelBar,#v-hist:not(.selm) .selck{display:none!important}
+</style>`);
+const HIOP=new Set();
+function hiOrden(){const L=$("hiList");if(!L)return;
+  L.querySelectorAll("article.item").forEach(a=>{const ms=[...a.children].filter(x=>x.classList.contains("m"));if(ms[0])ms[0].classList.add("m1");
+    const ac=a.querySelector(".acts"),pv=ac&&ac.previousElementSibling;
+    if(pv&&pv.classList.contains("m")&&pv!==ms[0]){pv.classList.add("mp");const otros=[...pv.childNodes].filter(n=>n.nodeType===1?n.tagName!=="A":!!n.textContent.trim());pv.classList.toggle("soloa",!otros.length);pv.classList.toggle("vac",!pv.textContent.trim())}
+    const b=a.querySelector("[data-pdf]"),id=b&&b.dataset.pdf;if(id){a.dataset.hid=id;a.classList.toggle("open",HIOP.has(id))}});
+  document.querySelectorAll("#hiTabs [data-hm]").forEach(b=>{b.hidden=/\(0\)\s*$/.test(b.textContent)&&b.getAttribute("aria-selected")!=="true"});
+  const sb=$("hiSelTog");if(sb)sb.hidden=!(S.admin&&S.principal)}
+{const _rhh=renderHist;renderHist=function(){_rhh.apply(this,arguments);try{hiOrden()}catch(e){}}}
+$("hiList").addEventListener("click",e=>{if(e.target.closest("button,a,input,label,select,textarea"))return;const a=e.target.closest("article.item[data-hid]");if(!a)return;const id=a.dataset.hid;if(HIOP.has(id))HIOP.delete(id);else HIOP.add(id);a.classList.toggle("open",HIOP.has(id))});
+$("hiSelTog").onclick=()=>{const on=$("v-hist").classList.toggle("selm");$("hiSelTog").textContent=on?"✕ Terminar":"☑ Seleccionar"};
 /* ================= v17: entrada moderna — huella/rostro o PIN, e Inicio renovado ================= */
 document.head.insertAdjacentHTML("beforeend",`<style>
 .card,.item{border-radius:16px}
