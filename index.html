@@ -2145,6 +2145,22 @@ addEventListener("popstate",e=>{if(!S.token&&!S.admin)return;const st=e.state&&e
   if(S.tab==="mod"&&S.mfEdit){S.mfEdit=null;S.mfSrc=null}
   if(!st||st==="root"){if(Date.now()-atrasT<2500){history.back();return}atrasT=Date.now();try{history.pushState({cs:"home"},"")}catch(x){}if(S.tab!=="home")go("home",true);toast("Toca Atrás otra vez para salir de la app");return}
   let t=st;if(!["form","mod","ver"].includes(t)&&!tabsFor().includes(t))t="home";go(t,true)});
+/* ================= v20: «Datos» inmovilizados — franja fija arriba al bajar en el formato ================= */
+document.head.insertAdjacentHTML("beforeend",`<style>#mfFix{position:fixed;z-index:19;display:flex}#mfFix[hidden]{display:none}#mfFix>button{flex:1;min-width:0;margin-top:6px;border-radius:14px;border:1px solid var(--gold);background:color-mix(in srgb,var(--surface) 94%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);color:var(--fg);padding:8px 12px;text-align:left;font:600 14px/1.25 var(--font-body);box-shadow:0 6px 18px #0006;cursor:pointer;display:flex;gap:8px;align-items:center}#mfFix small{display:block;font:500 11px var(--font-mono);color:var(--gold-ink);letter-spacing:.04em}#mfFix .tx{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}</style>`);
+const mfFix=document.createElement("div");mfFix.id="mfFix";mfFix.hidden=true;mfFix.innerHTML='<button type="button" aria-label="Ir a los datos del formato"><span class="tx"><small id="mfFixT"></small><span id="mfFixD"></span></span><span aria-hidden="true">▴</span></button>';document.body.appendChild(mfFix);
+function mfDatosCard(){const b=$("mfBody");if(!b)return null;const i=b.querySelector('[data-c="cli"],[data-c="prov"],[data-c="lin"],[data-c="fecha"]');return i?i.closest(".card"):null}
+function mfFixUpd(){if(S.tab!=="mod"||!S.mf){mfFix.hidden=true;return}const card=mfDatosCard(),hd=document.querySelector("header.top"),fm=$("mfForm");if(!card||!hd||!fm){mfFix.hidden=true;return}
+  const hb=hd.getBoundingClientRect().bottom,r=card.getBoundingClientRect();if(r.bottom>hb+8){mfFix.hidden=true;return}
+  const c=S.mf.c||{},M=MODULOS[S.mf.mod]||{n:""},fr=fm.getBoundingClientRect();
+  const d=[c.cli||c.prov,c.lin&&"Línea "+String(c.lin).trim(),c.of&&"OF "+c.of,c.oc&&"OC "+c.oc,c.art,c.fecha&&dmy(c.fecha)].filter(x=>x&&String(x).trim()).join(" · ")||"Sin datos todavía";
+  let h="";try{if(LIBS[S.mf.mod]&&LIBS[S.mf.mod].ok&&LIBS[S.mf.mod].ids.length>1){const L=LIBS[S.mf.mod];h=` · hoja ${L.ids.indexOf(S.mf.id)+1} de ${L.ids.length}`}}catch(e){}
+  $("mfFixT").textContent=(M.n||"").replace(/^(Auditoría de |Reporte de )/,"").toUpperCase()+h;$("mfFixD").textContent=d;
+  mfFix.style.top=hb+"px";mfFix.style.left=fr.left+"px";mfFix.style.width=fr.width+"px";mfFix.hidden=false}
+addEventListener("scroll",()=>requestAnimationFrame(mfFixUpd),{passive:true});addEventListener("resize",mfFixUpd);
+$("mfForm").addEventListener("input",()=>{if(!mfFix.hidden)mfFixUpd()});
+mfFix.querySelector("button").onclick=()=>{const c=mfDatosCard(),hd=document.querySelector("header.top");if(c)scrollTo({top:scrollY+c.getBoundingClientRect().top-(hd?hd.getBoundingClientRect().bottom:0)-8,behavior:"smooth"})};
+{const _go=go;go=function(){const r=_go.apply(this,arguments);try{mfFixUpd()}catch(e){}return r}}
+{const _rm3=renderMF;renderMF=function(){_rm3.apply(this,arguments);try{mfFixUpd()}catch(e){}}}
 /* ================= v19: paquete de firma — toda la línea del día en un solo envío ================= */
 document.head.insertAdjacentHTML("beforeend",`<style>#supList .item[hidden]{display:none}#paqBar{gap:8px}#paqBar[hidden]{display:none}.pqrow{display:flex;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px;cursor:pointer}.pqrow input{width:auto;min-height:0}</style>`);
 let PQ=null;
