@@ -849,6 +849,7 @@ $("f").addEventListener("submit",async e=>{e.preventDefault();const f=S.form,err
   if(!f.aud)miss.push("Auditor");
   if(miss.length){err.textContent="Completa: "+miss.join(", ")+".";err.hidden=false;return}
   if(!isSig(f.firmaA)&&!String(f.firmaA).startsWith("drive:")){err.textContent="Falta la firma del auditor.";err.hidden=false;return}
+  if(!S.editing&&f.fecha&&f.fecha!==today()&&!(await preguntar("Revisa la fecha",fwMsg(f.fecha),"Sí, enviar con "+dmy(f.fecha),"No, corregir la fecha"))){const x=$("fFecha");if(x){x.scrollIntoView({block:"center"});x.focus()}return}
   const p=payload(f),v=dictamen(f),bt=$("fSave");bt.disabled=true;bt.textContent="Armando PDF…";p.rec.geo=S.editing&&S.editSrc?(S.editSrc.geo||null):await geoForm();
   try{const im=await imgsDe(f,S.editing?f.id:null);p.pdf=await pdfDe({...p.rec,vb:S.editing&&S.editSrc?S.editSrc.vb:null},im)}catch(x){bt.disabled=false;bt.textContent=S.editing?"Guardar corrección":"Guardar reporte";err.textContent="No se pudo armar el PDF: "+(x&&x.message||x);err.hidden=false;return}
   bt.textContent="Guardando…";
@@ -975,8 +976,10 @@ const isoD=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+Str
 const isoMas=n=>{const d=new Date();d.setDate(d.getDate()+n);return isoD(d)};
 const hfLin=r=>String((r&&((typeof r.lin==="string"&&r.lin)||(r.f&&r.f.c&&r.f.c.lin)||(r.c&&r.c.lin)))||"");
 function hfDia(){return HF.f==="hoy"?today():HF.f==="ayer"?isoMas(-1):HF.f==="d"&&HF.d?HF.d:""}
+const fwMsg=d=>`Este reporte tiene fecha ${dmy(d)} y hoy es ${dmy(today())}. ¿La fecha es correcta?`;
+const envD=r=>r&&r.ts?isoD(new Date(r.ts)):"";
 function hfAplicar(A){const dia=hfDia(),sem=isoMas(-6);return A.filter(r=>{
-  if(dia&&r.fecha!==dia)return false;if(HF.f==="sem"&&!(String(r.fecha||"")>=sem))return false;
+  if(dia&&r.fecha!==dia&&envD(r)!==dia)return false;if(HF.f==="sem"&&!(String(r.fecha||"")>=sem)&&!(envD(r)>=sem))return false;
   if(HF.aud&&up(r.aud||"")!==HF.aud)return false;if(HF.lin&&up(hfLin(r))!==HF.lin)return false;if(HF.sup){const f=r.firmaSup||{},v=!f.estado?"SIN":f.supNom?up(f.supNom):"LIN";if(v!==HF.sup)return false}
   if(HF.fir){const e=(r.firmaSup||{}).estado||"";if(HF.fir==="SIN"?!!e:e!==HF.fir)return false}return true})}
 const hfN=()=>["f","aud","lin","fir","sup"].filter(k=>HF[k]).length;
@@ -1151,7 +1154,7 @@ setInterval(()=>usoEnviar(),90000);
 let TIM=null;S.tiDias=30;S.tiAud="";
 const hm=m=>{m=Number(m)||0;if(m<1)return`${Math.round(m*60)} s`;m=Math.round(m);return m>=60?`${Math.floor(m/60)} h ${String(m%60).padStart(2,"0")} min`:`${m} min`};
 const hora=t=>t?new Date(t).toLocaleTimeString("es-PE",{hour:"2-digit",minute:"2-digit"}):"—";
-function hRep(r){if(!r||!r.ts)return"";return` · hora ${hora(r.ts)}${r.tIni&&r.tIni<r.ts?` (inició ${hora(r.tIni)})`:""}${r.editado?` · corregido ${dt(r.editado)}`:""}`}
+function hRep(r){if(!r||!r.ts)return"";const ed=isoD(new Date(r.ts));return`${r.fecha&&ed!==r.fecha?` · <b style="color:#c0392b">enviado ${dmy(ed)}</b>`:""} · hora ${hora(r.ts)}${r.tIni&&r.tIni<r.ts?` (inició ${hora(r.tIni)})`:""}${r.editado?` · corregido ${dt(r.editado)}`:""}`}
 async function cargarTiempos(force){if(!S.principal){go("home");return}if(TIM&&TIM.d===S.tiDias)renderTiempos();$("tiSub").textContent="Actualizando…";
   try{const R=await admin("adminTiempos",S.tiDias);if(R&&R.ok===false){toast(R.msg);go("home");return}TIM={d:S.tiDias,rows:R||[],at:Date.now()};renderTiempos()}catch(x){}}
 setInterval(()=>{if(S.tab==="time"&&S.admin&&S.principal&&!document.hidden&&!TSEL.size)cargarTiempos(true)},60000);
@@ -1443,7 +1446,7 @@ const libKey=h=>{const c=(h&&h.c)||{};if(h&&h.mod==="segundas"){const l=NORM(c.l
 function libNom(h){const c=(h&&h.c)||{};if(h&&h.mod==="segundas")return(c.lin?"Línea "+String(c.lin).trim():"Línea nueva")+(c.fecha?" · "+dmy(c.fecha).slice(0,5):"");
   if(h&&h.mod==="corte"){const t0=[c.of?"OF "+String(c.of).trim():"",c.art?title(String(c.art).trim()):""].filter(Boolean).join(" · ")||"OF nueva",C=CORTE[h.sub||"cam"];return t0+(C?" · "+title(C.t).split(" ")[0]:"")}
   const t=[c.of?"OF "+String(c.of).trim():"",c.art?title(String(c.art).trim()):""].filter(Boolean).join(" · ")||"OF nueva";return t+(c.lin?" · "+String(c.lin).trim():"")}
-function libNueva(base){const b=blankMF(LIB.mod);if(S.prueba)b.prueba=1;if(base&&base.c){({proceso:["cli","planta","fecha"],corte:["cli","prov","fecha"],segundas:["fecha","proc","org"]}[LIB.mod]||[]).forEach(k=>{if(base.c[k])b.c[k]=base.c[k]});if(LIB.mod==="corte"&&base.sub)b.sub=base.sub}
+function libNueva(base){const b=blankMF(LIB.mod);if(S.prueba)b.prueba=1;if(base&&base.c){({proceso:["cli","planta"],corte:["cli","prov"],segundas:["proc","org"]}[LIB.mod]||[]).forEach(k=>{if(base.c[k])b.c[k]=base.c[k]});if(LIB.mod==="corte"&&base.sub)b.sub=base.sub}
   b.c.aud=(base&&base.c&&base.c.aud)||(S.admin?"":S.me&&S.me.nombre)||"";
   const i=LIB.ids.indexOf(LIB.act);LIB.ids.splice(i<0?LIB.ids.length:i+1,0,b.id);LIB.h[b.id]=b;LIB.act=b.id;libIdx();libPut(b);return b}
 function libActual(){if(!LIB.ok){const b=blankMF(LIB.mod);b._tmp=1;return b}if(!LIB.ids.length)libNueva(null);return LIB.h[LIB.act]||LIB.h[LIB.ids[0]]}
@@ -1641,6 +1644,7 @@ $("mfForm").addEventListener("submit",async e=>{e.preventDefault();const f=S.mf,
   if(f.mod==="proceso"&&!String(f.c.of||"").trim()&&!String(f.c.art||"").trim())miss.unshift("OF o artículo");
   if(miss.length){err.textContent="Completa: "+miss.join(", ")+".";err.hidden=false;return}
   if(!isSig(f.firmaA)&&!String(f.firmaA).startsWith("drive:")){err.textContent="Falta la firma del auditor.";err.hidden=false;return}
+  if(!S.mfEdit&&f.c.fecha&&f.c.fecha!==today()&&!(await preguntar("Revisa la fecha",fwMsg(f.c.fecha),"Sí, enviar con "+dmy(f.c.fecha),"No, corregir la fecha"))){const x=document.querySelector('#mfBody [data-c="fecha"]');if(x){x.scrollIntoView({block:"center"});x.focus()}return}
   const bt=$("mfSave");bt.disabled=true;bt.textContent="Armando PDF…";const wasEdit=!!S.mfEdit;let estado="ok",resp=null;
   try{const rec=mfRecord(f),im=await imgsDe(f,wasEdit?f.id:null);if(wasEdit&&S.mfSrc){rec.vb=S.mfSrc.vb||null}rec.geo=wasEdit&&S.mfSrc?(S.mfSrc.geo||null):await geoForm();
     const pdf=await pdfDe(rec,im);bt.textContent="Guardando…";
