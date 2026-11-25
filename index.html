@@ -2070,12 +2070,13 @@ async function compartirWA(r,btn){if(r&&r.prueba){pruebaVerPdf();return}if(S.pru
     try{WAP[k]=await waPrep(r)}catch(x){toast(sesErr(x)?"Tu sesión venció. Vuelve a ingresar.":netErr(x)?"Sin señal. Inténtalo con conexión.":String(x&&x.message||x));btn.disabled=false;btn.textContent=t0;return}
     btn.disabled=false;btn.textContent=WAP[k].imgs.length?`📲 Enviar ahora (${WAP[k].imgs.length} foto${WAP[k].imgs.length===1?"":"s"} + PDF)`:"📲 Enviar ahora (PDF)";toast(WAP[k].imgs.length?"Listo. Primero se envían las fotos y luego el PDF, al mismo grupo.":"Listo. Toca «Enviar ahora» y elige el grupo de WhatsApp.");return}
   const w=WAP[k],todos=[...w.imgs,w.pdf];
+  if(w.imgs.length&&!/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)&&window.ClipboardItem){delete WAP[k];btn.textContent=t0;waEscritorio(w);return}
   /* v21: fotos y PDF por separado — si van juntos WhatsApp manda las fotos como documento */
   const puede=o=>{try{return!!(navigator.share&&navigator.canShare&&navigator.canShare(o))}catch(x){return false}};
-  if(w.imgs.length&&!w.solo){const o=[{files:w.imgs,text:w.txt},{files:w.imgs}].find(puede);
+  if(w.imgs.length&&!w.solo){const o=[{files:w.imgs},{files:w.imgs,text:w.txt}].find(puede);
     if(o){try{await navigator.share(o)}catch(x){if(x&&x.name==="AbortError"){btn.textContent=`📲 Enviar ahora (${w.imgs.length} foto${w.imgs.length===1?"":"s"} + PDF)`;return}toast("No se pudo compartir: "+(x.message||x.name));return}
-      w.solo="pdf";btn.textContent="📄 Enviar también el PDF (opcional)";toast("Fotos enviadas como imagen. Si quieres, toca «Enviar también el PDF».");return}}
-  if(w.solo==="pdf"){const o=[{files:[w.pdf],title:w.t},{files:[w.pdf]}].find(puede);
+      w.solo="pdf";btn.textContent="📄 Enviar texto y PDF (opcional)";toast("Fotos enviadas como imagen. Si quieres, toca «Enviar texto y PDF».");return}}
+  if(w.solo==="pdf"){const o=[{files:[w.pdf],text:w.txt},{files:[w.pdf]}].find(puede);
     if(o){try{await navigator.share(o);delete WAP[k];btn.textContent=t0}catch(x){if(x&&x.name!=="AbortError")toast("No se pudo compartir: "+(x.message||x.name))}return}}
   delete WAP[k];btn.textContent=t0;
   const opc=[{files:[w.pdf],text:w.txt,title:w.t},{files:[w.pdf]}];
@@ -2241,6 +2242,25 @@ async function waRotular(src,linea1,linea2){const img=await new Promise((ok,no)=
   x.font=`bold ${fs}px Arial`;x.fillText(fit(linea1,`bold ${fs}px Arial`),Math.round(fs/2),H+Math.round(fs*0.35));
   x.fillStyle="#ffd56b";x.font=`${Math.round(fs*0.8)}px Arial`;x.fillText(fit(linea2,`${Math.round(fs*0.8)}px Arial`),Math.round(fs/2),H+Math.round(fs*1.6));
   const d=c.toDataURL("image/jpeg",.9);return d}
+/* ================= v24: WhatsApp en computadora — copiar y pegar cada foto (llega como imagen normal, no como archivo) */
+async function waCopiar(f){const url=URL.createObjectURL(f);try{const img=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=url});
+  const c=document.createElement("canvas");c.width=img.width;c.height=img.height;c.getContext("2d").drawImage(img,0,0);const png=await new Promise(r=>c.toBlob(r,"image/png"));
+  await navigator.clipboard.write([new ClipboardItem({"image/png":png})]);return true}finally{URL.revokeObjectURL(url)}}
+function waEscritorio(w){const d=document.createElement("div");d.className="okdlg";d.setAttribute("role","dialog");d.setAttribute("aria-modal","true");const U=w.imgs.map(f=>URL.createObjectURL(f));
+  d.innerHTML=`<div class="okbox" style="text-align:left;max-width:560px;max-height:92vh;overflow:auto"><h3>📲 Enviar al grupo de WhatsApp</h3>
+   <p class="sub">Abre el chat del grupo en WhatsApp Web o WhatsApp de escritorio. Toca <b>📋 Copiar</b> en una foto y en el chat pega con <b>Ctrl + V</b>: llega como imagen normal (no como archivo). Puedes copiar y pegar varias seguidas antes de enviar.</p>
+   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:10px 0">${w.imgs.map((f,i)=>`<div style="display:flex;flex-direction:column;gap:6px"><img src="${U[i]}" alt="Foto ${i+1}" style="width:100%;border-radius:8px;border:1px solid #ccc"><button type="button" class="btn sm" data-wac="${i}">📋 Copiar foto ${i+1}</button></div>`).join("")}</div>
+   <button type="button" class="btn ghost block" data-wat="1">📋 Copiar el texto del reporte</button>
+   <button type="button" class="btn ghost block" data-wap="1">⬇ Descargar el PDF (opcional)</button>
+   <button type="button" class="btn ghost block" data-wao="1">Abrir WhatsApp Web</button>
+   <button type="button" class="btn block" data-wax="1" style="margin-top:6px">Listo</button></div>`;
+  document.body.appendChild(d);
+  d.addEventListener("click",async e=>{const b=e.target.closest("button");if(!b)return;
+    if(b.dataset.wac!=null){const t=b.textContent;try{await waCopiar(w.imgs[+b.dataset.wac]);b.textContent="✔ Copiada · pega con Ctrl+V";setTimeout(()=>b.textContent=t,2500)}catch(x){toast("Tu navegador no permitió copiar la imagen. Usa Chrome o Edge actualizado.")}}
+    else if(b.dataset.wat){try{await navigator.clipboard.writeText(w.txt);toast("Texto copiado: pégalo en el chat con Ctrl+V")}catch(x){toast("No se pudo copiar el texto.")}}
+    else if(b.dataset.wap){const a=document.createElement("a");a.href=URL.createObjectURL(w.pdf);a.download=w.pdf.name;document.body.appendChild(a);a.click();a.remove()}
+    else if(b.dataset.wao)window.open("https://web.whatsapp.com/","_blank","noopener");
+    else if(b.dataset.wax){U.forEach(u=>URL.revokeObjectURL(u));d.remove()}})}
 /* ================= v19: paquete de firma — toda la línea del día en un solo envío ================= */
 document.head.insertAdjacentHTML("beforeend",`<style>#supList .item[hidden]{display:none}#paqBar{gap:8px}#paqBar[hidden]{display:none}.pqrow{display:flex;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px;cursor:pointer}.pqrow input{width:auto;min-height:0}</style>`);
 let PQ=null;
