@@ -807,11 +807,12 @@ const sesErr=e=>/SESION/.test(String(e&&e.message||e));
 
 /* ---- fotos: se guardan en el celular y se envían con el reporte ---- */
 function renderPhotos(){const fs=S.form.fotos;
-  $("photos").innerHTML=fs.map((f,i)=>`<div class="ph">${f.b64?`<img src="data:image/jpeg;base64,${f.b64}" alt="Foto ${i+1} del defecto">`:`<div style="display:flex;align-items:center;justify-content:center;height:100%;font:600 12px var(--font-mono);color:var(--muted)">En Drive</div>`}<button type="button" data-x="${i}" aria-label="Quitar foto">×</button></div>`).join("")+
+  const cpA=S.form.fcap||[],dl=afDefLista();$("photos").innerHTML=`<datalist id="afDefL">${dl.map(n=>`<option value="${esc(n)}">`).join("")}</datalist>`+fs.map((f,i)=>`<div class="phw"><div class="ph">${f.b64?`<img src="data:image/jpeg;base64,${f.b64}" alt="Foto ${i+1} del defecto">`:`<div style="display:flex;align-items:center;justify-content:center;height:100%;font:600 12px var(--font-mono);color:var(--muted)">En Drive</div>`}<button type="button" data-x="${i}" aria-label="Quitar foto">×</button></div><input data-afcap="${i}" list="afDefL" value="${esc(cpA[i]||"")}" placeholder="Defecto (ej. hilos sueltos)" aria-label="Defecto de la foto ${i+1}"></div>`).join("")+
    (fs.length<6?`<button type="button" class="addph" id="addph"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Agregar foto</button>`:"");
   const a=$("addph");if(a)a.onclick=()=>fotoPick("fFoto");
-  $("photoSub").textContent="Toma la foto con la cámara o elígela de la galería (hasta 6). Se guardan en Drive con el reporte."}
-$("photos").addEventListener("click",e=>{const x=e.target.closest("[data-x]");if(x){S.form.fotos.splice(+x.dataset.x,1);renderPhotos();saveDraft()}});
+  $("photoSub").textContent="Toma la foto con la cámara o elígela de la galería (hasta 6) y escribe debajo el defecto que muestra. Se guardan en Drive con el reporte."}
+$("photos").addEventListener("click",e=>{const x=e.target.closest("[data-x]");if(x){S.form.fotos.splice(+x.dataset.x,1);if(S.form.fcap)S.form.fcap.splice(+x.dataset.x,1);renderPhotos();saveDraft()}});
+$("photos").addEventListener("input",e=>{const x=e.target.closest("[data-afcap]");if(!x)return;(S.form.fcap=S.form.fcap||[])[+x.dataset.afcap]=x.value;saveDraft()});
 async function shrink(file){const url=URL.createObjectURL(file);try{const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=url});
   const k=Math.min(1,1024/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);c.getContext("2d").drawImage(img,0,0,c.width,c.height);
   return c.toDataURL("image/jpeg",.72).split(",")[1]}finally{URL.revokeObjectURL(url)}}
@@ -826,10 +827,10 @@ function toRecord(f){const fe=f.fecha||today(),proc=up(f.proc);
     nombres:Object.fromEntries(Object.keys(d).map(c=>[c,DEFS.get(c)?.n||c])),grupos:Object.fromEntries(Object.keys(d).map(c=>[c,DEFS.get(c)?.gn||""])),prLista:FCAT.pr,
     pr:Object.fromEntries(Object.entries(f.pr).filter(([,x])=>x==="A"||x==="R")),ck:{...f.ck},
     obs:f.obs.filter(o=>o.t||o.ft||o.pf).map(o=>({t:String(o.t).trim(),ft:String(o.ft).trim(),pf:String(o.pf).trim()})),
-    esCorreccion:!!S.editing,aud:up(f.aud),talResp:String(f.talResp||"").trim(),fotosKeep:f.fotos.filter(x=>x.id).map(x=>x.id)}}
+    esCorreccion:!!S.editing,aud:up(f.aud),talResp:String(f.talResp||"").trim(),fotosKeep:f.fotos.filter(x=>x.id).map(x=>x.id),fcap:Array.from({length:f.fotos.length},(_,i)=>String((f.fcap||[])[i]||"").trim())}}
 function payload(f){const sig=s=>isSig(s)?s.split(",")[1]:"";return{rec:toRecord(f),fotos:f.fotos.filter(x=>x.b64).map(x=>x.b64),firmas:{A:f.firmaA&&!f.firmaA.startsWith("drive:")?sig(f.firmaA):"",T:f.firmaT&&!f.firmaT.startsWith("drive:")?sig(f.firmaT):""}}}
 function fromRecord(r){return{id:r.id,proc:r.proc,tipo:r.tipo||"AUD. FINAL",op:r.op,fecha:r.fecha,aud:r.aud,cli:r.cli,tal:r.tal,lin:r.lin,desc:r.desc||"",of:r.of,art:r.art,color:r.color,lote:r.lote??"",mue:r.mue??"",
-  d:JSON.parse(JSON.stringify(r.d||{})),pr:{...(r.pr||{})},ck:{...(r.ck||{})},obs:r.obs||[],fotos:(r.fotos||[]).map(id=>({id})),talResp:r.talResp||"",firmaA:r.firmaA?"drive:"+r.firmaA:"",firmaT:r.firmaT?"drive:"+r.firmaT:""}}
+  d:JSON.parse(JSON.stringify(r.d||{})),pr:{...(r.pr||{})},ck:{...(r.ck||{})},obs:r.obs||[],fotos:(r.fotos||[]).map(id=>({id})),fcap:(r.fcap||[]).slice(),talResp:r.talResp||"",firmaA:r.firmaA?"drive:"+r.firmaA:"",firmaT:r.firmaT?"drive:"+r.firmaT:""}}
 const COLA="af_cola";
 function cola(){return ls.get(COLA,[])}
 function setCola(c){ls.set(COLA,c);renderCola()}
@@ -1683,7 +1684,7 @@ function qInf(rows){const n=rows[0].length;return`<table class="q-inf">${rows.ma
 function qSig(list,im,vb){return`<table class="q-sig" style="margin-top:auto"><tr>${list.map(([l,k,nm])=>`<td>${k==="A"&&im.firmaA?`<img src="${im.firmaA}">`:k==="T"&&im.firmaT?`<img src="${im.firmaT}">`:k==="VB"&&vb&&im.firmaVB?`<div style="position:relative"><img src="${im.firmaVB}"><div style="font-size:6pt;color:#0b7a2a;font-weight:normal">V°B° ${Q(vb)}</div></div>`:k==="VB"&&vb?`<div style="height:12mm;line-height:12mm;color:#0b7a2a">V°B° ${Q(vb)}</div>`:`<div style="height:12mm"></div>`}<div class="q-ln">${Q(l)}</div><div style="font-weight:normal;font-size:7pt">${Q((k==="T"&&im.supNom)||(k==="VB"&&vb&&im.vbNom?title(im.vbNom):"")||nm||"")}</div>${k==="T"&&im.supTs?`<div style="font-weight:normal;font-size:5.5pt;color:#0b7a2a">Firmado ${Q(im.supTs)}</div>`:""}${k==="T"&&im.supObs?`<div style="font-weight:normal;font-size:5.5pt;white-space:normal;line-height:1.15">Obs.: ${Q(im.supObs)}</div>`:""}${k==="VB"&&vb&&im.vbObs?`<div style="font-weight:normal;font-size:5.5pt;white-space:normal;line-height:1.15">Obs.: ${Q(im.vbObs)}</div>`:""}</td>`).join("")}</tr></table>`}
 const qBox=b=>`<span class="q-box">${b?"X":""}</span>`;
 const qVB=r=>r.vb?new Date(r.vb).toLocaleString("es-PE",{dateStyle:"short",timeStyle:"short"}):"";
-function qFotos(r,im,titulo,off){off=off||0;const cp=((r.f&&r.f.fcap)||[]).slice(off);return im.fotos.length?`<div class="q-b" style="font-size:11pt;margin-bottom:3mm">${Q(titulo)} · ${Q(MODULOS[r.mod||"af"].n)} · ${dmy(r.fecha)}</div><div style="display:flex;flex-wrap:wrap;gap:4mm">${im.fotos.map((s,i)=>`<div style="width:88mm"><img src="${s}" style="width:88mm;max-height:100mm;object-fit:contain;border:1px solid #999;display:block">${cp[i]?`<div style="font-size:8.5pt;margin-top:1mm;white-space:normal"><b>Foto ${off+i+1}:</b> ${Q(cp[i])}</div>`:`<div style="font-size:8pt;margin-top:1mm;color:#666">Foto ${off+i+1}</div>`}</div>`).join("")}</div>`:""}
+function qFotos(r,im,titulo,off){off=off||0;const cp=((r.f&&r.f.fcap)||r.fcap||[]).slice(off);return im.fotos.length?`<div class="q-b" style="font-size:11pt;margin-bottom:3mm">${Q(titulo)} · ${Q(MODULOS[r.mod||"af"].n)} · ${dmy(r.fecha)}</div><div style="display:flex;flex-wrap:wrap;gap:4mm">${im.fotos.map((s,i)=>`<div style="width:88mm"><img src="${s}" style="width:88mm;max-height:100mm;object-fit:contain;border:1px solid #999;display:block">${cp[i]?`<div style="font-size:8.5pt;margin-top:1mm;white-space:normal"><b>Foto ${off+i+1}:</b> ${Q(cp[i])}</div>`:`<div style="font-size:8pt;margin-top:1mm;color:#666">Foto ${off+i+1}</div>`}</div>`).join("")}</div>`:""}
 function pagina(html,land){return`<div class="q" style="font-size:7pt;min-height:${land?210:297}mm">${html}<div style="text-align:center;font-size:5.6pt;color:#555;margin-top:1.5mm">Formato digital desarrollado por ${Q(ELAB)} · Calidad Samitex</div></div>`}
 /* ---- TELAS ---- */
 function pdfTelas(r,im){const f=r.f,c=f.c,R=rowsDe(f,"rol"),P=f.p,n=25;
@@ -2058,8 +2059,9 @@ function waTit(r){const m=r.mod||"af";let t;try{t=m==="af"?`Auditoría Final · 
   return{t,res:up(r.res||(m==="af"?(r.rej?"RECHAZADO":"APROBADO"):""))}}
 async function waPrep(r){const [p,im]=await Promise.all([call("descargarPdf",S.token,r.id),call("imagenes",S.token,r.id).catch(()=>null)]);
   if(!p||!p.ok)throw new Error(p&&p.msg||"No se pudo obtener el PDF.");
-  const cap=(r.f&&r.f.fcap)||[],fotos=(im&&im.ok?im.fotos||[]:[]).filter(x=>x&&x.src);
-  const imgs=fotos.map((x,i)=>durl2file(x.src,`Foto ${i+1}${cap[i]?" - "+waNom(cap[i]):""}.jpg`)).filter(Boolean);
+  const cap=(r.f&&r.f.fcap)||r.fcap||[],fotos=(im&&im.ok?im.fotos||[]:[]).filter(x=>x&&x.src);
+  const of=(r.mod||"af")==="af"?r.of:(r.f&&r.f.c&&r.f.c.of)||r.of||"",lin2=[of?"OF "+of:"",title(r.aud||""),dmy(r.fecha)].filter(Boolean).join(" · ");
+  const imgs=(await Promise.all(fotos.map(async(x,i)=>{let s=x.src;try{s=await waRotular(x.src,`Foto ${i+1}: ${cap[i]?String(cap[i]).trim():"sin descripción"}`,lin2)}catch(e){}return durl2file(s,`${cap[i]?waNom(cap[i]):"Foto "+(i+1)}.jpg`)}))).filter(Boolean);
   const pdf=new File([b64u8(p.b64)],p.nombre||"Reporte.pdf",{type:"application/pdf"}),{t,res}=waTit(r);
   const txt=`*${t}*${res?"\n"+(/RECHAZ/.test(res)?"🔴 ":"🟢 ")+res:""}\n${dmy(r.fecha)}${r.aud?" · Auditor "+title(r.aud):""}${imgs.length?"\n\nFotos:\n"+imgs.map((f,i)=>`${i+1}. ${cap[i]||"Foto "+(i+1)}`).join("\n"):""}\n\nDepartamento de Calidad Samitex`;
   return{pdf,imgs,txt,t}}
@@ -2072,7 +2074,7 @@ async function compartirWA(r,btn){if(r&&r.prueba){pruebaVerPdf();return}if(S.pru
   const puede=o=>{try{return!!(navigator.share&&navigator.canShare&&navigator.canShare(o))}catch(x){return false}};
   if(w.imgs.length&&!w.solo){const o=[{files:w.imgs,text:w.txt},{files:w.imgs}].find(puede);
     if(o){try{await navigator.share(o)}catch(x){if(x&&x.name==="AbortError"){btn.textContent=`📲 Enviar ahora (${w.imgs.length} foto${w.imgs.length===1?"":"s"} + PDF)`;return}toast("No se pudo compartir: "+(x.message||x.name));return}
-      w.solo="pdf";btn.textContent="📄 Ahora enviar el PDF";toast("Fotos enviadas como imagen. Toca «Ahora enviar el PDF» y elige el mismo grupo.");return}}
+      w.solo="pdf";btn.textContent="📄 Enviar también el PDF (opcional)";toast("Fotos enviadas como imagen. Si quieres, toca «Enviar también el PDF».");return}}
   if(w.solo==="pdf"){const o=[{files:[w.pdf],title:w.t},{files:[w.pdf]}].find(puede);
     if(o){try{await navigator.share(o);delete WAP[k];btn.textContent=t0}catch(x){if(x&&x.name!=="AbortError")toast("No se pudo compartir: "+(x.message||x.name))}return}}
   delete WAP[k];btn.textContent=t0;
@@ -2230,6 +2232,15 @@ document.addEventListener("click",e=>{const u=e.target.closest("[data-mifu]"),g=
   if(g){const src=esMF?(S.mf&&S.mf.firmaA):(S.form&&S.form.firmaA);if(!isSig(src)){toast("Primero dibuja tu firma en el recuadro.");return}ls.set(MIF_K,{nom:S.me&&S.me.nombre||"",png:src});toast("Firma guardada. La próxima vez toca «✍ Usar mi firma».");return}
   const src=mifGet();if(!src){toast("Aún no guardaste tu firma: dibújala y toca «💾 Guardar».");return}
   if(esMF){if(!S.mf)return;S.mf.firmaA=src;if(mpads.A)mpads.A.load(src);saveMF()}else{S.form.firmaA=src;pads.sA.load(src);saveDraft()}toast("Firma cargada ✔")});
+/* ================= v23: nombre del defecto en cada foto (Auditoría Final) + fotos rotuladas para WhatsApp */
+function afDefLista(){const L=Object.keys((S.form&&S.form.d)||{}).filter(c=>{const x=S.form.d[c];return x&&(x.M||x.m)}).map(c=>title((DEFS.get(c)||{}).n||c));return[...new Set(L)]}
+async function waRotular(src,linea1,linea2){const img=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=src});
+  const W=img.width,H=img.height,fs=Math.max(22,Math.round(W/22)),band=Math.round(fs*2.9),c=document.createElement("canvas");c.width=W;c.height=H+band;const x=c.getContext("2d");
+  x.drawImage(img,0,0);x.fillStyle="#0a1f74";x.fillRect(0,H,W,band);x.fillStyle="#fff";x.textBaseline="top";
+  const fit=(t,f)=>{x.font=f;let s=String(t||"");while(s.length>3&&x.measureText(s).width>W-fs)s=s.slice(0,-2);return s!==String(t||"")?s.trim()+"…":s};
+  x.font=`bold ${fs}px Arial`;x.fillText(fit(linea1,`bold ${fs}px Arial`),Math.round(fs/2),H+Math.round(fs*0.35));
+  x.fillStyle="#ffd56b";x.font=`${Math.round(fs*0.8)}px Arial`;x.fillText(fit(linea2,`${Math.round(fs*0.8)}px Arial`),Math.round(fs/2),H+Math.round(fs*1.6));
+  const d=c.toDataURL("image/jpeg",.9);return d}
 /* ================= v19: paquete de firma — toda la línea del día en un solo envío ================= */
 document.head.insertAdjacentHTML("beforeend",`<style>#supList .item[hidden]{display:none}#paqBar{gap:8px}#paqBar[hidden]{display:none}.pqrow{display:flex;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px;cursor:pointer}.pqrow input{width:auto;min-height:0}</style>`);
 let PQ=null;
