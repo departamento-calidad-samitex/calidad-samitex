@@ -2064,18 +2064,19 @@ async function waPrep(r){const [p,im]=await Promise.all([call("descargarPdf",S.t
   const imgs=(await Promise.all(fotos.map(async(x,i)=>{let s=x.src;try{s=await waRotular(x.src,`Foto ${i+1}: ${cap[i]?String(cap[i]).trim():"sin descripción"}`,lin2)}catch(e){}return durl2file(s,`${cap[i]?waNom(cap[i]):"Foto "+(i+1)}.jpg`)}))).filter(Boolean);
   const pdf=new File([b64u8(p.b64)],p.nombre||"Reporte.pdf",{type:"application/pdf"}),{t,res}=waTit(r);
   const txt=`*${t}*${res?"\n"+(/RECHAZ/.test(res)?"🔴 ":"🟢 ")+res:""}\n${dmy(r.fecha)}${r.aud?" · Auditor "+title(r.aud):""}${imgs.length?"\n\nFotos:\n"+imgs.map((f,i)=>`${i+1}. ${cap[i]||"Foto "+(i+1)}`).join("\n"):""}\n\nDepartamento de Calidad Samitex`;
-  return{pdf,imgs,txt,t}}
+  let fmt=[];try{fmt=await formatoImgs(r,{firmaA:(im&&im.firmaA)||"",firmaT:(im&&im.firmaT)||"",firmaVB:(im&&im.firmaVB)||"",vbNom:(im&&im.vbNom)||"",...supIm(r)})}catch(e){fmt=[]}
+  return{pdf,imgs:[...fmt,...imgs],txt,t,nf:fmt.length}}
 async function compartirWA(r,btn){if(r&&r.prueba){pruebaVerPdf();return}if(S.prueba){toast("En modo prueba no se comparte por WhatsApp.");return}if(!r||!r.id||!btn)return;const k=r.id,t0=btn.dataset.t0||(btn.dataset.t0=btn.textContent);
   if(!WAP[k]){btn.disabled=true;btn.textContent="Preparando fotos…";
     try{WAP[k]=await waPrep(r)}catch(x){toast(sesErr(x)?"Tu sesión venció. Vuelve a ingresar.":netErr(x)?"Sin señal. Inténtalo con conexión.":String(x&&x.message||x));btn.disabled=false;btn.textContent=t0;return}
-    btn.disabled=false;btn.textContent=WAP[k].imgs.length?`📲 Enviar ahora (${WAP[k].imgs.length} foto${WAP[k].imgs.length===1?"":"s"} + PDF)`:"📲 Enviar ahora (PDF)";toast(WAP[k].imgs.length?"Listo. Primero se envían las fotos y luego el PDF, al mismo grupo.":"Listo. Toca «Enviar ahora» y elige el grupo de WhatsApp.");return}
+    btn.disabled=false;btn.textContent=WAP[k].imgs.length?`📲 Enviar ahora (${WAP[k].nf?"formato + ":""}${WAP[k].imgs.length-(WAP[k].nf||0)} foto${WAP[k].imgs.length-(WAP[k].nf||0)===1?"":"s"})`:"📲 Enviar ahora (PDF)";toast(WAP[k].imgs.length?"Listo. Primero se envían las fotos y luego el PDF, al mismo grupo.":"Listo. Toca «Enviar ahora» y elige el grupo de WhatsApp.");return}
   const w=WAP[k],todos=[...w.imgs,w.pdf];
   if(w.imgs.length&&!/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)&&window.ClipboardItem){delete WAP[k];btn.textContent=t0;waEscritorio(w);return}
   /* v21: fotos y PDF por separado — si van juntos WhatsApp manda las fotos como documento */
   const puede=o=>{try{return!!(navigator.share&&navigator.canShare&&navigator.canShare(o))}catch(x){return false}};
   if(w.imgs.length&&!w.solo){const o=[{files:w.imgs},{files:w.imgs,text:w.txt}].find(puede);
-    if(o){try{await navigator.share(o)}catch(x){if(x&&x.name==="AbortError"){btn.textContent=`📲 Enviar ahora (${w.imgs.length} foto${w.imgs.length===1?"":"s"} + PDF)`;return}toast("No se pudo compartir: "+(x.message||x.name));return}
-      w.solo="pdf";btn.textContent="📄 Enviar texto y PDF (opcional)";toast("Fotos enviadas como imagen. Si quieres, toca «Enviar texto y PDF».");return}}
+    if(o){try{await navigator.share(o)}catch(x){if(x&&x.name==="AbortError"){btn.textContent=`📲 Enviar ahora (${w.nf?"formato + ":""}${w.imgs.length-(w.nf||0)} foto${w.imgs.length-(w.nf||0)===1?"":"s"})`;return}toast("No se pudo compartir: "+(x.message||x.name));return}
+      w.solo="pdf";btn.textContent="📄 Enviar texto y PDF (opcional)";toast("Formato y fotos enviados como imagen. Si quieres, toca «Enviar texto y PDF».");return}}
   if(w.solo==="pdf"){const o=[{files:[w.pdf],text:w.txt},{files:[w.pdf]}].find(puede);
     if(o){try{await navigator.share(o);delete WAP[k];btn.textContent=t0}catch(x){if(x&&x.name!=="AbortError")toast("No se pudo compartir: "+(x.message||x.name))}return}}
   delete WAP[k];btn.textContent=t0;
@@ -2249,7 +2250,7 @@ async function waCopiar(f){const url=URL.createObjectURL(f);try{const img=await 
 function waEscritorio(w){const d=document.createElement("div");d.className="okdlg";d.setAttribute("role","dialog");d.setAttribute("aria-modal","true");const U=w.imgs.map(f=>URL.createObjectURL(f));
   d.innerHTML=`<div class="okbox" style="text-align:left;max-width:560px;max-height:92vh;overflow:auto"><h3>📲 Enviar al grupo de WhatsApp</h3>
    <p class="sub">Abre el chat del grupo en WhatsApp Web o WhatsApp de escritorio. Toca <b>📋 Copiar</b> en una foto y en el chat pega con <b>Ctrl + V</b>: llega como imagen normal (no como archivo). Puedes copiar y pegar varias seguidas antes de enviar.</p>
-   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:10px 0">${w.imgs.map((f,i)=>`<div style="display:flex;flex-direction:column;gap:6px"><img src="${U[i]}" alt="Foto ${i+1}" style="width:100%;border-radius:8px;border:1px solid #ccc"><button type="button" class="btn sm" data-wac="${i}">📋 Copiar foto ${i+1}</button></div>`).join("")}</div>
+   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:10px 0">${w.imgs.map((f,i)=>`<div style="display:flex;flex-direction:column;gap:6px"><img src="${U[i]}" alt="Foto ${i+1}" style="width:100%;border-radius:8px;border:1px solid #ccc"><button type="button" class="btn sm" data-wac="${i}">📋 Copiar ${i<(w.nf||0)?"formato"+((w.nf||0)>1?" "+(i+1):""):"foto "+(i+1-(w.nf||0))}</button></div>`).join("")}</div>
    <button type="button" class="btn ghost block" data-wat="1">📋 Copiar el texto del reporte</button>
    <button type="button" class="btn ghost block" data-wap="1">⬇ Descargar el PDF (opcional)</button>
    <button type="button" class="btn ghost block" data-wao="1">Abrir WhatsApp Web</button>
@@ -2261,6 +2262,15 @@ function waEscritorio(w){const d=document.createElement("div");d.className="okdl
     else if(b.dataset.wap){const a=document.createElement("a");a.href=URL.createObjectURL(w.pdf);a.download=w.pdf.name;document.body.appendChild(a);a.click();a.remove()}
     else if(b.dataset.wao)window.open("https://web.whatsapp.com/","_blank","noopener");
     else if(b.dataset.wax){U.forEach(u=>URL.revokeObjectURL(u));d.remove()}})}
+/* ================= v25: el formato también como imagen para WhatsApp (una imagen por hoja, sin la hoja de fotos) */
+async function formatoImgs(r,im){if(!window.html2canvas)return[];const land=!!MODULOS[r.mod||"af"].land,W=land?297:210,H=land?210:297,pages=paginasDe(r,{...im,fotos:[]}),out=[];
+  const host=document.createElement("div");host.style.cssText=`position:fixed;left:-20000px;top:0;width:${W}mm;background:#fff;z-index:-1`;document.body.appendChild(host);
+  const of=(r.mod||"af")==="af"?r.of:(r.f&&r.f.c&&r.f.c.of)||r.of||"",nom=waNom(`${MODULOS[r.mod||"af"].n}${of?" OF "+of:""}`);
+  try{for(let i=0;i<pages.length;i++){host.innerHTML=`<style>${QCSS}${AFCSS}</style><div style="width:${W}mm;min-height:${H}mm;background:#fff">${pages[i].replace(/\{\{PAG\}\}/g,(i+1)+" de "+pages.length)}</div>`;
+      await Promise.all([...host.querySelectorAll("img")].map(g=>g.complete?0:new Promise(ok=>{g.onload=g.onerror=ok})));
+      const cv=await html2canvas(host.lastElementChild,{scale:2,backgroundColor:"#ffffff",logging:false,useCORS:true});
+      const f=durl2file(cv.toDataURL("image/jpeg",.88),`${nom}${pages.length>1?" ("+(i+1)+" de "+pages.length+")":""}.jpg`);if(f)out.push(f)}}
+  finally{host.remove()}return out}
 /* ================= v19: paquete de firma — toda la línea del día en un solo envío ================= */
 document.head.insertAdjacentHTML("beforeend",`<style>#supList .item[hidden]{display:none}#paqBar{gap:8px}#paqBar[hidden]{display:none}.pqrow{display:flex;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px;cursor:pointer}.pqrow input{width:auto;min-height:0}</style>`);
 let PQ=null;
