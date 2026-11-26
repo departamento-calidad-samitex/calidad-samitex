@@ -2657,6 +2657,12 @@ async function jpLibro(){const L=JP.pend||[];if(!L.length)return;let i=0;const d
   ver()}
 {const _jr=jpRender;jpRender=function(){_jr.apply(this,arguments);const n=(JP.pend||[]).length;if(n)$("jpList").insertAdjacentHTML("afterbegin",`<button type="button" class="btn block" id="jpLibroBtn" style="margin-bottom:10px">📖 Ver las ${n} hojas como libro</button>`)}}
 document.addEventListener("click",e=>{if(e.target.closest("#jpLibroBtn"))jpLibro()});
+/* ================= v32: el cliente «Jhon Holden», «JH»… se corrige solo a JOHN HOLDEN */
+const CLI_FIX=[[/^\s*(j\.?\s*h\.?|j(oh|ho|o)n\s+hold[ae][nm])\s*$/i,"JOHN HOLDEN"]];
+function cliFix(el){if(!el||el._cliFx)return;const v=el.value||"",m=CLI_FIX.find(([re])=>re.test(v));if(!m||v===m[1])return;el._cliFx=1;el.value=m[1];el.dispatchEvent(new Event("input",{bubbles:true}));el.dispatchEvent(new Event("change",{bubbles:true}));el._cliFx=0;toast("Cliente corregido a "+m[1])}
+const cliEs=e=>e&&e.matches&&e.matches('#fCli,#mfBody [data-c="cli"]');
+document.addEventListener("focusout",e=>{if(cliEs(e.target))cliFix(e.target)},true);
+document.addEventListener("change",e=>{if(cliEs(e.target))cliFix(e.target)},true);
 /* ================= inicio ================= */
 (async function init(){
   S.form=blankForm();renderCola();
