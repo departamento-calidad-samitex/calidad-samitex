@@ -2663,6 +2663,15 @@ function cliFix(el){if(!el||el._cliFx)return;const v=el.value||"",m=CLI_FIX.find
 const cliEs=e=>e&&e.matches&&e.matches('#fCli,#mfBody [data-c="cli"]');
 document.addEventListener("focusout",e=>{if(cliEs(e.target))cliFix(e.target)},true);
 document.addEventListener("change",e=>{if(cliEs(e.target))cliFix(e.target)},true);
+/* ================= v33: todo lo que se escribe queda en MAYÚSCULAS (menos contraseñas, PIN, códigos, correos y links) */
+const MAY_NO=new Set(["gPwd","gNew","gNew2","sPwd","sPwd2","fiCla","clvAct","clvNew","clvNew2","codAct","codNew","aCod","admCod","cfgCorreo","cfgCarpeta","pUrlN"]);
+function mayOk(el){if(!el||!(el.tagName==="INPUT"||el.tagName==="TEXTAREA")||el.readOnly||el.disabled)return false;if(el.tagName==="INPUT"&&!["text","search"].includes((el.getAttribute("type")||"text").toLowerCase()))return false;
+  if(MAY_NO.has(el.id)||el.dataset.noMay!=null)return false;const im=(el.inputMode||"").toLowerCase();return!["numeric","decimal","email","url","tel"].includes(im)}
+function mayAplicar(el,avisar){const v=el.value,u=v.toLocaleUpperCase("es-PE");if(v===u)return;const a=el.selectionStart,b=el.selectionEnd;el.value=u;try{if(document.activeElement===el)el.setSelectionRange(a,b)}catch(x){}if(avisar)el.dispatchEvent(new Event("input",{bubbles:true}))}
+document.addEventListener("input",e=>{const el=e.target;if(e.isComposing||!mayOk(el))return;mayAplicar(el,false)},true);
+document.addEventListener("compositionend",e=>{const el=e.target;if(mayOk(el))setTimeout(()=>mayAplicar(el,true),0)},true);
+document.addEventListener("focusout",e=>{const el=e.target;if(mayOk(el))mayAplicar(el,true)},true);
+document.head.insertAdjacentHTML("beforeend",`<style>input[type=text]:not(:placeholder-shown),input:not([type]):not(:placeholder-shown),textarea:not(:placeholder-shown){text-transform:none}</style>`);
 /* ================= inicio ================= */
 (async function init(){
   S.form=blankForm();renderCola();
