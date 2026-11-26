@@ -291,6 +291,7 @@ nav.tabs button[aria-selected=true] svg{filter:drop-shadow(0 3px 4px color-mix(i
       <p class="note" id="gRst" hidden></p>
       <p class="sub" style="text-align:center">¿Primera vez? <button type="button" class="btn ghost sm" id="toReq">Solicitar acceso</button></p>
     </form>
+    <div class="card" id="gPinCard"><h3>🔢 Supervisoras y Jefatura de Planta</h3><p class="sub">Entra solo con tu PIN de 4 números.</p><button type="button" class="btn gold block" id="gPinBtn">Entrar con mi PIN</button><p class="note err" id="gPinErr" hidden></p></div>
     <form id="sForm" class="card" novalidate hidden>
       <h3>Solicitar acceso</h3><p class="sub">Solo la jefatura de calidad puede aprobar tu ingreso.</p>
       <label class="fld"><span>Nombre y apellido</span><input id="sNom" autocapitalize="words" placeholder="Clara Ramos"></label>
@@ -2371,21 +2372,21 @@ let SFG=null,SFG_N="",SFG_L="";
 function sfCred(){const dni=(($("fiDni")||{}).value||"").replace(/\D/g,""),cl=(($("fiCla")||{}).value||"");return{dni,cl}}
 function sfBloquearNom(){if(SFG_N&&$("fiNom")){$("fiNom").value=SFG_N;$("fiNom").readOnly=true;$("fiNom").style.background="#eef1f8"}if(SFG_N&&$("pvNom")){$("pvNom").value=SFG_N;$("pvNom").readOnly=true}}
 function sfDibujar(cv,src){return new Promise(ok=>{const i=new Image();i.onload=()=>{const x=cv.getContext("2d");x.clearRect(0,0,cv.width,cv.height);const k=Math.min(cv.width/i.width,cv.height/i.height)*.92,w=i.width*k,h=i.height*k;x.drawImage(i,(cv.width-w)/2,(cv.height-h)/2,w,h);ok()};i.onerror=()=>ok();i.src=src})}
-async function sfObtener(){if(FI&&FI.link){if(SFG&&SFG_L===FI.link)return SFG;SFG=null;const c=sfCred();if(c.dni.length<8){toast("Escribe tu DNI completo.");$("fiDni")&&$("fiDni").focus();return""}if(!c.cl){toast("Escribe tu contraseña de la app.");$("fiCla")&&$("fiCla").focus();return""}
+async function sfObtener(){if(FI&&FI.link){if(SFG&&SFG_L===FI.link)return SFG;SFG=null;const c=sfCred();if(c.dni.length<8&&!/^\d{4}$/.test(c.cl)){toast("Escribe tu PIN, o tu DNI y tu contraseña.");$("fiCla")&&$("fiCla").focus();return""}if(c.dni.length>=8&&!c.cl){toast("Escribe tu contraseña de la app.");$("fiCla")&&$("fiCla").focus();return""}
     const r=await call("supFirmaLink",FI.link,c.dni,c.cl);if($("fiCla"))$("fiCla").value="";if(!r.ok){toast(r.msg||"No se pudo cargar tu firma.");return""}SFG_N=r.nombre||"";SFG_L=FI.link;sfBloquearNom();
     if(!r.firma){toast("Aún no tienes firma guardada: firma con el dedo y deja marcado «Guardar mi firma».");return""}SFG=r.firma;return SFG}
   if(SFG&&!SFG_L)return SFG;
   if(S.token&&(S.sup||S.firma)){const r=await call("supMiFirma",S.token);if(r&&r.ok&&r.firma){SFG=r.firma;SFG_L="";return SFG}toast("Aún no tienes firma guardada: firma con el dedo y deja marcado «Guardar mi firma».")}return""}
 function fiSavRender(){const box=$("fiFirmaBox");if(!box)return;let d=$("fiSav");if(!d){d=document.createElement("div");d.id="fiSav";d.style.cssText="margin:6px 0 8px;display:flex;flex-direction:column;gap:6px";const c=$("fiCv");c.insertAdjacentElement("beforebegin",d);
     const g=document.createElement("label");g.style.cssText="display:flex;gap:8px;align-items:center;justify-content:flex-start;font-size:13px;margin:-4px 0 8px;text-align:left";g.innerHTML='<input type="checkbox" id="fiSavChk" checked style="width:20px;height:20px;flex:none;margin:0"><span style="flex:1">💾 Guardar mi firma para la próxima vez</span>';c.insertAdjacentElement("afterend",g)}
-  d.innerHTML=`${FI&&FI.link?`<p class="sub" style="margin:0">🔒 Tu firma guardada solo la puedes usar tú: ingresa tu DNI y tu contraseña de la app.</p><div class="row" style="gap:8px"><label class="fld" style="flex:1"><span>Tu DNI</span><input id="fiDni" inputmode="numeric" maxlength="8" autocomplete="username"></label><label class="fld" style="flex:1"><span>Tu contraseña de la app</span><input id="fiCla" type="password" autocomplete="current-password"></label></div>`:""}<button type="button" class="btn gold" id="fiUsar">✍ Usar mi firma guardada</button>`;
+  d.innerHTML=`${FI&&FI.link?`<p class="sub" style="margin:0">🔒 Tu firma guardada solo la puedes usar tú: escribe tu PIN (o tu DNI y tu contraseña).</p><div class="row" style="gap:8px"><label class="fld" style="flex:1"><span>Tu DNI (si no usas PIN)</span><input id="fiDni" inputmode="numeric" maxlength="8" autocomplete="username"></label><label class="fld" style="flex:1"><span>Tu PIN o contraseña</span><input id="fiCla" type="password" autocomplete="current-password"></label></div>`:""}<button type="button" class="btn gold" id="fiUsar">✍ Usar mi firma guardada</button>`;
   $("fiUsar").onclick=async()=>{const b=$("fiUsar");b.disabled=true;const t=b.textContent;b.textContent="Cargando…";try{const f=await sfObtener();if(f){fiPad.init();await sfDibujar($("fiCv"),f);fiPad.dirty=true;FI.usedSaved=true;toast("Firma cargada ✔ Revisa y toca «Firmar el reporte».")}}catch(e){toast("No se pudo cargar tu firma. Revisa tu conexión.")}finally{b.disabled=false;b.textContent=t}}}
 document.addEventListener("pointerdown",e=>{if(e.target&&e.target.id==="fiCv"&&FI)FI.usedSaved=false},true);
 $("fiClr").addEventListener("click",()=>{if(FI)FI.usedSaved=false});
 {const _g3=go;go=function(t){const r=_g3.apply(this,arguments);if(t==="firma")setTimeout(()=>{try{fiSavRender()}catch(e){}},50);return r}}
 {const _ff=$("fiFirmar").onclick;$("fiFirmar").onclick=async function(){const chk=$("fiSavChk"),drawn=chk&&chk.checked&&FI&&!FI.usedSaved&&fiPad.dirty?fiPad.png():"",cr=sfCred();if($("fiCla"))$("fiCla").value="";
   await _ff.apply(this,arguments);
-  if(drawn&&FI.rec&&FI.rec.firmaSup&&FI.rec.firmaSup.estado==="FIRMADO"){try{if(FI.link&&(cr.dni.length<8||!cr.cl)){toast("Para guardar tu firma escribe tu DNI y tu contraseña de la app antes de firmar.");return}
+  if(drawn&&FI.rec&&FI.rec.firmaSup&&FI.rec.firmaSup.estado==="FIRMADO"){try{if(FI.link&&!(/^\d{4}$/.test(cr.cl)&&cr.dni.length<8)&&(cr.dni.length<8||!cr.cl)){toast("Para guardar tu firma escribe tu PIN (o tu DNI y contraseña) antes de firmar.");return}
       const r=FI.link?await call("supGuardarFirmaLink",FI.link,cr.dni,cr.cl,drawn):await call("supGuardarFirma",S.token,drawn);if(r&&r.ok){SFG=FI.link?null:drawn;toast("Tu firma quedó guardada: la próxima vez solo toca «Usar mi firma guardada».")}else if(r&&r.msg)toast(r.msg)}catch(e){}}}}
 {const _pv=paqVarias;paqVarias=function(){_pv.apply(this,arguments);const cv=$("pvCv");if(!cv)return;const b=document.createElement("button");b.type="button";b.className="btn gold block";b.style.margin="4px 0";b.textContent="✍ Usar mi firma guardada";cv.insertAdjacentElement("beforebegin",b);
   b.onclick=async()=>{b.disabled=true;try{const f=await sfObtener();if(f){const r=cv.getBoundingClientRect(),sp=cv.setPointerCapture;cv.setPointerCapture=()=>{};try{cv.onpointerdown({clientX:r.left+1,clientY:r.top+1,pointerId:1});cv.onpointerup()}finally{cv.setPointerCapture=sp}await sfDibujar(cv,f);sfBloquearNom();toast("Firma cargada ✔")}}finally{b.disabled=false}}}}
@@ -2624,6 +2625,38 @@ async function jpFirmarDlg(ids,que){if(!ids.length)return;const d=document.creat
       d.remove();toast(fal.length?`Firmados ${n} de ${ids.length}. ${fal.length} no se pudieron: inténtalo otra vez.`:`✔ Firmaste ${n} reporte${n===1?"":"s"}.`);jpCargar()}
     catch(x){er.textContent=x&&x.message||"No se pudo firmar. Revisa tu conexión.";er.hidden=false;busy=false;ok.disabled=false;$("jpNo").disabled=false;ok.textContent=`✔ Firmar ${ids.length} reporte${ids.length===1?"":"s"}`}}}
 {const _rh6=renderHome;renderHome=function(){_rh6.apply(this,arguments);try{jpCargar()}catch(e){}}}
+/* ================= v31: ingreso solo con PIN + libro de hojas del supervisor + libro de la Jefatura de Planta */
+$("gPinBtn").onclick=async()=>{const er=$("gPinErr");er.hidden=true;const pin=await pinPedir("Ingresa tu PIN","Supervisoras y Jefatura de Planta");if(!pin)return;const b=$("gPinBtn");b.disabled=true;b.textContent="Verificando…";
+  try{const r=await call("ingresarPin",pin);if(!r.ok){er.textContent=r.msg||"PIN incorrecto.";er.hidden=false;return}try{await pinLocal({...r,pin:true},pin)}catch(e){}setSesion(r)}
+  catch(x){er.textContent=netErr(x)?"Necesitas señal para entrar la primera vez.":"No se pudo ingresar.";er.hidden=false}finally{b.disabled=false;b.textContent="Entrar con mi PIN"}};
+/* supervisor: todas sus hojas pendientes como libro, con un botón para firmar y subir todas */
+function supLibro(){const L=(SUP.pend||[]);if(!L.length)return;PQ={pq:"",items:L.map(r=>({id:r.id,estado:"PENDIENTE",ref:resumen(r),aud:r.aud,res:r.res||(r.rej?"RECHAZADO":"APROBADO"),mod:r.mod||"af"})),i:0,link:false,tit:"Mis hojas por firmar"};go("firma");paqIr(0)}
+{const _sr2=supRender;supRender=function(){_sr2.apply(this,arguments);const n=(SUP.pend||[]).length;if(n>1)$("supList").insertAdjacentHTML("afterbegin",`<button type="button" class="btn gold block" id="supLibroBtn" style="margin-bottom:10px">📖 Revisar mis ${n} hojas como libro y firmar todo</button>`)}}
+document.addEventListener("click",e=>{if(e.target.closest("#supLibroBtn"))supLibro()});
+{const _pb=paqBar;paqBar=function(msg){_pb.apply(this,arguments);const b=$("paqBar");if(!b||!PQ||msg)return;const v=b.querySelector('[data-pq="varias"]');if(v){const p=PQ.items.filter(x=>x.estado==="PENDIENTE").length;v.textContent=`✍ Firmar y subir todas (${p} pendientes)`}}}
+/* «Firmar varias»: guardar la firma dibujada para la próxima vez */
+{const _pv2=paqVarias;paqVarias=function(){_pv2.apply(this,arguments);const ok=$("pvOk");if(!ok||!S.token)return;const cv=$("pvCv");let usada=false;
+  ok.insertAdjacentHTML("beforebegin",`<label style="display:flex;gap:8px;align-items:center;font-size:13px;margin:4px 0 8px"><input type="checkbox" id="pvSav" checked style="width:20px;height:20px;flex:none;margin:0"><span>💾 Guardar mi firma para la próxima vez</span></label>`);
+  ok.parentNode.addEventListener("click",e=>{if(e.target.closest("button")&&/firma guardada/i.test(e.target.closest("button").textContent))usada=true},true);
+  ok.addEventListener("click",()=>{const c=$("pvSav");if(c&&c.checked&&!usada&&cv){try{call("supGuardarFirma",S.token,cv.toDataURL("image/png")).then(r=>{if(r&&r.ok)SFG=null}).catch(()=>{})}catch(e){}}},true)}}
+/* Jefatura de Planta: ver todas las hojas como libro (PDF) y firmar todo con un botón */
+async function jpLibro(){const L=JP.pend||[];if(!L.length)return;let i=0;const d=document.createElement("div");d.id="jpLib";d.setAttribute("role","dialog");d.setAttribute("aria-modal","true");
+  d.style.cssText="position:fixed;inset:0;z-index:9600;background:#1b1f33;display:flex;flex-direction:column";
+  d.innerHTML=`<div style="padding:10px 12px;padding-top:calc(10px + env(safe-area-inset-top));background:#0a1f74;color:#fff;display:flex;flex-direction:column;gap:8px"><div style="display:flex;align-items:center;gap:8px"><b style="flex:1">📖 Hojas por firmar</b><button type="button" class="btn ghost sm" data-jl="x" style="color:#fff;border-color:#fff8">✕ Cerrar</button></div>
+    <div style="display:flex;align-items:center;gap:8px"><button type="button" class="btn ghost sm" data-jl="p" style="color:#fff;border-color:#fff8">‹</button><span id="jlT" style="flex:1;text-align:center;font-size:13px"></span><button type="button" class="btn ghost sm" data-jl="n" style="color:#fff;border-color:#fff8">›</button></div>
+    <button type="button" class="btn gold block" data-jl="f">✍ Firmar y subir todas (${L.length})</button></div><div id="jlP" style="flex:1;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:10px;-webkit-overflow-scrolling:touch"></div>`;
+  document.body.appendChild(d);const P=$("jlP"),C={};let tok=0;
+  const ver=async()=>{const r=L[i],my=++tok;$("jlT").textContent=`Hoja ${i+1} de ${L.length} · ${jpArea(r)} · ${resumen(r)}`;P.innerHTML='<p class="sub" style="color:#ccd">Cargando la hoja…</p>';
+    try{if(!C[r.id]){const x=await call("descargarPdf",S.token,r.id);if(!x.ok)throw new Error(x.msg);const b=atob(x.b64),u=new Uint8Array(b.length);for(let k=0;k<b.length;k++)u[k]=b.charCodeAt(k);C[r.id]=u}
+      await pdfjsCargar();const doc=await pdfjsLib.getDocument({data:C[r.id].slice()}).promise;if(my!==tok)return;P.innerHTML="";const W=Math.min(P.clientWidth-20,900);
+      for(let n=1;n<=doc.numPages;n++){const pg=await doc.getPage(n),v0=pg.getViewport({scale:1}),v=pg.getViewport({scale:W/v0.width*2.5}),cv=document.createElement("canvas");cv.width=v.width;cv.height=v.height;cv.style.cssText=`width:${W}px;flex:none;margin:0 auto;background:#fff;border-radius:4px`;P.appendChild(cv);await pg.render({canvasContext:cv.getContext("2d"),viewport:v}).promise;if(my!==tok)return}}
+    catch(e){if(my===tok)P.innerHTML=`<p class="note err">No se pudo abrir esta hoja: ${esc(e&&e.message||"sin conexión")}</p>`}};
+  const cerrar=()=>{d.remove();removeEventListener("popstate",pop)},pop=()=>cerrar();try{history.pushState({jl:1},"");addEventListener("popstate",pop)}catch(e){}
+  d.addEventListener("click",e=>{const b=e.target.closest("[data-jl]");if(!b)return;const a=b.dataset.jl;if(a==="p"&&i>0){i--;ver()}else if(a==="n"&&i<L.length-1){i++;ver()}else if(a==="f"){if(history.state&&history.state.jl)history.back();else cerrar();jpFirmarDlg(L.map(r=>r.id),"todas las áreas")}else if(a==="x"){if(history.state&&history.state.jl)history.back();else cerrar()}});
+  let sx=null;P.addEventListener("pointerdown",e=>{if(e.pointerType!=="mouse")sx=[e.clientX,e.clientY]});P.addEventListener("pointerup",e=>{if(!sx)return;const dx=e.clientX-sx[0],dy=e.clientY-sx[1];sx=null;if(Math.abs(dx)>70&&Math.abs(dx)>Math.abs(dy)*1.5){const j=i+(dx<0?1:-1);if(j>=0&&j<L.length){i=j;ver()}}});
+  ver()}
+{const _jr=jpRender;jpRender=function(){_jr.apply(this,arguments);const n=(JP.pend||[]).length;if(n)$("jpList").insertAdjacentHTML("afterbegin",`<button type="button" class="btn block" id="jpLibroBtn" style="margin-bottom:10px">📖 Ver las ${n} hojas como libro</button>`)}}
+document.addEventListener("click",e=>{if(e.target.closest("#jpLibroBtn"))jpLibro()});
 /* ================= inicio ================= */
 (async function init(){
   S.form=blankForm();renderCola();
