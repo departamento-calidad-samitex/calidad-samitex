@@ -1880,8 +1880,10 @@ async function pdfDe(r,im){if(!window.html2canvas||!window.jspdf)throw new Error
   const doc=new jspdf.jsPDF({orientation:land?"l":"p",unit:"mm",format:"a4",compress:true});
   try{for(let i=0;i<pages.length;i++){host.innerHTML=`<style>${QCSS}${AFCSS}</style><div style="width:${W}mm;min-height:${H}mm;background:#fff">${pages[i].replace(/\{\{PAG\}\}/g,(i+1)+" de "+pages.length)}</div>`;
       await Promise.all([...host.querySelectorAll("img")].map(g=>g.complete?0:new Promise(ok=>{g.onload=g.onerror=ok})));
-      const cv=await html2canvas(host.lastElementChild,{scale:2,backgroundColor:"#ffffff",logging:false,useCORS:true});
-      if(i)doc.addPage("a4",land?"l":"p");const k=Math.min(1,(H/W)/(cv.height/cv.width)),w=W*k,h=w*cv.height/cv.width;doc.addImage(cv.toDataURL("image/jpeg",.84),"JPEG",(W-w)/2,0,w,Math.min(H,h))}}
+      const root=host.lastElementChild,rb=root.getBoundingClientRect(),lk=[...root.querySelectorAll("a[href^='http']")].map(a=>{const r=a.getBoundingClientRect();return{u:a.href,x:(r.left-rb.left)/rb.width,y:(r.top-rb.top)/rb.height,w:r.width/rb.width,h:r.height/rb.height}});
+      const cv=await html2canvas(root,{scale:2,backgroundColor:"#ffffff",logging:false,useCORS:true});
+      if(i)doc.addPage("a4",land?"l":"p");const k=Math.min(1,(H/W)/(cv.height/cv.width)),w=W*k,h=w*cv.height/cv.width,hh=Math.min(H,h),x0=(W-w)/2;doc.addImage(cv.toDataURL("image/jpeg",.84),"JPEG",x0,0,w,hh);
+      lk.forEach(l=>{try{doc.link(x0+l.x*w,l.y*hh,l.w*w,l.h*hh,{url:l.u})}catch(e){}})}}
   finally{host.remove()}
   return doc.output("datauristring").split(",")[1]}
 
@@ -2061,8 +2063,10 @@ async function pdfPaginas(pages,land){if(!window.html2canvas||!window.jspdf)thro
   const doc=new jspdf.jsPDF({orientation:land?"l":"p",unit:"mm",format:"a4",compress:true});
   try{for(let i=0;i<pages.length;i++){host.innerHTML=`<style>${QCSS}${AFCSS}</style><div style="width:${W}mm;min-height:${H}mm;background:#fff">${pages[i].replace(/\{\{PAG\}\}/g,(i+1)+" de "+pages.length)}</div>`;
       await Promise.all([...host.querySelectorAll("img")].map(g=>g.complete?0:new Promise(ok=>{g.onload=g.onerror=ok})));
-      const cv=await html2canvas(host.lastElementChild,{scale:2,backgroundColor:"#ffffff",logging:false,useCORS:true});
-      if(i)doc.addPage("a4",land?"l":"p");const k=Math.min(1,(H/W)/(cv.height/cv.width)),w=W*k,h=w*cv.height/cv.width;doc.addImage(cv.toDataURL("image/jpeg",.84),"JPEG",(W-w)/2,0,w,Math.min(H,h))}}
+      const root=host.lastElementChild,rb=root.getBoundingClientRect(),lk=[...root.querySelectorAll("a[href^='http']")].map(a=>{const r=a.getBoundingClientRect();return{u:a.href,x:(r.left-rb.left)/rb.width,y:(r.top-rb.top)/rb.height,w:r.width/rb.width,h:r.height/rb.height}});
+      const cv=await html2canvas(root,{scale:2,backgroundColor:"#ffffff",logging:false,useCORS:true});
+      if(i)doc.addPage("a4",land?"l":"p");const k=Math.min(1,(H/W)/(cv.height/cv.width)),w=W*k,h=w*cv.height/cv.width,hh=Math.min(H,h),x0=(W-w)/2;doc.addImage(cv.toDataURL("image/jpeg",.84),"JPEG",x0,0,w,hh);
+      lk.forEach(l=>{try{doc.link(x0+l.x*w,l.y*hh,l.w*w,l.h*hh,{url:l.u})}catch(e){}})}}
   finally{host.remove()}
   return doc.output("datauristring").split(",")[1]}
 function bajarB64(b64,nombre){const bin=atob(b64),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
@@ -2089,8 +2093,8 @@ function htmlAsisDia(x,f,au,fotos){const d=datosDia(x),dn=new Date(f+"T12:00:00"
   const sec=t=>`<div style="background:#0a1f74;color:#fff;font-weight:bold;font-size:8pt;padding:1mm 2mm;margin-top:3mm">${t}</div>`;
   h+=sec("MARCAS DEL DÍA (en orden de hora)")+`<table style="font-size:7.5pt"><colgroup><col style="width:6%"><col style="width:9%"><col style="width:17%"><col style="width:25%"><col style="width:11%"><col style="width:19%"><col style="width:13%"></colgroup>
    <tr><th>N°</th><th>HORA</th><th>MOVIMIENTO</th><th>TALLER</th><th>ESTADO</th><th>UBICACIÓN (GPS)</th><th>FOTO</th></tr>
-   ${d.T.map((r,i)=>`<tr style="height:12mm;background:${fondo(r)}"><td>${i+1}</td><td class="q-b">${Q(r.hora)}</td><td>${Q(ASLAB[r.tipo]||r.tipo)}${r.sin?`<br><span style="font-size:6pt">(offline${r.rec?", recibida "+Q(r.rec):""})</span>`:""}${r.reg?`<br><span style="font-size:6pt">(regularizado ADM · original ${Q(r.horaOrig)})</span>`:""}${r.alerta?'<br><span style="font-size:6pt;color:#b45309">(⚠ hora no confiable)</span>':""}</td><td style="white-space:normal">${Q(r.taller||"—")}</td><td${r.estado==="TARDE"?' style="color:#c00;font-weight:bold"':""}>${Q(r.estado||"—")}</td><td style="font-size:6.5pt">${Number(r.lat).toFixed(5)}, ${Number(r.lng).toFixed(5)}${r.acc?`<br>± ${Q(r.acc)} m`:""}${r.aprox?"<br>(aprox.)":""}</td><td>${fotos[r.foto]?`<img src="${fotos[r.foto]}" style="height:11mm;max-width:100%;object-fit:cover">`:"—"}</td></tr>`).join("")}</table>
-   <div style="font-size:6.5pt;margin-top:1mm"><span style="background:#fff8e1;border:1px solid #bbb;padding:0 2mm">turno mañana</span> &nbsp; <span style="background:#e8f0fe;border:1px solid #bbb;padding:0 2mm">turno tarde</span></div>`;
+   ${d.T.map((r,i)=>`<tr style="height:12mm;background:${fondo(r)}"><td>${i+1}</td><td class="q-b">${Q(r.hora)}</td><td>${Q(ASLAB[r.tipo]||r.tipo)}${r.sin?`<br><span style="font-size:6pt">(offline${r.rec?", recibida "+Q(r.rec):""})</span>`:""}${r.reg?`<br><span style="font-size:6pt">(regularizado ADM · original ${Q(r.horaOrig)})</span>`:""}${r.alerta?'<br><span style="font-size:6pt;color:#b45309">(⚠ hora no confiable)</span>':""}</td><td style="white-space:normal">${Q(r.taller||"—")}</td><td${r.estado==="TARDE"?' style="color:#c00;font-weight:bold"':""}>${Q(r.estado||"—")}</td><td style="font-size:6.5pt">${isFinite(r.lat)&&isFinite(r.lng)&&r.lat!==""?`<a href="https://www.google.com/maps?q=${Number(r.lat).toFixed(6)},${Number(r.lng).toFixed(6)}" style="color:#1a56c4;text-decoration:underline">${Number(r.lat).toFixed(5)}, ${Number(r.lng).toFixed(5)}<br><b>Ver en el mapa</b></a>`:"—"}${r.acc?`<br>± ${Q(r.acc)} m`:""}${r.aprox?"<br>(aprox.)":""}</td><td>${fotos[r.foto]?`<img src="${fotos[r.foto]}" style="height:11mm;max-width:100%;object-fit:cover">`:"—"}</td></tr>`).join("")}</table>
+   ${(()=>{const pts=d.T.filter(r=>isFinite(r.lat)&&isFinite(r.lng)&&r.lat!==""&&r.lat!==null).map(r=>Number(r.lat).toFixed(6)+","+Number(r.lng).toFixed(6)).filter((p,i,a)=>p!==a[i-1]);return pts.length>1?`<div style="font-size:7.5pt;margin-top:1.5mm">🗺 <a href="https://www.google.com/maps/dir/${pts.slice(0,10).join("/")}" style="color:#1a56c4;text-decoration:underline;font-weight:bold">Ver el recorrido completo del día en Google Maps</a>${pts.length>10?" (primeras 10 marcas)":""}</div>`:""})()}<div style="font-size:6.5pt;margin-top:1mm"><span style="background:#fff8e1;border:1px solid #bbb;padding:0 2mm">turno mañana</span> &nbsp; <span style="background:#e8f0fe;border:1px solid #bbb;padding:0 2mm">turno tarde</span></div>`;
   const nm=d.seg.filter(z=>z.turno==="Mañana").length,nt=d.seg.length-nm;
   h+=sec("RESUMEN DEL DÍA")+`<table style="font-size:7.5pt"><tr><th>INGRESO</th><th>SALIDA</th><th>JORNADA</th><th>ALMUERZO</th><th>TALLERES VISITADOS</th></tr>
    <tr style="height:6mm"><td${d.tarde?' style="color:#c00;font-weight:bold"':""}>${d.ing?Q(d.ing.hora)+(d.tarde?` · TARDE (${d.tarde} min)`:" · A TIEMPO"):"SIN MARCA"}</td><td>${d.sal?Q(d.sal.hora):"SIN MARCA"}</td><td>${d.jor!=null?hmA(d.jor):"—"}</td><td>${d.alm?hmA(d.alm)+" ("+Q(d.almTxt.join(", "))+")":d.ali?"sin regreso marcado":"—"}</td><td class="q-b">${d.seg.length} (mañana ${nm} · tarde ${nt})</td></tr></table>`;
@@ -2107,7 +2111,7 @@ async function pdfAsisDia(x,f,btn){const t0=btn.textContent;btn.disabled=true;bt
     const fotos={};for(const r of x.all){if(!r.foto)continue;try{const q=await admin("adminFotoAsis",r.foto);if(q.ok)fotos[r.foto]=q.src}catch(e){}}
     const b64=await pdfPaginas([pagina(htmlAsisDia(x,f,au,fotos))],false),nombre=`${f} · Asistencia y recorrido · ${title(x.aud)}.pdf`;
     btn.textContent="Guardando…";try{await admin("adminGuardarPdfAsis",x.dni,f,b64,nombre)}catch(e){}
-    bajarB64(b64,nombre);toast("PDF listo: "+nombre)}
+    pdfVisor({b64,nombre})}
   catch(e){toast("No se pudo armar el PDF: "+(e&&e.message||e))}finally{btn.disabled=false;btn.textContent=t0}}
 $("asList").addEventListener("click",e=>{const b=e.target.closest("[data-apdf]");if(!b)return;const x=ASL.find(z=>String(z.dni)===b.dataset.apdf);if(x)pdfAsisDia(x,asisFecha(),b)});
 /* ---- horario de ingreso de cada auditor (solo administradora) ---- */
@@ -2377,18 +2381,19 @@ bajarPdf=async function(id,btn){const t=btn&&btn.textContent;if(btn){btn.disable
   let r;try{r=await call("descargarPdf",S.token,id);if(!r.ok){toast(r.msg||"No se pudo obtener el PDF.");return}}
   catch(x){toast(sesErr(x)?"Tu sesión venció. Vuelve a ingresar.":"No se pudo abrir el PDF. Revisa tu conexión.");return}
   finally{if(btn){btn.disabled=false;btn.textContent=t}}
-  const bin=atob(r.b64),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+  pdfVisor(r)};
+async function pdfVisor(r){const bin=atob(r.b64),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
   const d=document.createElement("div");d.id="pdfVis";d.setAttribute("role","dialog");d.setAttribute("aria-modal","true");
   d.style.cssText="position:fixed;inset:0;z-index:9700;background:#1b1f33;display:flex;flex-direction:column";
   d.innerHTML=`<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;padding-top:calc(10px + env(safe-area-inset-top));background:#0a1f74;color:#fff"><b style="flex:1;min-width:0;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.nombre||"Reporte")}</b><button type="button" class="btn ghost sm" data-pv="zo" style="color:#fff;border-color:#fff8" aria-label="Alejar">➖</button><button type="button" class="btn ghost sm" data-pv="zi" style="color:#fff;border-color:#fff8" aria-label="Acercar">➕</button><button type="button" class="btn gold sm" data-pv="dl">⬇ Descargar</button><button type="button" class="btn ghost sm" data-pv="x" style="color:#fff;border-color:#fff8">✕ Cerrar</button></div>
    <div id="pdfVisP" style="flex:1;overflow:auto;padding:10px;display:flex;flex-direction:column;align-items:flex-start;gap:10px;-webkit-overflow-scrolling:touch"><p class="sub" style="color:#ccd">Cargando el reporte…</p></div>`;
   document.body.appendChild(d);const cerrar=()=>{d.remove();removeEventListener("popstate",pop)},pop=()=>cerrar();try{history.pushState({pv:1},"");addEventListener("popstate",pop)}catch(e){}
-  d.addEventListener("click",e=>{const b=e.target.closest("[data-pv]");if(!b)return;if(b.dataset.pv==="zi"||b.dataset.pv==="zo"){Z=Math.max(1,Math.min(3,Z+(b.dataset.pv==="zi"?.5:-.5)));d.querySelectorAll("#pdfVisP canvas").forEach(c=>c.style.width=(W0*Z)+"px")}else if(b.dataset.pv==="dl")pdfGuardar(u,r.nombre);else{if(history.state&&history.state.pv)history.back();else cerrar()}});
+  d.addEventListener("click",e=>{const b=e.target.closest("[data-pv]");if(!b)return;if(b.dataset.pv==="zi"||b.dataset.pv==="zo"){Z=Math.max(1,Math.min(3,Z+(b.dataset.pv==="zi"?.5:-.5)));d.querySelectorAll("#pdfVisP .pvPg").forEach(c=>c.style.width=(W0*Z)+"px")}else if(b.dataset.pv==="dl")pdfGuardar(u,r.nombre);else{if(history.state&&history.state.pv)history.back();else cerrar()}});
   const P=$("pdfVisP");let Z=1,W0=Math.min(P.clientWidth-20,900);
   try{await pdfjsCargar();const doc=await pdfjsLib.getDocument({data:u.slice()}).promise;P.innerHTML="";const W=W0;
     for(let n=1;n<=doc.numPages;n++){const pg=await doc.getPage(n),v0=pg.getViewport({scale:1}),k=W/v0.width,v=pg.getViewport({scale:k*3}),cv=document.createElement("canvas");
-      cv.width=v.width;cv.height=v.height;cv.style.cssText=`width:${W*Z}px;flex:none;margin:0 auto;background:#fff;border-radius:4px;box-shadow:0 2px 10px #0006`;P.appendChild(cv);
-      await pg.render({canvasContext:cv.getContext("2d"),viewport:v}).promise;if(!d.isConnected)return}
+      cv.width=v.width;cv.height=v.height;cv.style.cssText=`width:${W*Z}px;flex:none;margin:0 auto;background:#fff;border-radius:4px;box-shadow:0 2px 10px #0006`;const wr=document.createElement("div");wr.className="pvPg";wr.style.cssText=`position:relative;width:${W*Z}px;flex:none;margin:0 auto`;cv.style.width="100%";cv.style.display="block";wr.appendChild(cv);P.appendChild(wr);
+      await pg.render({canvasContext:cv.getContext("2d"),viewport:v}).promise;try{(await pg.getAnnotations()).forEach(a=>{if(a.subtype!=="Link"||!a.url)return;const vw=v0.width,vh=v0.height,x1=Math.min(a.rect[0],a.rect[2]),x2=Math.max(a.rect[0],a.rect[2]),y1=Math.min(a.rect[1],a.rect[3]),y2=Math.max(a.rect[1],a.rect[3]);const l=document.createElement("a");l.href=a.url;l.target="_blank";l.rel="noopener";l.title=a.url;l.setAttribute("aria-label","Abrir "+a.url);l.style.cssText=`position:absolute;left:${x1/vw*100}%;top:${(vh-y2)/vh*100}%;width:${(x2-x1)/vw*100}%;height:${(y2-y1)/vh*100}%;background:rgba(26,86,196,.10);border-radius:2px;cursor:pointer`;wr.appendChild(l)})}catch(e){}if(!d.isConnected)return}
     P.insertAdjacentHTML("beforeend",`<p class="sub" style="color:#ccd;margin:4px 0 20px">${doc.numPages} página${doc.numPages===1?"":"s"} · usa ➕ ➖ para acercar · para guardarlo toca «⬇ Descargar»</p>`)}
   catch(x){P.innerHTML=`<p class="sub" style="color:#ccd;max-width:420px;text-align:center">No se pudo mostrar el reporte en la app (revisa tu conexión). Puedes descargarlo con el botón «⬇ Descargar».</p>`}};
 /* ================= v28: Programa de costura (Excel) — al escribir la OF se llenan cliente, artículo, color y modelo; alerta SINERCORP */
