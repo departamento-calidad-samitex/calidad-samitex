@@ -260,6 +260,83 @@ nav.tabs button[aria-selected=true] svg{filter:drop-shadow(0 3px 4px color-mix(i
 :root[data-theme="dark"] input,:root[data-theme="dark"] select,:root[data-theme="dark"] textarea{background:rgba(8,12,32,.75)}
 :root[data-theme="dark"] .kpi .v{background-image:linear-gradient(180deg,#ffffff,#e2c08a)}
 @media (prefers-reduced-motion:reduce){.btn::after{animation:none!important;display:none}.proc{transition:none}}
+/* ===== v34: diseño para PC — menú lateral, más sobrio, con movimiento suave ===== */
+.sbBrand,.sbFoot,.sbLbl,.gateFeat{display:none}
+.gateL,.gateR{display:contents}
+@media (min-width:1100px) and (hover:hover){
+:root{--sbw:252px}
+#bg3d{opacity:.22;filter:saturate(.55) blur(.3px)}
+body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+ background:radial-gradient(1100px 560px at 88% -8%,color-mix(in srgb,var(--accent) 20%,transparent),transparent 62%),radial-gradient(900px 520px at 4% 108%,color-mix(in srgb,var(--gold) 11%,transparent),transparent 62%),
+ linear-gradient(color-mix(in srgb,var(--line) 32%,transparent) 1px,transparent 1px) 0 0/56px 56px,linear-gradient(90deg,color-mix(in srgb,var(--line) 32%,transparent) 1px,transparent 1px) 0 0/56px 56px;
+ -webkit-mask-image:linear-gradient(180deg,#000 0,rgba(0,0,0,.55) 60%,transparent 100%);mask-image:linear-gradient(180deg,#000 0,rgba(0,0,0,.55) 60%,transparent 100%)}
+body:has(nav.tabs:not([hidden])){padding-left:var(--sbw)}
+nav.tabs:not([hidden]){position:fixed;top:0;bottom:0;left:0;right:auto;width:var(--sbw);display:flex;flex-direction:column;border-top:0;border-right:1px solid var(--line);padding:0;z-index:25;
+ background:color-mix(in srgb,var(--surface) 94%,transparent);box-shadow:10px 0 34px rgba(0,0,0,.22)}
+nav.tabs .in{flex-direction:column;max-width:none;margin:0;padding:6px 14px;gap:4px}
+nav.tabs .in button{flex:0 0 auto;flex-direction:row;justify-content:flex-start;gap:12px;min-height:46px;padding:0 14px;border-radius:11px;font:600 14px var(--font-body);color:var(--fg2);
+ transition:background .25s,color .25s,transform .25s cubic-bezier(.2,.7,.2,1)}
+nav.tabs .in button svg{width:20px;height:20px;flex:none;transition:transform .3s}
+nav.tabs .in button::before,nav.tabs .in button::after{display:none}
+nav.tabs .in button:hover{background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--fg);transform:translateX(4px)}
+nav.tabs .in button:hover svg{transform:scale(1.1)}
+nav.tabs .in button[aria-selected="true"]{background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 26%,transparent),color-mix(in srgb,var(--accent) 6%,transparent));color:var(--fg);box-shadow:inset 3px 0 0 var(--gold)}
+.sbBrand{display:flex;align-items:center;gap:12px;padding:22px 18px 18px;margin:0 0 8px;border-bottom:1px solid var(--line)}
+.sbBrand .logo{padding:4px 7px}.sbBrand .logo img{height:30px}
+.sbBrand b{display:block;font:700 16px var(--font-display);color:var(--fg);letter-spacing:.01em}
+.sbBrand small{display:block;font:500 10.5px var(--font-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--gold-ink)}
+.sbLbl{display:block;font:600 10.5px var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding:6px 30px 4px}
+.sbFoot{display:flex;flex-direction:column;gap:10px;margin-top:auto;padding:16px 18px 20px;border-top:1px solid var(--line)}
+.sbUser{display:flex;align-items:center;gap:10px}
+.sbUser .sbAv{flex:none;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 15px var(--font-display);color:var(--gold-ink);border:2px solid var(--gold);background:var(--gold-soft)}
+.sbUser b{display:block;font-size:13.5px;color:var(--fg);line-height:1.2}.sbUser small{display:block;font-size:11.5px;color:var(--muted)}
+.sbFoot>small{font-size:10.5px;color:var(--muted);line-height:1.35}
+.top{background:color-mix(in srgb,var(--surface) 82%,transparent);border-bottom:1px solid var(--line);box-shadow:0 1px 0 color-mix(in srgb,var(--gold) 55%,transparent),0 10px 30px rgba(0,0,0,.16)}
+.top .in,main.wrap{max-width:1180px}
+.top .in{padding-block:12px;padding-inline:32px}
+body:has(nav.tabs:not([hidden])) .top .logo{display:none}
+.top h1{font-size:24px;letter-spacing:.005em}
+main.wrap{padding:26px 32px 48px;gap:18px}
+.procs,#procList{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:16px!important}
+#procList .proc{min-height:150px}
+.proc{min-height:118px;padding:20px;border-radius:14px;transition:transform .3s cubic-bezier(.2,.7,.2,1),box-shadow .3s,border-color .3s}
+.proc:hover{transform:translateY(-4px);box-shadow:0 20px 44px rgba(0,0,0,.32),0 0 0 1px color-mix(in srgb,var(--gold) 50%,transparent);border-left-color:var(--gold)}
+.proc .ic{transition:transform .35s cubic-bezier(.2,.7,.2,1)}.proc:hover .ic{transform:scale(1.08) rotate(-4deg)}
+.card{border-radius:16px;padding:18px 20px;transition:border-color .3s,box-shadow .3s}
+.card:hover{border-color:color-mix(in srgb,var(--accent) 30%,var(--line))}
+.item{transition:transform .25s cubic-bezier(.2,.7,.2,1),box-shadow .25s}.item:hover{transform:translateX(3px);box-shadow:var(--sh),0 0 0 1px color-mix(in srgb,var(--accent) 30%,transparent)}
+.btn:not(.gold)::after{display:none}
+.btn{box-shadow:0 3px 0 var(--btn-d),0 8px 18px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.25)}
+.okdlg .okbox{max-width:560px}
+/* ingreso en PC: dos columnas */
+#v-gate:not([hidden]){display:grid!important;grid-template-columns:minmax(0,1fr) 440px;column-gap:72px;align-items:start;max-width:1120px;margin:40px auto 0}
+.gateL{display:flex;flex-direction:column;gap:18px;position:sticky;top:110px;padding-top:28px}
+.gateR{display:flex;flex-direction:column;gap:14px}
+.gateL .logo{align-self:flex-start}
+.gateL .gatehero{text-align:left}.gateL .gatehero h2{font-size:44px;line-height:1.05;margin:0 0 10px;letter-spacing:-.01em}
+.gateL .gatehero .sub{font-size:16px}
+.gateFeat{display:flex;flex-direction:column;gap:12px;margin:8px 0 0;padding:0;list-style:none}
+.gateFeat li{display:flex;gap:12px;align-items:center;font-size:15px;color:var(--fg2)}
+.gateFeat li i{flex:none;width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-style:normal;background:var(--accent-soft);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent)}
+.gateCred{font-size:12px;color:var(--muted);margin-top:14px}
+}
+@media (min-width:1100px) and (hover:hover) and (prefers-reduced-motion:no-preference){
+nav.tabs:not([hidden]){animation:sbIn .55s cubic-bezier(.2,.7,.2,1) both}
+.view:not([hidden])>*{animation:rise .6s cubic-bezier(.2,.7,.2,1) both}
+.view:not([hidden])>*:nth-child(2){animation-delay:.06s}.view:not([hidden])>*:nth-child(3){animation-delay:.12s}.view:not([hidden])>*:nth-child(4){animation-delay:.18s}
+.view:not([hidden])>*:nth-child(5){animation-delay:.24s}.view:not([hidden])>*:nth-child(n+6){animation-delay:.3s}
+.view:not([hidden]) :is(.procs,#procList)>.proc{animation:rise .6s cubic-bezier(.2,.7,.2,1) both}
+.view:not([hidden]) :is(.procs,#procList)>.proc:nth-child(2){animation-delay:.08s}.view:not([hidden]) :is(.procs,#procList)>.proc:nth-child(3){animation-delay:.16s}.view:not([hidden]) :is(.procs,#procList)>.proc:nth-child(4){animation-delay:.24s}
+.view:not([hidden]) :is(.procs,#procList)>.proc:nth-child(5){animation-delay:.32s}.view:not([hidden]) :is(.procs,#procList)>.proc:nth-child(n+6){animation-delay:.4s}
+.gateL>*{animation:rise .7s cubic-bezier(.2,.7,.2,1) both}.gateL>*:nth-child(2){animation-delay:.08s}.gateL>*:nth-child(n+3){animation-delay:.16s}
+.gateR>*{animation:rise .7s cubic-bezier(.2,.7,.2,1) .12s both}
+.okdlg:not([hidden]) .okbox{animation:pop .32s cubic-bezier(.2,.7,.2,1) both}
+.top h1 span{animation:fadeIn .4s ease both}
+}
+@keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes sbIn{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:none}}
+@keyframes pop{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
 </style>
 </head><body>
 <canvas id="bg3d" aria-hidden="true"></canvas>
@@ -2672,6 +2749,15 @@ document.addEventListener("input",e=>{const el=e.target;if(e.isComposing||!mayOk
 document.addEventListener("compositionend",e=>{const el=e.target;if(mayOk(el))setTimeout(()=>mayAplicar(el,true),0)},true);
 document.addEventListener("focusout",e=>{const el=e.target;if(mayOk(el))mayAplicar(el,true)},true);
 document.head.insertAdjacentHTML("beforeend",`<style>input[type=text]:not(:placeholder-shown),input:not([type]):not(:placeholder-shown),textarea:not(:placeholder-shown){text-transform:none}</style>`);
+/* ================= v34: menú lateral e ingreso en dos columnas para PC */
+{const nt=document.querySelector("nav.tabs");nt.insertAdjacentHTML("afterbegin",`<div class="sbBrand"><div class="logo"><img src="${LOGO()}" alt="Samitex"></div><div><b>Calidad Samitex</b><small>Dpto. de Calidad</small></div></div><div class="sbLbl">Menú</div>`);
+  nt.insertAdjacentHTML("beforeend",`<div class="sbFoot"><div class="sbUser"><span class="sbAv" id="sbAv"></span><div><b id="sbNom"></b><small id="sbRol"></small></div></div><small>App Calidad Samitex · desarrollada por Karina Uscubilca Aguilar</small></div>`);
+  const g=$("v-gate"),L=document.createElement("div"),R=document.createElement("div");L.className="gateL";R.className="gateR";
+  [...g.children].forEach(c=>{(c.classList.contains("logo")||c.classList.contains("gatehero")||c.matches("[data-inst],[data-insthelp]")?L:R).appendChild(c)});
+  L.insertAdjacentHTML("beforeend",`<ul class="gateFeat"><li><i>✓</i>Auditorías y reportes de calidad en línea</li><li><i>✍</i>Firma digital de supervisión y jefaturas</li><li><i>⇅</i>Funciona sin señal y se sincroniza solo</li></ul><p class="gateCred">Departamento de Calidad Samitex · desarrollada por Karina Uscubilca Aguilar</p>`);g.append(L,R)}
+function sbUser(){const n=title((S.me&&S.me.nombre)||"");if(!$("sbNom"))return;$("sbNom").textContent=S.admin?"Administradora":n||"—";$("sbAv").textContent=((S.admin?"A":n).trim()[0]||"·").toUpperCase();
+  $("sbRol").textContent=S.prueba?"Modo prueba":S.admin?"Administración":S.jp?"Jefatura de Planta":S.jef?"Jefatura de Calidad":S.sup?"Supervisora":"Auditoría de calidad"}
+{const _rt=renderTabs;renderTabs=function(){const r=_rt.apply(this,arguments);try{sbUser()}catch(e){}return r}}
 /* ================= inicio ================= */
 (async function init(){
   S.form=blankForm();renderCola();
