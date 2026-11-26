@@ -2313,6 +2313,59 @@ bajarPdf=async function(id,btn){const t=btn&&btn.textContent;if(btn){btn.disable
       await pg.render({canvasContext:cv.getContext("2d"),viewport:v}).promise;if(!d.isConnected)return}
     P.insertAdjacentHTML("beforeend",`<p class="sub" style="color:#ccd;margin:4px 0 20px">${doc.numPages} página${doc.numPages===1?"":"s"} · usa ➕ ➖ para acercar · para guardarlo toca «⬇ Descargar»</p>`)}
   catch(x){P.innerHTML=`<p class="sub" style="color:#ccd;max-width:420px;text-align:center">No se pudo mostrar el reporte en la app (revisa tu conexión). Puedes descargarlo con el botón «⬇ Descargar».</p>`}};
+/* ================= v28: Programa de costura (Excel) — al escribir la OF se llenan cliente, artículo, color y modelo; alerta SINERCORP */
+const PRG_K="af_prog";let PROG=ls.get(PRG_K,null),PRG_T=0;const PRG_AV=new Set();
+const prgN=s=>String(s??"").normalize("NFD").replace(/[̀-ͯ]/g,"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+function prgKey(v){const d=String(v??"").replace(/\D/g,"");if(!d)return"";let n=Number(d);if(!isFinite(n))return d;if(n>=4e9)n-=4e9;return String(n)}
+async function progCargar(force){if(!S.token||S.prueba)return;if(!force&&Date.now()-PRG_T<20*60e3)return;PRG_T=Date.now();
+  try{const r=await apiX("programa",(PROG&&PROG.v)||0);if(r&&r.ok&&r.data){PROG=JSON.parse(r.data);ls.set(PRG_K,PROG);progCardRender()}else if(r&&r.ok&&!r.v){PROG=null;ls.set(PRG_K,null)}}catch(e){}}
+function progBuscar(of){const k=prgKey(of);if(!k||!PROG||!PROG.of)return null;const x=PROG.of[k];return x?{k,...x,sin:!!(PROG.sin&&PROG.sin[k])}:(PROG.sin&&PROG.sin[k]?{k,...PROG.sin[k],sin:true}:null)}
+function progInfoHtml(x){const L=Array.isArray(x.l)?x.l.join(", "):x.l||"";
+  return`<div style="font-size:12.5px;line-height:1.45">📋 <b>Programa de costura</b> · OF ${esc(x.f||x.k)}<br>${[x.c,x.a?"Art. "+x.a:"",x.co,x.m,x.p].filter(Boolean).map(esc).join(" · ")}${L?`<br>Línea: ${esc(L)}`:""}${x.pe?` · Pedido ${esc(x.pe)}`:""}${x.ca?` · ${esc(x.ca)} prendas`:""}${x.e?` · ${esc(x.e)}`:""}</div>${x.sin?`<div style="margin-top:6px;padding:8px 10px;border-radius:8px;background:#c0392b;color:#fff;font-weight:700;font-size:13px">⚠ OF en SINERCORP: pasará revisión 100% por SINERCORP</div>`:""}`}
+function progAplicar(el,alerta){const x=progBuscar(el.value);const host=el.closest("label")||el.parentElement;let box=host.parentElement.querySelector(":scope > .prgInfo");
+  if(!x){if(box)box.remove();return}
+  if(!box){box=document.createElement("div");box.className="prgInfo note";box.style.cssText="grid-column:1/-1;margin:2px 0 4px";host.insertAdjacentElement("afterend",box)}box.innerHTML=progInfoHtml(x);
+  const val={cli:x.c,art:x.a,color:x.co,desc:x.m};let n=0;
+  if(el.id==="fOf"){const ids={cli:"fCli",art:"fArt",color:"fColor",desc:"fDesc"};for(const k in ids){if(val[k]&&!String(S.form[k]||"").trim()){S.form[k]=String(val[k]);$(ids[k]).value=S.form[k];n++}}if(n)saveDraft()}
+  else if(S.mf){for(const k in val){const inp=document.querySelector(`#mfBody [data-c="${k}"]`);if(inp&&val[k]&&!String(S.mf.c[k]||"").trim()){S.mf.c[k]=String(val[k]);inp.value=S.mf.c[k];n++}}if(n){saveMF();try{libBarRender()}catch(e){}try{mfFixUpd()}catch(e){}}}
+  if(n)toast(`Datos de la OF cargados del programa (${n})`);
+  if(x.sin&&alerta&&!PRG_AV.has(x.k)){PRG_AV.add(x.k);preguntar("⚠ OF en SINERCORP",`La OF ${x.f||x.k}${x.a?" · "+x.a:""}${x.co?" · "+x.co:""} está en SINERCORP: pasará revisión 100% por SINERCORP.`,"Entendido","Cerrar")}}
+const prgEsOf=t=>t&&(t.id==="fOf"||(t.dataset&&t.dataset.c==="of"&&t.closest("#mfBody")));let PRG_DB=null;
+document.addEventListener("input",e=>{if(!prgEsOf(e.target))return;clearTimeout(PRG_DB);const t=e.target;PRG_DB=setTimeout(()=>{if(prgKey(t.value).length>=4)progAplicar(t,false)},700)});
+document.addEventListener("change",e=>{if(prgEsOf(e.target))progAplicar(e.target,true)});
+document.addEventListener("focusout",e=>{if(prgEsOf(e.target)&&e.target.value)progAplicar(e.target,true)});
+{const _g2=go;go=function(t){const r=_g2.apply(this,arguments);if(t==="form"||t==="mod"){progCargar();setTimeout(()=>{const o=t==="form"?$("fOf"):document.querySelector('#mfBody [data-c="of"]');if(o&&o.value)progAplicar(o,false)},300)}return r}}
+{const _rm2=renderMF;renderMF=function(){const r=_rm2.apply(this,arguments);setTimeout(()=>{const o=document.querySelector('#mfBody [data-c="of"]');if(o&&o.value)progAplicar(o,false)},50);return r}}
+/* subir el Excel (administradora) */
+function xlsxCargar(){return window.XLSX?Promise.resolve():new Promise((ok,no)=>{const x=document.createElement("script");x.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";x.onload=ok;x.onerror=no;document.head.appendChild(x)})}
+const PRG_COL={of:["OF"],a:["ARTICULO"],co:["COLOR"],c:["CLIENTE"],m:["MODELO"],l:["LINEA"],p:["PRENDA","RUBRO"],pe:["PEDIDO","NROPEDIDO"],ca:["CANT","CANTPEDIDO"],pl:["PLANTA","TALLER"],e:["ESTATUS"]};
+function progParse(wb){const of={},sin={};let hojas=[];
+  for(const nom of wb.SheetNames){const R=XLSX.utils.sheet_to_json(wb.Sheets[nom],{header:1,raw:true,defval:null});let h=-1,M={};
+    for(let i=0;i<Math.min(15,R.length);i++){const N=(R[i]||[]).map(prgN);if(N.includes("OF")&&(N.includes("ARTICULO")||N.includes("COLOR"))){h=i;for(const k in PRG_COL){const j=N.findIndex(x=>PRG_COL[k].includes(x));if(j>=0)M[k]=j}break}}
+    if(h<0)continue;const esSin=/SINERCORP/i.test(nom);let n=0;
+    for(let i=h+1;i<R.length;i++){const r=R[i]||[],k=prgKey(r[M.of]);if(!k||k==="0")continue;n++;const g=c=>M[c]==null||r[M[c]]==null?"":String(r[M[c]]).trim();
+      const x={f:String(r[M.of]).trim(),c:g("c"),a:g("a"),co:g("co"),m:g("m"),p:g("p"),pe:g("pe"),ca:g("ca"),e:g("e")};
+      if(esSin){sin[k]={...(sin[k]||{}),...Object.fromEntries(Object.entries(x).filter(([,v])=>v))};continue}
+      const o=of[k]||(of[k]={l:[]});for(const [c,v] of Object.entries(x))if(v&&v!=="#REF!")o[c]=v;const L=g("l"),pl=g("pl");if(L){const t=prgN(pl)==="TALLER"?L+" (taller)":L;if(!o.l.includes(t))o.l.push(t)}}
+    hojas.push(`${nom} (${n})`)}
+  return{of,sin,hojas}}
+async function progSubir(file){const st=$("prgSt");st.textContent="Leyendo el Excel…";
+  try{await xlsxCargar();const wb=XLSX.read(await file.arrayBuffer(),{type:"array",cellDates:true});const d=progParse(wb),n=Object.keys(d.of).length,m=Object.keys(d.sin).length;
+    if(!n&&!m){st.textContent="No encontré la columna «OF» en ninguna hoja.";return}
+    st.textContent=`Subiendo ${n} OF (${m} en SINERCORP)…`;const r=await admin("adminGuardarPrograma",JSON.stringify(d),file.name);
+    if(!r.ok){st.textContent=r.msg||"No se pudo guardar.";return}PRG_T=0;await progCargar(true);st.textContent="";
+    okSubido(false,"Programa de costura actualizado",`${n} OF cargadas · ${m} en SINERCORP · hojas: ${d.hojas.join(", ")}. Desde ahora, al escribir la OF en un formato se llenan cliente, artículo, color y modelo.`)}
+  catch(x){st.textContent="No se pudo leer el archivo: "+(x&&x.message||x)}}
+function progCardRender(){if(S.tab!=="home")return;let c=$("prgCard");if(!S.admin||S.prueba){if(c)c.remove();return}
+  if(!c){c=document.createElement("div");c.className="card";c.id="prgCard";$("procList").insertAdjacentElement("beforebegin",c)}
+  const p=PROG,n=p&&p.of?Object.keys(p.of).length:0,m=p&&p.sin?Object.keys(p.sin).length:0;
+  c.innerHTML=`<div class="hd"><h3>📋 Programa de costura</h3><span class="sub">${p&&p.v?"Actualizado "+dt(p.v):"Sin cargar"}</span></div>
+   <p class="sub">${p&&p.v?`${esc(p.nombre||"")} · <b>${n}</b> OF · <b>${m}</b> en SINERCORP${p.por?" · subido por "+esc(title(p.por)):""}`:"Sube el Excel del programa de costura: al escribir la OF en cualquier formato se llenarán solos cliente, artículo, color y modelo, y saldrá la alerta si está en SINERCORP."}</p>
+   <div class="row" style="gap:8px;flex-wrap:wrap"><button type="button" class="btn sm" id="prgUp">⬆ Subir Excel</button>${m?'<button type="button" class="btn ghost sm" id="prgSinV">Ver OF en SINERCORP</button>':""}</div>
+   <input type="file" id="prgFile" accept=".xlsx,.xls,.xlsm" hidden><p class="sub" id="prgSt" style="margin:6px 0 0"></p><div id="prgSinL" hidden style="margin-top:8px;max-height:260px;overflow:auto"></div>`;
+  $("prgUp").onclick=()=>$("prgFile").click();$("prgFile").onchange=e=>{const f=e.target.files[0];e.target.value="";if(f)progSubir(f)};
+  const sv=$("prgSinV");if(sv)sv.onclick=()=>{const L=$("prgSinL");L.hidden=!L.hidden;if(!L.hidden)L.innerHTML=Object.entries(p.sin).map(([k,x])=>`<div style="padding:5px 0;border-bottom:1px solid var(--line);font-size:12.5px"><b>OF ${esc(x.f||k)}</b> · ${[x.c,x.a,x.m,x.co,x.ca?x.ca+" pr.":""].filter(Boolean).map(esc).join(" · ")}</div>`).join("")}}
+{const _rh4=renderHome;renderHome=function(){_rh4.apply(this,arguments);try{progCardRender()}catch(e){}if(S.token)progCargar()}}
 /* ================= v19: paquete de firma — toda la línea del día en un solo envío ================= */
 document.head.insertAdjacentHTML("beforeend",`<style>#supList .item[hidden]{display:none}#paqBar{gap:8px}#paqBar[hidden]{display:none}.pqrow{display:flex;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px;cursor:pointer}.pqrow input{width:auto;min-height:0}</style>`);
 let PQ=null;
