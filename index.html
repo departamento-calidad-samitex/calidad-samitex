@@ -279,7 +279,7 @@ nav.tabs button[aria-selected=true] svg{filter:drop-shadow(0 3px 4px color-mix(i
     <form id="gForm" class="card" novalidate>
       <h3>Ingresar</h3>
       <label class="fld"><span>DNI</span><input id="gDni" inputmode="numeric" autocomplete="username" maxlength="8" placeholder="00000000"></label>
-      <label class="fld" id="gPwdBox"><span>Contraseña</span><input id="gPwd" type="password" autocomplete="current-password" maxlength="30" placeholder="Tu contraseña"></label>
+      <label class="fld" id="gPwdBox"><span>Contraseña o PIN</span><input id="gPwd" type="password" autocomplete="current-password" maxlength="30" placeholder="Tu contraseña o PIN"></label>
       <div id="gNewBox" class="stack" hidden><p class="note" id="gNewMsg"></p>
         <label class="fld"><span>Nueva contraseña (6 a 30 caracteres)</span><input id="gNew" type="password" autocomplete="new-password" maxlength="30"></label>
         <label class="fld"><span>Repite la nueva contraseña</span><input id="gNew2" type="password" autocomplete="new-password" maxlength="30"></label></div>
@@ -887,7 +887,7 @@ async function bajarPdf(id,btn){const t=btn&&btn.textContent;if(btn){btn.disable
 const ICON={asis:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4M8 15l3 3 5-6"/>',home:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',time:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/>',form:'<path d="M12 5v14M5 12h14"/>',dash:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',hist:'<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>',team:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/>'};
 const TLAB={asis:"Asistencia",home:"Inicio",form:"Auditoría",dash:"Tablero",hist:"Reportes",time:"Tiempos",team:"Equipo"},HT={asis:"Asistencia",gate:"Ingreso",pend:"Ingreso",adm:"Administración",home:"Inicio",form:"Auditoría Final",dash:"Tablero",hist:"Reportes",time:"Tiempos",team:"Equipo",mod:"Formato",ver:"Reportes",firma:"Firma de supervisor"};
 const histOk=()=>S.prueba?S.hasta>Date.now():(!!S.token&&!S.sup&&!S.admin)||S.hasta>Date.now();
-function tabsFor(){if(["gate","pend","adm"].includes(S.tab)||S.flink)return[];if(S.jef&&!S.admin&&!S.prueba)return["home","hist"];if(S.sup&&!S.admin)return["home"];return S.admin?["home","dash","hist","asis",...(S.principal?["time"]:[]),"team"]:["home",...(puedeE("af")?["form"]:[]),...(histOk()?["hist"]:[])]}
+function tabsFor(){if(["gate","pend","adm"].includes(S.tab)||S.flink)return[];if(S.jp&&!S.admin&&!S.prueba)return["home"];if(S.jef&&!S.admin&&!S.prueba)return["home","hist"];if(S.sup&&!S.admin)return["home"];return S.admin?["home","dash","hist","asis",...(S.principal?["time"]:[]),"team"]:["home",...(puedeE("af")?["form"]:[]),...(histOk()?["hist"]:[])]}
 function renderTabs(){const t=tabsFor();if(!["gate","pend","adm","form","mod","ver","firma"].includes(S.tab)&&!t.includes(S.tab))S.tab="home";
   $("tabs").innerHTML=t.length>1?t.map(k=>`<button type="button" role="tab" data-t="${k}" aria-selected="${S.tab===k}"><svg viewBox="0 0 24 24">${ICON[k]}</svg>${TLAB[k]}</button>`).join(""):"";
   document.querySelector("nav.tabs").hidden=t.length<2}
@@ -902,10 +902,10 @@ function go(t,pop){if(!pop&&S.tab!==t&&(S.token||S.admin)&&!["gate","pend","adm"
 $("toReq").onclick=()=>{$("gForm").hidden=true;$("sForm").hidden=false;$("sDni").value=$("gDni").value;$("gErr").hidden=true};
 $("toIn").onclick=()=>{$("gForm").hidden=false;$("sForm").hidden=true};
 async function reLogin(){return false}
-function setSesion(r){setPerm(r.permisos);S.token=r.token;S.hasta=r.historialHasta||0;S.firma=!!r.puedeFirmar;S.sup=!!r.sup;S.jef=!!r.jef;S.me={nombre:r.nombre};ls.set("af_ses",{tok:r.token,nombre:r.nombre,hasta:S.hasta,firma:S.firma,sup:S.sup,jef:S.jef});ls.set("af_pend",null);
+function setSesion(r){setPerm(r.permisos);S.token=r.token;S.hasta=r.historialHasta||0;S.firma=!!r.puedeFirmar;S.sup=!!r.sup;S.jef=!!r.jef;S.jp=!!r.jp;if(r.pin!=null)S.pin=!!r.pin;S.me={nombre:r.nombre};ls.set("af_ses",{tok:r.token,nombre:r.nombre,hasta:S.hasta,firma:S.firma,sup:S.sup,jef:S.jef,jp:S.jp,pin:S.pin});ls.set("af_pend",null);
   $("role").textContent=title(r.nombre);loadForm(ls.get("draft3",null)||blankForm());go("home");banner();usoIni();enviarCola()}
 function cerrarSesion(msg){if(S.prueba){pruebaSalir();return}usoFin();usoBeacon(usoPend());ls.set(USO,[]);ls.set(USOA,null);ls.set("af_ses",null);S.token=null;S.me=null;S.hasta=0;$("gForm").hidden=false;$("sForm").hidden=true;go("gate");$("role").textContent="Auditor";if(msg){$("gErr").textContent=msg;$("gErr").hidden=false}}
-async function verificar(){try{const r=await call("estado",S.token);if(r.ok){S.clv={sin:!!r.sinClave,tmp:!!r.claveTemporal};S.firma=!!r.puedeFirmar;S.sup=!!r.sup;S.jef=!!r.jef;renderClv();setPerm(r.permisos);renderHome();S.hasta=r.historialHasta||0;S.me.nombre=r.nombre;ls.set("af_ses",{tok:S.token,nombre:r.nombre,hasta:S.hasta,firma:S.firma,sup:S.sup,jef:S.jef});renderTabs();banner()}
+async function verificar(){try{const r=await call("estado",S.token);if(r.ok){S.clv={sin:!!r.sinClave,tmp:!!r.claveTemporal};S.firma=!!r.puedeFirmar;S.sup=!!r.sup;S.jef=!!r.jef;S.jp=!!r.jp;if(r.pin!=null)S.pin=!!r.pin;renderClv();setPerm(r.permisos);renderHome();S.hasta=r.historialHasta||0;S.me.nombre=r.nombre;ls.set("af_ses",{tok:S.token,nombre:r.nombre,hasta:S.hasta,firma:S.firma,sup:S.sup,jef:S.jef,jp:S.jp,pin:S.pin});renderTabs();banner()}
   else cerrarSesion(r.estado==="BLOQUEADO"?"Tu acceso fue bloqueado por la jefatura de calidad.":r.estado==="PENDIENTE"?"Tu acceso está pendiente de aprobación.":"Este equipo ya no está autorizado. Vuelve a ingresar con tu DNI.")}catch(x){}}
 let gModo="";
 function gNuevo(modo,msg){gModo=modo;$("gNewBox").hidden=false;$("gNewMsg").textContent=msg||"";$("gPwdBox").hidden=modo!=="cambiar";$("gBtn").textContent="Guardar contraseña e ingresar";setTimeout(()=>$("gNew").focus(),50)}
@@ -914,7 +914,7 @@ async function entrar(dni){const er=$("gErr");er.hidden=true;er.className="note 
   let nueva="";if(gModo){nueva=$("gNew").value;if(nueva.length<6){er.textContent="La nueva contraseña debe tener al menos 6 caracteres.";er.hidden=false;return false}if(nueva!==$("gNew2").value){er.textContent="Las dos contraseñas nuevas no coinciden.";er.hidden=false;return false}}
   const rst=ls.get("af_rst",null),rid=gModo==="reset"&&rst&&rst.dni===dni?rst.rid:"";
   try{const r=await call("ingresar",dni,$("gPwd").value,nueva,rid);
-    if(r.ok){if(rid)ls.set("af_rst",null);$("gPwd").value="";gNormal();$("gRst").hidden=true;setSesion(r);return true}
+    if(r.ok){if(rid)ls.set("af_rst",null);try{await pinLocal(r,$("gPwd").value)}catch(e){}$("gPwd").value="";gNormal();$("gRst").hidden=true;setSesion(r);return true}
     if(r.estado==="CREAR_CLAVE"){gNuevo(r.reset?"reset":"crear",r.msg);return false}
     if(r.estado==="CAMBIAR_CLAVE"){gNuevo("cambiar",r.msg);return false}
     if(r.estado==="PEDIR_CLAVE"){gNormal();er.textContent=r.msg;er.hidden=false;$("gPwd").focus();return false}
@@ -1497,7 +1497,7 @@ const libReady=(async()=>{let all=[];try{libDB=await idbOpen();all=await idbAll(
 /* ---- v11: «Ver como auditor» — la administradora prueba la app como un auditor. Las llamadas que guardan
    se responden aquí mismo (no llegan al servidor): nada entra al Excel, a Drive ni a los correos ---- */
 /* ---- v13: firma de supervisor por línea (en su app) o por link (sin cuenta) ---- */
-const supIm=r=>({...supIm0(r),...(r&&r.vbObs?{vbObs:r.vbObs}:{})});const supIm0=r=>{const f=r&&r.firmaSup;return f&&f.estado==="FIRMADO"?{supNom:f.por||"",supTs:f.ts?new Date(f.ts).toLocaleString("es-PE",{dateStyle:"short",timeStyle:"short"}):"",supObs:f.obs||""}:{}};
+const supIm=r=>({...supIm0(r),...(r&&r.vbObs?{vbObs:r.vbObs}:{})});const supIm0=r=>{const f=r&&r.firmaSup,o=f&&f.estado==="FIRMADO"?{supNom:f.por||"",supTs:f.ts?new Date(f.ts).toLocaleString("es-PE",{dateStyle:"short",timeStyle:"short"}):"",supObs:f.obs||""}:{},j=r&&r.firmaJP;return j&&j.estado==="FIRMADO"?{...o,jpNom:j.por||"",jpTs:j.ts?new Date(j.ts).toLocaleString("es-PE",{dateStyle:"short",timeStyle:"short"}):"",jpObs:j.obs||""}:o};
 function firmaPill(r){const f=r&&r.firmaSup;if(!f||!f.estado)return"";const d=f.ts?" · "+dt(f.ts):"";
   return f.estado==="FIRMADO"?`<span class="pill ok">✔ Firmado por ${esc(title(f.por||""))}${d}</span> `:f.estado==="DEVUELTO"?`<span class="pill bad">💬 Devuelto por ${esc(title(f.por||""))}${d}</span> `:`<span class="pill wait">✍ Pendiente de firma${f.supNom?" · "+esc(title(f.supNom)):f.lin?" · línea "+esc(f.lin):""}</span> `}
 function firmaBtn(r){const f=r.firmaSup||{};if(f.estado==="FIRMADO"||!(S.admin||(S.me&&up(r.aud||"")===up(S.me.nombre||""))))return"";return`<button type="button" class="btn sm" data-fpd="${esc(r.id)}">${f.estado==="PENDIENTE"?"✍ Reenviar link":"✍ Enviar a firma"}</button>`}
@@ -1681,7 +1681,7 @@ function qHead(titulo,cod,ver,sub){const m=String(ver||"").match(/V\.?\s*0*(\d+)
  <tr>${c("REVISADO POR:",REVISA)}</tr><tr>${c("APROBADO POR:",APRUEBA)}</tr><tr>${c("FORMATO:",cod)}</tr><tr>${c("FECHA:",vf)}</tr>
  <tr><td class="q-l" style="font-size:7pt"><b>VERSIÓN:</b> ${vn}</td><td class="q-l" style="font-size:7pt"><b>PÁG.:</b> {{PAG}}</td></tr></table>`}
 function qInf(rows){const n=rows[0].length;return`<table class="q-inf">${rows.map(r=>`<tr>${r.map(([k,v])=>`<td class="q-k" style="width:1%">${Q(k)}</td><td class="q-v" style="width:${Math.floor(88/n)}%">${Q(v)}</td>`).join("")}</tr>`).join("")}</table>`}
-function qSig(list,im,vb){return`<table class="q-sig" style="margin-top:auto"><tr>${list.map(([l,k,nm])=>`<td>${k==="A"&&im.firmaA?`<img src="${im.firmaA}">`:k==="T"&&im.firmaT?`<img src="${im.firmaT}">`:k==="VB"&&vb&&im.firmaVB?`<div style="position:relative"><img src="${im.firmaVB}"><div style="font-size:6pt;color:#0b7a2a;font-weight:normal">V°B° ${Q(vb)}</div></div>`:k==="VB"&&vb?`<div style="height:12mm;line-height:12mm;color:#0b7a2a">V°B° ${Q(vb)}</div>`:`<div style="height:12mm"></div>`}<div class="q-ln">${Q(l)}</div><div style="font-weight:normal;font-size:7pt">${Q((k==="T"&&im.supNom)||(k==="VB"&&vb&&im.vbNom?title(im.vbNom):"")||nm||"")}</div>${k==="T"&&im.supTs?`<div style="font-weight:normal;font-size:5.5pt;color:#0b7a2a">Firmado ${Q(im.supTs)}</div>`:""}${k==="T"&&im.supObs?`<div style="font-weight:normal;font-size:5.5pt;white-space:normal;line-height:1.15">Obs.: ${Q(im.supObs)}</div>`:""}${k==="VB"&&vb&&im.vbObs?`<div style="font-weight:normal;font-size:5.5pt;white-space:normal;line-height:1.15">Obs.: ${Q(im.vbObs)}</div>`:""}</td>`).join("")}</tr></table>`}
+function qSig(list,im,vb){return`<table class="q-sig" style="margin-top:auto"><tr>${list.map(([l,k,nm])=>`<td>${k==="A"&&im.firmaA?`<img src="${im.firmaA}">`:k==="T"&&im.firmaT?`<img src="${im.firmaT}">`:k==="VB"&&vb&&im.firmaVB?`<div style="position:relative"><img src="${im.firmaVB}"><div style="font-size:6pt;color:#0b7a2a;font-weight:normal">V°B° ${Q(vb)}</div></div>`:k==="VB"&&vb?`<div style="height:12mm;line-height:12mm;color:#0b7a2a">V°B° ${Q(vb)}</div>`:`<div style="height:12mm"></div>`}<div class="q-ln">${Q(l)}</div><div style="font-weight:normal;font-size:7pt">${Q((k==="T"&&im.supNom)||(k==="VB"&&vb&&im.vbNom?title(im.vbNom):"")||nm||"")}</div>${k==="T"&&im.supTs?`<div style="font-weight:normal;font-size:5.5pt;color:#0b7a2a">Firmado ${Q(im.supTs)}</div>`:""}${k==="T"&&im.supObs?`<div style="font-weight:normal;font-size:5.5pt;white-space:normal;line-height:1.15">Obs.: ${Q(im.supObs)}</div>`:""}${k==="T"&&im.jpNom?`<div style="border-top:1px dashed #999;margin-top:1mm;padding-top:.6mm">${im.firmaJP?`<img src="${im.firmaJP}" style="height:8mm;max-height:8mm;width:auto;max-width:100%;display:block;margin:0 auto">`:""}<div style="font-weight:bold;font-size:5.5pt;color:#0b7a2a">V°B° Jefatura de Planta</div><div style="font-weight:normal;font-size:6pt">${Q(title(im.jpNom))}</div>${im.jpTs?`<div style="font-weight:normal;font-size:5.5pt;color:#0b7a2a">Firmado ${Q(im.jpTs)}</div>`:""}${im.jpObs?`<div style="font-weight:normal;font-size:5.5pt;white-space:normal;line-height:1.15">Obs.: ${Q(im.jpObs)}</div>`:""}</div>`:""}${k==="VB"&&vb&&im.vbObs?`<div style="font-weight:normal;font-size:5.5pt;white-space:normal;line-height:1.15">Obs.: ${Q(im.vbObs)}</div>`:""}</td>`).join("")}</tr></table>`}
 const qBox=b=>`<span class="q-box">${b?"X":""}</span>`;
 const qVB=r=>r.vb?new Date(r.vb).toLocaleString("es-PE",{dateStyle:"short",timeStyle:"short"}):"";
 function qFotos(r,im,titulo,off){off=off||0;const cp=((r.f&&r.f.fcap)||r.fcap||[]).slice(off);return im.fotos.length?`<div class="q-b" style="font-size:11pt;margin-bottom:3mm">${Q(titulo)} · ${Q(MODULOS[r.mod||"af"].n)} · ${dmy(r.fecha)}</div><div style="display:flex;flex-wrap:wrap;gap:4mm">${im.fotos.map((s,i)=>`<div style="width:88mm"><img src="${s}" style="width:88mm;max-height:100mm;object-fit:contain;border:1px solid #999;display:block">${cp[i]?`<div style="font-size:8.5pt;margin-top:1mm;white-space:normal"><b>Foto ${off+i+1}:</b> ${Q(cp[i])}</div>`:`<div style="font-size:8pt;margin-top:1mm;color:#666">Foto ${off+i+1}</div>`}</div>`).join("")}</div>`:""}
@@ -1891,7 +1891,7 @@ $("teamList").addEventListener("change",e=>{const s=e.target.closest("[data-pmal
 function geoAhora(ms){return new Promise(res=>{if(!navigator.geolocation)return res(null);setTimeout(()=>res(null),(ms||15000)+3000);navigator.geolocation.getCurrentPosition(p=>{const g={lat:p.coords.latitude,lng:p.coords.longitude,acc:Math.round(p.coords.accuracy),ts:Date.now()};try{ls.set("geo_ult",g)}catch(x){}res(g)},e=>res(e&&e.code===1?{denegado:1}:null),{enableHighAccuracy:true,timeout:ms||15000,maximumAge:60000})})}
 async function geoForm(){const g=await geoAhora(8000);return g&&!g.denegado?g:null}
 let ASIS={hoy:"",rows:[],hora:"08:30"},asisTipo=null;const ASCOLA="asis_cola",ASREJ="asis_rech";
-async function cargarAsis(){const c=$("asisCard");if(!S.token||S.sup||S.jef){c.hidden=true;return}c.hidden=false;renderAsis();enviarAsis();
+async function cargarAsis(){const c=$("asisCard");if(!S.token||S.sup||S.jef||S.jp){c.hidden=true;return}c.hidden=false;renderAsis();enviarAsis();
   try{const r=await call("miAsistencia",S.token);if(r&&r.ok){ASIS=r;renderAsis()}}catch(x){}}
 const ASLAB={INGRESO:"Ingreso",SALIDA:"Salida",ALMUERZO_SALIDA:"Salida a almuerzo",ALMUERZO_REGRESO:"Regreso de almuerzo",TALLER_LLEGADA:"Llegada a taller",TALLER_SALIDA:"Salida de taller",TALLER_CAMBIO:"Cambio de taller"};
 const asMinA=h=>{const m=String(h||"").match(/^(\d{1,2}):(\d{2})/);return m?+m[1]*60+ +m[2]:NaN};
@@ -2190,8 +2190,8 @@ function fotoPick(id){const inp=$(id);if(!inp)return;const old=$("fpSh");if(old)
 /* ================= v22: Jefatura de Calidad + V°B° con firma guardada y comentario + firma guardada del auditor */
 {const _rh3=renderHome;renderHome=function(){_rh3.apply(this,arguments);if(S.jef&&!S.admin&&!S.prueba&&S.tab==="home"){$("procList").hidden=true;$("homeSub").textContent="Jefatura de Calidad · revisa los reportes y da tu V°B°"}}}
 {const _cs2=cerrarSesion;cerrarSesion=function(){S.jef=false;return _cs2.apply(this,arguments)}}
-function cargoCtl(a){const c=up(a.CARGO||""),v=/JEFATUR/.test(c)?"JEFATURA DE CALIDAD":/SUPERVISOR/.test(c)?"SUPERVISOR DE PRODUCCIÓN":"AUDITOR DE CALIDAD";
-  return`<label class="fld" style="max-width:320px"><span>Rol en la app</span><select data-cargo="${esc(a.DNI)}">${[["AUDITOR DE CALIDAD","Auditora de calidad"],["SUPERVISOR DE PRODUCCIÓN","Supervisor de producción"],["JEFATURA DE CALIDAD","Jefatura de Calidad (ve todo y da V°B°)"]].map(([k,t])=>`<option value="${k}"${k===v?" selected":""}>${t}</option>`).join("")}</select></label>`}
+function cargoCtl(a){const c=up(a.CARGO||""),v=/JEFATUR/.test(c)&&/PLANTA/.test(c)?"JEFATURA DE PLANTA":/JEFATUR/.test(c)?"JEFATURA DE CALIDAD":/SUPERVISOR/.test(c)?"SUPERVISOR DE PRODUCCIÓN":"AUDITOR DE CALIDAD";
+  return`<label class="fld" style="max-width:320px"><span>Rol en la app</span><select data-cargo="${esc(a.DNI)}">${[["AUDITOR DE CALIDAD","Auditora de calidad"],["SUPERVISOR DE PRODUCCIÓN","Supervisor de producción"],["JEFATURA DE CALIDAD","Jefatura de Calidad (ve todo y da V°B°)"],["JEFATURA DE PLANTA","Jefatura de Planta (firma después de la supervisora)"]].map(([k,t])=>`<option value="${k}"${k===v?" selected":""}>${t}</option>`).join("")}</select></label>`}
 $("teamList").addEventListener("change",async e=>{const s=e.target.closest("[data-cargo]");if(!s)return;s.disabled=true;
   try{const r=await admin("adminCargo",s.dataset.cargo,s.value);toast(r.ok?`Rol cambiado a ${title(r.cargo)}. Al volver a abrir la app ya entra con ese rol.`:r.msg);await cargarTeam()}catch(x){s.disabled=false;toast("No se pudo cambiar el rol. Revisa tu conexión.")}});
 function vbPad(cv){let ctx,on=false,last=null;const P={dirty:false};
@@ -2570,6 +2570,60 @@ function homeDeco(){const n=S.me&&S.me.nombre?title(S.me.nombre):"",av=$("homeAv
 {const _rh2=renderHome;renderHome=function(){_rh2.apply(this,arguments);try{homeDeco()}catch(e){}}}
 {const _ss=setSesion;setSesion=function(r){_ss.apply(this,arguments);if(lkOn()&&!lkGet())setTimeout(()=>lkConfig(true),700)}}
 {const _cs=cerrarSesion;cerrarSesion=function(){if(!S.prueba){ls.set(LK_K,null);lkCerrar()}return _cs.apply(this,arguments)}}
+/* ================= v30: perfiles con PIN (supervisoras y Jefatura de Planta) + Jefatura de Planta firma todas las áreas juntas */
+async function pinLocal(r,pw){if(!r||!r.pin||!/^\d{4}$/.test(String(pw||"")))return;const salt=b64u(crypto.getRandomValues(new Uint8Array(12)));ls.set(LK_K,{nom:r.nombre||"",salt,pinH:await lkHash(pw,salt),cred:"",fail:0})}
+async function pinCambiar(){const p1=await pinPedir("Tu nuevo PIN","4 números que solo tú conozcas");if(!p1)return false;const p2=await pinPedir("Repite tu nuevo PIN","Para confirmar");if(!p2)return false;
+  if(p1!==p2){toast("Los PIN no coinciden. Inténtalo otra vez.");return pinCambiar()}
+  try{const r=await call("cambiarPin",S.token,p1);if(!r.ok){toast(r.msg||"No se pudo cambiar el PIN.");return false}const L=lkGet(),salt=b64u(crypto.getRandomValues(new Uint8Array(12)));ls.set(LK_K,{nom:(S.me&&S.me.nombre)||"",salt,pinH:await lkHash(p1,salt),cred:(L&&L.cred)||"",fail:0});renderQk();toast("Listo: tu PIN nuevo ya funciona para ingresar.");return true}
+  catch(e){toast("Sin conexión: tu PIN no se cambió. Inténtalo con señal.");return false}}
+async function pinPreguntar(){if(await preguntar("🔑 Tu PIN de ingreso","Entraste con tu PIN inicial: los 4 últimos números de tu DNI. ¿Quieres cambiarlo por uno que solo tú conozcas?","Cambiar mi PIN","Seguir con este")){if(await pinCambiar())return}try{await call("pinSeguir",S.token)}catch(e){}}
+{const _ss5=setSesion;setSesion=function(r){_ss5.apply(this,arguments);if(r&&r.pinPreg)setTimeout(pinPreguntar,900)}}
+{const _rq=renderQk;renderQk=function(){_rq.apply(this,arguments);const c=$("qkCard");if(!c||c.hidden||!S.pin)return;$("qkSub").textContent="Ingresas con tu PIN de 4 números (el mismo en este celular y en cualquier otro).";
+  $("qkAct").innerHTML=`<button type="button" class="btn ghost sm" data-qk="spin">Cambiar mi PIN</button>`}}
+$("qkAct").addEventListener("click",e=>{if(e.target.closest('[data-qk="spin"]'))pinCambiar()});
+{const _cs3=cerrarSesion;cerrarSesion=function(){S.jp=false;S.pin=false;return _cs3.apply(this,arguments)}}
+/* firma de la Jefatura de Planta en los PDF que se arman de nuevo (V°B°, correcciones) */
+const JPF={};
+{const _pd=pdfDe;pdfDe=async function(r,im){try{const j=r&&r.firmaJP;if(j&&j.estado==="FIRMADO"){im={...im};if(!im.jpNom)Object.assign(im,supIm0(r));
+  if(!im.firmaJP&&(S.admin||S.token)){if(JPF[r.id]==null){const x=await (S.admin?admin("firmaJPde",r.id):call("firmaJPde",S.token,r.id));JPF[r.id]=(x&&x.firma)||""}im.firmaJP=JPF[r.id]}}}catch(e){}return _pd.call(this,r,im)}}
+{const _fp=firmaPill;firmaPill=function(r){const j=r&&r.firmaJP,h=_fp.apply(this,arguments);if(!j||!j.estado)return h;return h+(j.estado==="FIRMADO"?`<span class="pill ok">🏭 V°B° Planta · ${esc(title(j.por||""))}</span> `:`<span class="pill wait">🏭 Pendiente Jef. Planta</span> `)}}
+document.head.insertAdjacentHTML("beforeend",`<style>#jpCard .grpH{display:flex;justify-content:space-between;align-items:center;gap:8px}#jpCard .grpH .btn{flex:none}</style>`);
+$("supCard").insertAdjacentHTML("afterend",`<div class="card" id="jpCard" hidden><div class="hd"><h3>🏭 Jefatura de Planta · por firmar</h3><span class="sub" id="jpSub"></span></div><div class="row" style="gap:8px;margin-bottom:8px"><button type="button" class="btn gold" id="jpTodos" hidden>✍ Firmar todos</button><button type="button" class="btn ghost sm" id="jpAct">↻ Actualizar</button></div><div class="list" id="jpList"></div><h3 style="margin:14px 0 6px">Firmados</h3><div class="list" id="jpHechos"></div></div>`);
+let JP={pend:[],hechos:[]};
+const jpArea=r=>title(((r.firmaJP&&r.firmaJP.area)||(r.firmaSup&&r.firmaSup.lin)||"Sin área").split(/[,;]/)[0].trim()||"Sin área");
+async function jpCargar(){const c=$("jpCard");if(!c)return;const on=!!(S.jp&&S.token&&!S.admin&&!S.prueba);c.hidden=!on;if(!on)return;$("procList").hidden=true;
+  $("homeSub").textContent="Jefatura de Planta · firma los reportes de todas las áreas";$("jpSub").textContent="Cargando…";
+  try{const r=await call("jpPendientes",S.token);if(!r.ok){$("jpSub").textContent=r.msg||"";return}JP=r;jpRender()}catch(x){$("jpSub").textContent="Sin conexión."}}
+function jpRender(){const P=JP.pend||[],g={};P.forEach(r=>{const k=jpArea(r);(g[k]=g[k]||[]).push(r)});const ks=Object.keys(g).sort((a,b)=>a.localeCompare(b,"es"));
+  $("jpSub").textContent=P.length?`${P.length} reporte${P.length===1?"":"s"} de ${ks.length} área${ks.length===1?"":"s"} · ya firmados por la supervisora`:"Todo al día";
+  const b=$("jpTodos");b.hidden=!P.length;b.textContent=`✍ Firmar todos juntos (${P.length})`;
+  const it=r=>{const f=r.firmaSup||{};return`<article class="item${r.rej?" rej":""}"><div class="t"><b><span class="pill wait">${esc(MODULOS[r.mod||"af"]?MODULOS[r.mod||"af"].n:"")}</span> ${esc(resumen(r))}</b></div><div class="m">${dmy(r.fecha)} · Auditor ${esc(title(r.aud||""))} · ${r.rej?'<b style="color:var(--bad,#b00020)">RECHAZADO</b>':"Aprobado"}</div><div class="m">✔ Supervisora: ${esc(title(f.por||""))}${f.ts?" · "+dt(f.ts):""}${f.obs?" · Obs.: "+esc(f.obs):""}</div><div class="acts"><button type="button" class="btn ghost sm" data-jpv="${esc(r.id)}">👁 Ver</button><button type="button" class="btn sm" data-jpf="${esc(r.id)}">✍ Firmar</button></div></article>`};
+  $("jpList").innerHTML=P.length?ks.map(k=>`<h4 class="grpH"><span>${esc(k)} <span>(${g[k].length})</span></span><button type="button" class="btn sm" data-jpa="${esc(k)}">Firmar ${esc(k)} (${g[k].length})</button></h4>`+g[k].map(it).join("")).join(""):'<div class="empty">No hay reportes por firmar.</div>';
+  $("jpHechos").innerHTML=(JP.hechos||[]).length?JP.hechos.map(r=>`<article class="item"><div class="t"><b>${esc(resumen(r))}</b></div><div class="m">${esc(jpArea(r))} · ${dmy(r.fecha)} · ✔ ${esc(title(r.firmaJP.por||""))} · ${dt(r.firmaJP.ts)}</div></article>`).join(""):'<p class="sub">Aún nada.</p>'}
+$("jpAct").onclick=()=>jpCargar();
+$("jpTodos").onclick=()=>jpFirmarDlg((JP.pend||[]).map(r=>r.id),"todas las áreas");
+$("jpCard").addEventListener("click",e=>{const v=e.target.closest("[data-jpv]"),f=e.target.closest("[data-jpf]"),a=e.target.closest("[data-jpa]");
+  if(v)bajarPdf(v.dataset.jpv,v);else if(f)jpFirmarDlg([f.dataset.jpf],"1 reporte");else if(a)jpFirmarDlg((JP.pend||[]).filter(r=>jpArea(r)===a.dataset.jpa).map(r=>r.id),a.dataset.jpa)});
+async function jpFirmarDlg(ids,que){if(!ids.length)return;const d=document.createElement("div");d.className="okdlg";d.setAttribute("role","dialog");d.setAttribute("aria-modal","true");
+  d.innerHTML=`<div class="okbox" style="text-align:left;max-height:92vh;overflow:auto"><h3>✍ Firmar ${ids.length} reporte${ids.length===1?"":"s"}</h3><p class="sub">${esc(que)} · tu firma sale en el PDF de cada reporte, debajo de la firma de la supervisora.</p>
+    <div id="jpFBox"><p class="sub">Cargando tu firma…</p></div>
+    <label class="fld full"><span>Observación (opcional, sale en todos los PDF)</span><textarea id="jpObs" rows="2" maxlength="500"></textarea></label>
+    <p class="note err" id="jpErr" hidden></p><button type="button" class="btn block" id="jpOk" disabled>✔ Firmar ${ids.length} reporte${ids.length===1?"":"s"}</button><button type="button" class="btn ghost block" id="jpNo">Cancelar</button></div>`;
+  document.body.appendChild(d);let firma="",pad=null,busy=false;
+  const dibujar=()=>{$("jpFBox").innerHTML=`<p class="sub" style="margin:0 0 4px">Dibuja tu firma (se guarda para la próxima vez; solo tú puedes usarla):</p><canvas id="jpCv" style="width:100%;height:150px;background:#fff;border-radius:12px;touch-action:none;display:block"></canvas><button type="button" class="btn ghost sm" id="jpClr" style="margin-top:6px">Borrar</button>`;pad=vbPad($("jpCv"));requestAnimationFrame(()=>pad.init());$("jpClr").onclick=()=>pad.init();firma=""};
+  try{const r=await call("supMiFirma",S.token);if(r&&r.ok&&r.firma){firma=r.firma;$("jpFBox").innerHTML=`<p class="sub" style="margin:0 0 4px">Tu firma guardada:</p><div style="background:#fff;border-radius:12px;padding:6px;text-align:center"><img src="${firma}" style="max-height:90px;max-width:100%"></div><button type="button" class="btn ghost sm" id="jpOtra" style="margin-top:6px">Firmar con otra</button>`;$("jpOtra").onclick=dibujar}else dibujar()}
+  catch(e){$("jpFBox").innerHTML='<p class="note err">Sin conexión. Inténtalo con señal.</p>';return}
+  $("jpOk").disabled=false;$("jpNo").onclick=()=>{if(!busy)d.remove()};
+  $("jpOk").onclick=async()=>{const er=$("jpErr"),ok=$("jpOk");er.hidden=true;if(pad){if(!pad.dirty){er.textContent="Dibuja tu firma en el recuadro blanco.";er.hidden=false;return}firma=pad.png()}
+    busy=true;ok.disabled=true;$("jpNo").disabled=true;const obs=($("jpObs").value||"").trim();let n=0,fal=[];
+    try{if(pad){ok.textContent="Guardando tu firma…";const g=await call("supGuardarFirma",S.token,firma);if(!g||!g.ok)throw new Error((g&&g.msg)||"No se pudo guardar tu firma.");pad=null}
+      for(let i=0;i<ids.length;i++){ok.textContent=`Firmando ${i+1} de ${ids.length}…`;try{const v=await call("jpVer",S.token,ids[i]);if(!v.ok)throw new Error(v.msg);
+          const ts=new Date().toLocaleString("es-PE",{dateStyle:"short",timeStyle:"short"}),im={firmaA:v.firmaA||"",firmaT:v.firmaT||"",firmaVB:v.firmaVB||"",vbNom:v.vbNom||"",vbObs:v.vbObs||"",fotos:v.fotos||[],...supIm(v.rec),firmaJP:firma,jpNom:(S.me&&S.me.nombre)||"",jpTs:ts,jpObs:obs};
+          let pdf="";try{pdf=await pdfDe({...v.rec,firmaJP:null},im)}catch(x){}
+          const r=await call("jpFirmar",S.token,ids[i],pdf,obs);if(r.ok||r.ya)n++;else fal.push(r.msg||"error")}catch(x){fal.push(x&&x.message||"sin conexión")}}
+      d.remove();toast(fal.length?`Firmados ${n} de ${ids.length}. ${fal.length} no se pudieron: inténtalo otra vez.`:`✔ Firmaste ${n} reporte${n===1?"":"s"}.`);jpCargar()}
+    catch(x){er.textContent=x&&x.message||"No se pudo firmar. Revisa tu conexión.";er.hidden=false;busy=false;ok.disabled=false;$("jpNo").disabled=false;ok.textContent=`✔ Firmar ${ids.length} reporte${ids.length===1?"":"s"}`}}}
+{const _rh6=renderHome;renderHome=function(){_rh6.apply(this,arguments);try{jpCargar()}catch(e){}}}
 /* ================= inicio ================= */
 (async function init(){
   S.form=blankForm();renderCola();
@@ -2578,7 +2632,7 @@ function homeDeco(){const n=S.me&&S.me.nombre?title(S.me.nombre):"",av=$("homeAv
   const FLINK=new URLSearchParams(location.search).get("firma");if(FLINK){$("role").textContent="Supervisor";firmaAbrir(null,FLINK);return}
   if(MODO==="admin"){$("role").textContent="Administradora";$("role").className="role adm";go("adm");return}
   const ses=ls.get("af_ses",null),p=ls.get("af_pend",null);
-  if(ses&&ses.tok){S.token=ses.tok;S.hasta=ses.hasta||0;S.firma=!!ses.firma;S.sup=!!ses.sup;S.jef=!!ses.jef;S.me={nombre:ses.nombre};$("role").textContent=title(ses.nombre);loadForm(ls.get("draft3",null)||blankForm());go("home");banner();usoIni();lkMostrar();
+  if(ses&&ses.tok){S.token=ses.tok;S.hasta=ses.hasta||0;S.firma=!!ses.firma;S.sup=!!ses.sup;S.jef=!!ses.jef;S.jp=!!ses.jp;S.pin=!!ses.pin;S.me={nombre:ses.nombre};$("role").textContent=title(ses.nombre);loadForm(ls.get("draft3",null)||blankForm());go("home");banner();usoIni();lkMostrar();
     if(navigator.onLine){await verificar();enviarCola();usoEnviar()}return}
   if(p){showPend("",p);try{const r=await call("ingresar",p);if(r.ok)setSesion(r);else if(/CLAVE/.test(r.estado||"")){clearInterval(pendT);aprobadoPedirClave(p,r)}else if(r.estado==="PENDIENTE")$("pNom").textContent=`${title(r.nombre)} · DNI ••••${p.slice(-4)}`;else{ls.set("af_pend",null);go("gate")}}catch(x){}return}
   go("gate");rstVer()})();
