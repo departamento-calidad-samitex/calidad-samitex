@@ -2069,9 +2069,10 @@ async function waPrep(r){const [p,im]=await Promise.all([call("descargarPdf",S.t
 async function compartirWA(r,btn){if(r&&r.prueba){pruebaVerPdf();return}if(S.prueba){toast("En modo prueba no se comparte por WhatsApp.");return}if(!r||!r.id||!btn)return;const k=r.id,t0=btn.dataset.t0||(btn.dataset.t0=btn.textContent);
   if(!WAP[k]){btn.disabled=true;btn.textContent="Preparando fotos…";
     try{WAP[k]=await waPrep(r)}catch(x){toast(sesErr(x)?"Tu sesión venció. Vuelve a ingresar.":netErr(x)?"Sin señal. Inténtalo con conexión.":String(x&&x.message||x));btn.disabled=false;btn.textContent=t0;return}
-    btn.disabled=false;btn.textContent=WAP[k].imgs.length?`📲 Enviar ahora (${WAP[k].nf?"formato + ":""}${WAP[k].imgs.length-(WAP[k].nf||0)} foto${WAP[k].imgs.length-(WAP[k].nf||0)===1?"":"s"})`:"📲 Enviar ahora (PDF)";toast(WAP[k].imgs.length?"Listo. Primero se envían las fotos y luego el PDF, al mismo grupo.":"Listo. Toca «Enviar ahora» y elige el grupo de WhatsApp.");return}
+    btn.disabled=false;btn.textContent=WAP[k].imgs.length?`📲 Elegir y enviar (${WAP[k].nf?"formato + ":""}${WAP[k].imgs.length-(WAP[k].nf||0)} foto${WAP[k].imgs.length-(WAP[k].nf||0)===1?"":"s"})`:"📲 Enviar ahora (PDF)";toast(WAP[k].imgs.length?"Listo. Toca «Elegir y enviar» para escoger qué mandar.":"Listo. Toca «Enviar ahora» y elige el grupo de WhatsApp.");return}
   const w=WAP[k],todos=[...w.imgs,w.pdf];
   if(w.imgs.length&&!/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)&&window.ClipboardItem){delete WAP[k];btn.textContent=t0;waEscritorio(w);return}
+  if(w.imgs.length&&/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)&&navigator.share&&navigator.canShare){delete WAP[k];btn.textContent=t0;waMovil(w);return}
   /* v21: fotos y PDF por separado — si van juntos WhatsApp manda las fotos como documento */
   const puede=o=>{try{return!!(navigator.share&&navigator.canShare&&navigator.canShare(o))}catch(x){return false}};
   if(w.imgs.length&&!w.solo){const o=[{files:w.imgs},{files:w.imgs,text:w.txt}].find(puede);
@@ -2271,6 +2272,25 @@ async function formatoImgs(r,im){if(!window.html2canvas)return[];const land=!!MO
       const cv=await html2canvas(host.lastElementChild,{scale:2,backgroundColor:"#ffffff",logging:false,useCORS:true});
       const f=durl2file(cv.toDataURL("image/jpeg",.88),`${nom}${pages.length>1?" ("+(i+1)+" de "+pages.length+")":""}.jpg`);if(f)out.push(f)}}
   finally{host.remove()}return out}
+/* ================= v26: WhatsApp en el celular — elegir qué imágenes enviar */
+function waMovil(w){const d=document.createElement("div");d.className="okdlg";d.setAttribute("role","dialog");d.setAttribute("aria-modal","true");const U=w.imgs.map(f=>URL.createObjectURL(f)),sel=new Set(w.imgs.map((_,i)=>i)),nf=w.nf||0;
+  const lab=i=>i<nf?"Formato"+(nf>1?" "+(i+1):""):"Foto "+(i+1-nf);
+  d.innerHTML=`<div class="okbox" style="text-align:left;max-width:520px;max-height:92vh;overflow:auto"><h3>📲 Elige qué enviar</h3>
+   <p class="sub">Toca una imagen para quitarla o ponerla. Luego toca <b>Enviar</b> y elige el grupo: llegan como imágenes normales.</p>
+   <div style="display:flex;gap:8px;margin:8px 0"><button type="button" class="btn ghost sm" data-wms="all">Todas</button><button type="button" class="btn ghost sm" data-wms="none">Ninguna</button>${nf?'<button type="button" class="btn ghost sm" data-wms="fmt">Solo formato</button><button type="button" class="btn ghost sm" data-wms="fot">Solo fotos</button>':""}</div>
+   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${w.imgs.map((f,i)=>`<button type="button" data-wmi="${i}" style="position:relative;padding:0;border:3px solid #2f6bff;border-radius:10px;overflow:hidden;background:#fff;aspect-ratio:3/4"><img src="${U[i]}" alt="${lab(i)}" style="width:100%;height:100%;object-fit:cover;display:block"><span data-ck style="position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:50%;background:#2f6bff;color:#fff;font:bold 16px/26px Arial;text-align:center">✓</span><span style="position:absolute;left:4px;top:4px;background:#0a1f74e6;color:#fff;font:600 11px Arial;padding:3px 6px;border-radius:6px">${lab(i)}</span></button>`).join("")}</div>
+   <button type="button" class="btn block" data-wme="1" style="margin-top:12px"></button>
+   <button type="button" class="btn ghost block" data-wmp="1">📄 Enviar texto y PDF (opcional)</button>
+   <button type="button" class="btn ghost block" data-wmx="1">Listo</button></div>`;
+  document.body.appendChild(d);
+  const pinta=()=>{d.querySelectorAll("[data-wmi]").forEach(b=>{const on=sel.has(+b.dataset.wmi);b.style.borderColor=on?"#2f6bff":"#ccc";b.style.opacity=on?"1":".45";b.querySelector("[data-ck]").style.display=on?"":"none"});const e=d.querySelector("[data-wme]");e.textContent=sel.size?`📲 Enviar ${sel.size} ${sel.size===1?"imagen":"imágenes"}`:"Elige al menos una";e.disabled=!sel.size};pinta();
+  const share=async o=>{try{await navigator.share(o);return true}catch(x){if(!x||x.name!=="AbortError")toast("No se pudo compartir: "+((x&&(x.message||x.name))||""));return false}};
+  d.addEventListener("click",async e=>{const b=e.target.closest("button");if(!b)return;
+    if(b.dataset.wmi!=null){const i=+b.dataset.wmi;sel.has(i)?sel.delete(i):sel.add(i);pinta()}
+    else if(b.dataset.wms){sel.clear();w.imgs.forEach((_,i)=>{const k=b.dataset.wms;if(k==="all"||(k==="fmt"&&i<nf)||(k==="fot"&&i>=nf))sel.add(i)});pinta()}
+    else if(b.dataset.wme){const files=[...sel].sort((a,b)=>a-b).map(i=>w.imgs[i]);if(await share({files}))toast("Enviado como imagen ✔")}
+    else if(b.dataset.wmp){const o=[{files:[w.pdf],text:w.txt},{files:[w.pdf]}].find(o=>{try{return navigator.canShare(o)}catch(x){return false}});if(o)await share(o);else toast("Tu celular no permite compartir el PDF desde aquí.")}
+    else if(b.dataset.wmx){U.forEach(u=>URL.revokeObjectURL(u));d.remove()}})}
 /* ================= v19: paquete de firma — toda la línea del día en un solo envío ================= */
 document.head.insertAdjacentHTML("beforeend",`<style>#supList .item[hidden]{display:none}#paqBar{gap:8px}#paqBar[hidden]{display:none}.pqrow{display:flex;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px;cursor:pointer}.pqrow input{width:auto;min-height:0}</style>`);
 let PQ=null;
