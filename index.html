@@ -2230,9 +2230,9 @@ darVB=async function(r,b){if(S.prueba){toast("En modo prueba no se da V°B°.");
     catch(x){er.textContent="No se pudo registrar el V°B°. Revisa tu conexión.";er.hidden=false;ok.disabled=false;ok.textContent="✔ Firmar V°B°"}}};
 /* firma guardada del auditor (en este celular): «Usar mi firma» la carga en el recuadro */
 const MIF_K="af_mifirma";
-function mifGet(){const o=ls.get(MIF_K,null);return o&&o.png&&(!o.nom||!S.me||o.nom===S.me.nombre)?o.png:""}
+function mifGet(){const o=ls.get(MIF_K,null);return o&&o.png&&o.nom&&S.me&&S.me.nombre&&o.nom===S.me.nombre?o.png:""}
 document.addEventListener("click",e=>{const u=e.target.closest("[data-mifu]"),g=e.target.closest("[data-mifg]");if(!u&&!g)return;const k=u?u.dataset.mifu:g.dataset.mifg,esMF=k==="A";
-  if(g){const src=esMF?(S.mf&&S.mf.firmaA):(S.form&&S.form.firmaA);if(!isSig(src)){toast("Primero dibuja tu firma en el recuadro.");return}ls.set(MIF_K,{nom:S.me&&S.me.nombre||"",png:src});toast("Firma guardada. La próxima vez toca «✍ Usar mi firma».");return}
+  if(g){const src=esMF?(S.mf&&S.mf.firmaA):(S.form&&S.form.firmaA);if(!isSig(src)){toast("Primero dibuja tu firma en el recuadro.");return}if(!(S.me&&S.me.nombre)){toast("Ingresa con tu DNI para guardar tu firma.");return}ls.set(MIF_K,{nom:S.me&&S.me.nombre||"",png:src});toast("Firma guardada. La próxima vez toca «✍ Usar mi firma».");return}
   const src=mifGet();if(!src){toast("Aún no guardaste tu firma: dibújala y toca «💾 Guardar».");return}
   if(esMF){if(!S.mf)return;S.mf.firmaA=src;if(mpads.A)mpads.A.load(src);saveMF()}else{S.form.firmaA=src;pads.sA.load(src);saveDraft()}toast("Firma cargada ✔")});
 /* ================= v23: nombre del defecto en cada foto (Auditoría Final) + fotos rotuladas para WhatsApp */
@@ -2366,26 +2366,30 @@ function progCardRender(){if(S.tab!=="home")return;let c=$("prgCard");if(!S.admi
   $("prgUp").onclick=()=>$("prgFile").click();$("prgFile").onchange=e=>{const f=e.target.files[0];e.target.value="";if(f)progSubir(f)};
   const sv=$("prgSinV");if(sv)sv.onclick=()=>{const L=$("prgSinL");L.hidden=!L.hidden;if(!L.hidden)L.innerHTML=Object.entries(p.sin).map(([k,x])=>`<div style="padding:5px 0;border-bottom:1px solid var(--line);font-size:12.5px"><b>OF ${esc(x.f||k)}</b> · ${[x.c,x.a,x.m,x.co,x.ca?x.ca+" pr.":""].filter(Boolean).map(esc).join(" · ")}</div>`).join("")}}
 {const _rh4=renderHome;renderHome=function(){_rh4.apply(this,arguments);try{progCardRender()}catch(e){}if(S.token)progCargar()}}
-/* ================= v29: firma guardada del supervisor — en su app o por link (4 últimos dígitos del DNI) */
-let SFG=null,SFG_N="";
+/* ================= v29/v30: firma guardada del supervisor — solo la dueña: en su app (su sesión) o por link (su DNI + su contraseña) */
+let SFG=null,SFG_N="",SFG_L="";
+function sfCred(){const dni=(($("fiDni")||{}).value||"").replace(/\D/g,""),cl=(($("fiCla")||{}).value||"");return{dni,cl}}
+function sfBloquearNom(){if(SFG_N&&$("fiNom")){$("fiNom").value=SFG_N;$("fiNom").readOnly=true;$("fiNom").style.background="#eef1f8"}if(SFG_N&&$("pvNom")){$("pvNom").value=SFG_N;$("pvNom").readOnly=true}}
 function sfDibujar(cv,src){return new Promise(ok=>{const i=new Image();i.onload=()=>{const x=cv.getContext("2d");x.clearRect(0,0,cv.width,cv.height);const k=Math.min(cv.width/i.width,cv.height/i.height)*.92,w=i.width*k,h=i.height*k;x.drawImage(i,(cv.width-w)/2,(cv.height-h)/2,w,h);ok()};i.onerror=()=>ok();i.src=src})}
-async function sfObtener(){if(SFG)return SFG;if(FI&&FI.link){const d4=(($("fiD4")||{}).value||"").replace(/\D/g,"");if(d4.length!==4){toast("Escribe los 4 últimos dígitos de tu DNI.");$("fiD4")&&$("fiD4").focus();return""}
-    const r=await call("supFirmaLink",FI.link,d4);if(!r.ok){toast(r.msg||"No se pudo cargar tu firma.");return""}SFG_N=r.nombre||"";if(SFG_N&&$("fiNom")&&!$("fiNom").value)$("fiNom").value=SFG_N;
+async function sfObtener(){if(FI&&FI.link){if(SFG&&SFG_L===FI.link)return SFG;SFG=null;const c=sfCred();if(c.dni.length<8){toast("Escribe tu DNI completo.");$("fiDni")&&$("fiDni").focus();return""}if(!c.cl){toast("Escribe tu contraseña de la app.");$("fiCla")&&$("fiCla").focus();return""}
+    const r=await call("supFirmaLink",FI.link,c.dni,c.cl);if($("fiCla"))$("fiCla").value="";if(!r.ok){toast(r.msg||"No se pudo cargar tu firma.");return""}SFG_N=r.nombre||"";SFG_L=FI.link;sfBloquearNom();
     if(!r.firma){toast("Aún no tienes firma guardada: firma con el dedo y deja marcado «Guardar mi firma».");return""}SFG=r.firma;return SFG}
-  if(S.token&&(S.sup||S.firma)){const r=await call("supMiFirma",S.token);if(r&&r.ok&&r.firma){SFG=r.firma;return SFG}toast("Aún no tienes firma guardada: firma con el dedo y deja marcado «Guardar mi firma».")}return""}
+  if(SFG&&!SFG_L)return SFG;
+  if(S.token&&(S.sup||S.firma)){const r=await call("supMiFirma",S.token);if(r&&r.ok&&r.firma){SFG=r.firma;SFG_L="";return SFG}toast("Aún no tienes firma guardada: firma con el dedo y deja marcado «Guardar mi firma».")}return""}
 function fiSavRender(){const box=$("fiFirmaBox");if(!box)return;let d=$("fiSav");if(!d){d=document.createElement("div");d.id="fiSav";d.style.cssText="margin:6px 0 8px;display:flex;flex-direction:column;gap:6px";const c=$("fiCv");c.insertAdjacentElement("beforebegin",d);
     const g=document.createElement("label");g.style.cssText="display:flex;gap:8px;align-items:center;justify-content:flex-start;font-size:13px;margin:-4px 0 8px;text-align:left";g.innerHTML='<input type="checkbox" id="fiSavChk" checked style="width:20px;height:20px;flex:none;margin:0"><span style="flex:1">💾 Guardar mi firma para la próxima vez</span>';c.insertAdjacentElement("afterend",g)}
-  d.innerHTML=`${FI&&FI.link?`<label class="fld full"><span>4 últimos dígitos de tu DNI (para usar tu firma guardada)</span><input id="fiD4" inputmode="numeric" maxlength="4" placeholder="••••" style="max-width:140px"></label>`:""}<button type="button" class="btn gold" id="fiUsar">✍ Usar mi firma guardada</button>`;
+  d.innerHTML=`${FI&&FI.link?`<p class="sub" style="margin:0">🔒 Tu firma guardada solo la puedes usar tú: ingresa tu DNI y tu contraseña de la app.</p><div class="row" style="gap:8px"><label class="fld" style="flex:1"><span>Tu DNI</span><input id="fiDni" inputmode="numeric" maxlength="8" autocomplete="username"></label><label class="fld" style="flex:1"><span>Tu contraseña de la app</span><input id="fiCla" type="password" autocomplete="current-password"></label></div>`:""}<button type="button" class="btn gold" id="fiUsar">✍ Usar mi firma guardada</button>`;
   $("fiUsar").onclick=async()=>{const b=$("fiUsar");b.disabled=true;const t=b.textContent;b.textContent="Cargando…";try{const f=await sfObtener();if(f){fiPad.init();await sfDibujar($("fiCv"),f);fiPad.dirty=true;FI.usedSaved=true;toast("Firma cargada ✔ Revisa y toca «Firmar el reporte».")}}catch(e){toast("No se pudo cargar tu firma. Revisa tu conexión.")}finally{b.disabled=false;b.textContent=t}}}
 document.addEventListener("pointerdown",e=>{if(e.target&&e.target.id==="fiCv"&&FI)FI.usedSaved=false},true);
 $("fiClr").addEventListener("click",()=>{if(FI)FI.usedSaved=false});
 {const _g3=go;go=function(t){const r=_g3.apply(this,arguments);if(t==="firma")setTimeout(()=>{try{fiSavRender()}catch(e){}},50);return r}}
-{const _ff=$("fiFirmar").onclick;$("fiFirmar").onclick=async function(){const chk=$("fiSavChk"),drawn=chk&&chk.checked&&FI&&!FI.usedSaved&&fiPad.dirty?fiPad.png():"",d4=(($("fiD4")||{}).value||"").replace(/\D/g,"");
+{const _ff=$("fiFirmar").onclick;$("fiFirmar").onclick=async function(){const chk=$("fiSavChk"),drawn=chk&&chk.checked&&FI&&!FI.usedSaved&&fiPad.dirty?fiPad.png():"",cr=sfCred();if($("fiCla"))$("fiCla").value="";
   await _ff.apply(this,arguments);
-  if(drawn&&FI.rec&&FI.rec.firmaSup&&FI.rec.firmaSup.estado==="FIRMADO"){try{if(FI.link&&d4.length!==4){toast("Para guardar tu firma escribe los 4 últimos dígitos de tu DNI la próxima vez.");return}
-      const r=FI.link?await call("supGuardarFirmaLink",FI.link,d4,drawn):await call("supGuardarFirma",S.token,drawn);if(r&&r.ok){SFG=drawn;toast("Tu firma quedó guardada: la próxima vez solo toca «Usar mi firma guardada».")}else if(r&&r.msg)toast(r.msg)}catch(e){}}}}
+  if(drawn&&FI.rec&&FI.rec.firmaSup&&FI.rec.firmaSup.estado==="FIRMADO"){try{if(FI.link&&(cr.dni.length<8||!cr.cl)){toast("Para guardar tu firma escribe tu DNI y tu contraseña de la app antes de firmar.");return}
+      const r=FI.link?await call("supGuardarFirmaLink",FI.link,cr.dni,cr.cl,drawn):await call("supGuardarFirma",S.token,drawn);if(r&&r.ok){SFG=FI.link?null:drawn;toast("Tu firma quedó guardada: la próxima vez solo toca «Usar mi firma guardada».")}else if(r&&r.msg)toast(r.msg)}catch(e){}}}}
 {const _pv=paqVarias;paqVarias=function(){_pv.apply(this,arguments);const cv=$("pvCv");if(!cv)return;const b=document.createElement("button");b.type="button";b.className="btn gold block";b.style.margin="4px 0";b.textContent="✍ Usar mi firma guardada";cv.insertAdjacentElement("beforebegin",b);
-  b.onclick=async()=>{b.disabled=true;try{const f=await sfObtener();if(f){const r=cv.getBoundingClientRect(),sp=cv.setPointerCapture;cv.setPointerCapture=()=>{};try{cv.onpointerdown({clientX:r.left+1,clientY:r.top+1,pointerId:1});cv.onpointerup()}finally{cv.setPointerCapture=sp}await sfDibujar(cv,f);if(SFG_N&&$("pvNom")&&!$("pvNom").value)$("pvNom").value=SFG_N;toast("Firma cargada ✔")}}finally{b.disabled=false}}}}
+  b.onclick=async()=>{b.disabled=true;try{const f=await sfObtener();if(f){const r=cv.getBoundingClientRect(),sp=cv.setPointerCapture;cv.setPointerCapture=()=>{};try{cv.onpointerdown({clientX:r.left+1,clientY:r.top+1,pointerId:1});cv.onpointerup()}finally{cv.setPointerCapture=sp}await sfDibujar(cv,f);sfBloquearNom();toast("Firma cargada ✔")}}finally{b.disabled=false}}}}
+{const _cs=cerrarSesion;cerrarSesion=function(){SFG=null;SFG_N="";SFG_L="";return _cs.apply(this,arguments)}}
 /* ================= v19: paquete de firma — toda la línea del día en un solo envío ================= */
 document.head.insertAdjacentHTML("beforeend",`<style>#supList .item[hidden]{display:none}#paqBar{gap:8px}#paqBar[hidden]{display:none}.pqrow{display:flex;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px;cursor:pointer}.pqrow input{width:auto;min-height:0}</style>`);
 let PQ=null;
