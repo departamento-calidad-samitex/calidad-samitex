@@ -368,7 +368,7 @@ nav.tabs:not([hidden]){animation:sbIn .55s cubic-bezier(.2,.7,.2,1) both}
       <p class="note" id="gRst" hidden></p>
       <p class="sub" style="text-align:center">¿Primera vez? <button type="button" class="btn ghost sm" id="toReq">Solicitar acceso</button></p>
     </form>
-    <div class="card" id="gPinCard"><h3>🔢 Supervisoras y Jefatura de Planta</h3><p class="sub">Entra solo con tu PIN de 4 números.</p><button type="button" class="btn gold block" id="gPinBtn">Entrar con mi PIN</button><p class="note err" id="gPinErr" hidden></p></div>
+    <div class="card" id="gPinCard"><h3>🔢 Supervisoras, Jefatura de Planta e invitados</h3><p class="sub">Entra solo con tu PIN de 4 números.</p><button type="button" class="btn gold block" id="gPinBtn">Entrar con mi PIN</button><p class="note err" id="gPinErr" hidden></p></div>
     <form id="sForm" class="card" novalidate hidden>
       <h3>Solicitar acceso</h3><p class="sub">Solo la jefatura de calidad puede aprobar tu ingreso.</p>
       <label class="fld"><span>Nombre y apellido</span><input id="sNom" autocapitalize="words" placeholder="Clara Ramos"></label>
@@ -2708,7 +2708,7 @@ async function jpFirmarDlg(ids,que){if(!ids.length)return;const d=document.creat
     catch(x){er.textContent=x&&x.message||"No se pudo firmar. Revisa tu conexión.";er.hidden=false;busy=false;ok.disabled=false;$("jpNo").disabled=false;ok.textContent=`✔ Firmar ${ids.length} reporte${ids.length===1?"":"s"}`}}}
 {const _rh6=renderHome;renderHome=function(){_rh6.apply(this,arguments);try{jpCargar()}catch(e){}}}
 /* ================= v31: ingreso solo con PIN + libro de hojas del supervisor + libro de la Jefatura de Planta */
-$("gPinBtn").onclick=async()=>{const er=$("gPinErr");er.hidden=true;const pin=await pinPedir("Ingresa tu PIN","Supervisoras y Jefatura de Planta");if(!pin)return;const b=$("gPinBtn");b.disabled=true;b.textContent="Verificando…";
+$("gPinBtn").onclick=async()=>{const er=$("gPinErr");er.hidden=true;const pin=await pinPedir("Ingresa tu PIN","Supervisoras, Jefatura de Planta e invitados");if(!pin)return;const b=$("gPinBtn");b.disabled=true;b.textContent="Verificando…";
   try{const r=await call("ingresarPin",pin);if(!r.ok){er.textContent=r.msg||"PIN incorrecto.";er.hidden=false;return}try{await pinLocal({...r,pin:true},pin)}catch(e){}setSesion(r)}
   catch(x){er.textContent=netErr(x)?"Necesitas señal para entrar la primera vez.":"No se pudo ingresar.";er.hidden=false}finally{b.disabled=false;b.textContent="Entrar con mi PIN"}};
 /* supervisor: todas sus hojas pendientes como libro, con un botón para firmar y subir todas */
@@ -2826,6 +2826,39 @@ document.head.insertAdjacentHTML("beforeend",`<style>.infKpi{display:grid;grid-t
 .infGrid{display:grid;grid-template-columns:1fr;gap:14px}.infBox h4{margin:4px 0 6px;font:600 14px var(--font-display);color:var(--fg)}.infT{width:100%;border-collapse:collapse;font-size:13px}.infT th{text-align:left;color:var(--muted);font:600 10.5px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;padding:5px 6px}.infT td{padding:6px;border-top:1px solid var(--line)}
 .infT td:nth-child(2),.infT td:nth-child(3){text-align:center;width:52px}.infBar{position:relative;height:18px;background:color-mix(in srgb,var(--line) 70%,transparent);border-radius:6px;min-width:110px;overflow:hidden}.infBar i{position:absolute;left:0;top:0;bottom:0;border-radius:6px;opacity:.85}.infBar span{position:relative;padding-left:7px;font-size:12px;font-weight:700;line-height:18px}
 @media (max-width:520px){.infKpi{grid-template-columns:repeat(2,minmax(0,1fr))}}@media (min-width:1100px){.infGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}</style>`);
+/* ================= v38: invitados de almacén por cliente (solo ven y descargan los PDF de Auditoría Final de su cliente) */
+S.inv=false;S.invCli="";{const v=ls.get("af_inv",null);if(v&&v.inv){S.inv=true;S.invCli=v.cli||""}}
+const invOn=()=>!!(S.inv&&S.token&&!S.admin&&!S.prueba);
+const INV_FN=["estado","invReportes","descargarPdf","cambiarPin","pinSeguir","registrarUso","procesos","ingresar","ingresarPin"];
+{const _c=call;call=async function(fn,...a){if(invOn()&&!INV_FN.includes(fn))return{ok:false,msg:"Sin acceso para invitados."};return _c.call(this,fn,...a)}}
+{const _ss=setSesion;setSesion=function(r){S.inv=!!(r&&r.inv);S.invCli=(r&&r.invCli)||"";ls.set("af_inv",S.inv?{inv:true,cli:S.invCli}:null);INV.t=0;return _ss.apply(this,arguments)}}
+{const _cs=cerrarSesion;cerrarSesion=function(){S.inv=false;S.invCli="";ls.set("af_inv",null);INV={rows:[],t:0};return _cs.apply(this,arguments)}}
+{const _tf=tabsFor;tabsFor=function(){if(invOn()&&!["gate","pend","adm"].includes(S.tab))return["home"];return _tf.apply(this,arguments)}}
+{const _ca=cargarAsis;cargarAsis=async function(){if(invOn()){const c=$("asisCard");if(c)c.hidden=true;return}return _ca.apply(this,arguments)}}
+{const _su=sbUser;sbUser=function(){_su.apply(this,arguments);if(invOn()&&$("sbRol"))$("sbRol").textContent="Invitado · "+title(S.invCli||"")}}
+$("jpCard").insertAdjacentHTML("afterend",`<div class="card" id="invCard" hidden><div class="hd"><h3 id="invTit">📦 Auditoría Final</h3><span class="sub" id="invSub"></span></div>
+ <p class="sub" style="margin:0 0 8px">Hojas de Auditoría Final de tu cliente. Toca <b>👁 Ver PDF</b> para abrirla; dentro puedes descargarla con <b>⬇ Descargar</b>.</p>
+ <div class="row" style="gap:8px;margin-bottom:8px;flex-wrap:wrap"><input id="invQ" placeholder="Buscar OF, artículo, color o fecha" style="flex:1 1 200px;min-width:0"><select id="invRes" style="flex:0 1 150px"><option value="">Todos</option><option value="A">Aprobados</option><option value="R">Rechazados</option></select><button type="button" class="btn ghost sm" id="invAct">↻ Actualizar</button></div>
+ <div class="list" id="invList"></div><button type="button" class="btn ghost block" id="invMas" hidden>Ver más</button></div>`);
+let INV={rows:[],t:0},INV_N=60;
+async function invCargar(forzar){const c=$("invCard");if(!c)return;const on=invOn();c.hidden=!on;if(!on)return;
+  ["procList","fsCard","asisCard","vbAudCard","supCard","jpCard","clvCard"].forEach(k=>{const e=$(k);if(e)e.hidden=true});
+  $("homeSub").textContent="Invitado · almacén "+title(S.invCli||"")+" · solo lectura";$("invTit").textContent="📦 Auditoría Final · "+(S.invCli||"");
+  invRender();if(!forzar&&INV.t&&Date.now()-INV.t<60000)return;$("invSub").textContent="Cargando…";
+  try{const r=await call("invReportes",S.token);if(r&&r.sesion){cerrarSesion("Tu sesión venció. Vuelve a ingresar con tu PIN.");return}
+    if(!r||!r.ok){$("invSub").textContent=(r&&r.msg)||"No se pudo cargar.";return}if(r.cli)S.invCli=r.cli;INV={rows:r.rows||[],t:Date.now()};invRender()}
+  catch(x){$("invSub").textContent=sesErr(x)?"Tu sesión venció.":"Sin conexión. Inténtalo otra vez."}}
+function invRender(){const q=up($("invQ").value||"").trim(),f=$("invRes").value,all=INV.rows||[];
+  const L=all.filter(r=>(!f||(f==="R")===!!r.rej)&&(!q||up([r.of,r.art,r.color,r.tal,r.proc,r.lin,dmy(r.fecha)].join(" ")).includes(q)));
+  const nr=all.filter(r=>r.rej).length;$("invSub").textContent=INV.t?`${all.length} hoja${all.length===1?"":"s"} · ${all.length-nr} aprobada${all.length-nr===1?"":"s"} · ${nr} rechazada${nr===1?"":"s"}`:"";
+  $("invList").innerHTML=L.length?L.slice(0,INV_N).map(r=>`<article class="item${r.rej?" rej":""}"><div class="t"><b>OF ${esc(r.of||"—")} · ${esc(r.art||"—")}</b> <span class="pill ${r.rej?"bad":"ok"}">${r.rej?"RECHAZADO":"APROBADO"}</span></div>
+   <div class="m">${dmy(r.fecha)}${r.color?" · "+esc(title(r.color)):""}${r.tal||r.proc?" · "+esc(title(r.tal||r.proc)):""}${r.lin?" · Línea "+esc(title(r.lin)):""}${r.lote?" · Lote "+esc(r.lote):""}${r.mue?" · Muestra "+esc(r.mue):""}</div>
+   <div class="acts"><button type="button" class="btn sm" data-invv="${esc(r.id)}">👁 Ver PDF</button></div></article>`).join(""):`<div class="empty">${INV.t?(all.length?"No hay hojas con ese filtro.":"Aún no hay hojas de Auditoría Final de tu cliente."):"Cargando…"}</div>`;
+  $("invMas").hidden=L.length<=INV_N}
+$("invQ").addEventListener("input",()=>{INV_N=60;invRender()});$("invRes").onchange=()=>{INV_N=60;invRender()};
+$("invAct").onclick=()=>invCargar(true);$("invMas").onclick=()=>{INV_N+=60;invRender()};
+$("invList").addEventListener("click",e=>{const v=e.target.closest("[data-invv]");if(v)bajarPdf(v.dataset.invv,v)});
+{const _rh=renderHome;renderHome=function(){_rh.apply(this,arguments);try{invCargar()}catch(e){}}}
 /* ================= inicio ================= */
 (async function init(){
   S.form=blankForm();renderCola();
