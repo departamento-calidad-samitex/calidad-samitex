@@ -3143,5 +3143,12 @@ pcGuardar=async function(usuario){if(PC_RUN||!PC_OK)return;const X0=await pcXlsM
     pcCfgSet({last:Date.now()});$("pcSub").textContent="Último guardado: "+dt(Date.now());$("pcMsg").textContent="✔ "+res.join(" ")+(aviso?" ⚠ "+aviso:"");toast(aviso?"Guardado, pero un Excel estaba abierto.":"✔ Guardado en tu PC")}
   catch(e){$("pcMsg").textContent=(res.length?"✔ "+res.join(" ")+" ":"")+"⚠ "+String(e&&e.message||e);toast("No se pudo terminar de guardar.")}
   finally{PC_RUN=false;bt.disabled=false;bt.textContent=t0}};
+/* ================= v82: tarjetas desplegables (cerradas al abrir): Ver como auditor y Procesos del menú */
+document.head.insertAdjacentHTML("beforeend",`<style>.card.plg>.hd{cursor:pointer;user-select:none}.card.plg.cerrado>:not(.hd){display:none!important}.card.plg>.hd h3::after{content:" ▾";color:var(--muted);font-size:.85em}.card.plg:not(.cerrado)>.hd h3::after{content:" ▴"}.card.plg>.hd:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:8px}</style>`);
+function plegable(id){const c=$(id);if(!c||c.classList.contains("plg"))return;const hd=c.querySelector(":scope>.hd");if(!hd)return;c.classList.add("plg","cerrado");
+  hd.setAttribute("role","button");hd.tabIndex=0;hd.setAttribute("aria-expanded","false");
+  const t=()=>{c.classList.toggle("cerrado");hd.setAttribute("aria-expanded",String(!c.classList.contains("cerrado")))};
+  hd.addEventListener("click",t);hd.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();t()}})}
+["pruebaCard","procAdm"].forEach(plegable);
 </script>
 </body></html>
