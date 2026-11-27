@@ -2936,6 +2936,12 @@ function cliPicker(el){if($("cliPick"))return;const L=cliTodos(),top=CLI_TOP.sli
     else if(o){d.remove();el._libre=1;setTimeout(()=>{try{el.focus()}catch(x){}},50)}else if(x)d.remove()})}
 document.addEventListener("focusin",e=>{const el=e.target;if(!cliEs(el)||el.readOnly||el.disabled||el._libre||S.inv)return;el.blur();setTimeout(()=>cliPicker(el),0)},true);
 document.addEventListener("focusout",e=>{const el=e.target;if(cliEs(el)&&el._libre)setTimeout(()=>{if(document.activeElement!==el)el._libre=0},400)},true);
+/* ================= v76: «JOHN HOLDEN» bien escrito en cualquier campo (cliente, marca, descripción, observaciones…) */
+const JH_RE=/\bJ\s*(?:OHN|HON|ON|OHM|HONN|OHNN)\s*-?\s*HOLD[AE]N{1,2}\b|\bJ\s*(?:OHN|HON|ON)\s*HOLDE?M\b/gi;
+function jhFix(el){if(!el||!(el.tagName==="INPUT"||el.tagName==="TEXTAREA")||el.type==="password"||el.type==="number"||el.type==="date"||(typeof MAY_NO!=="undefined"&&MAY_NO.has(el.id)))return;
+  const v=el.value||"";let n=v.replace(JH_RE,"JOHN HOLDEN");if(/^\s*(J\.?\s*H\.?|PATRICK)\s*$/i.test(n)&&(el.dataset.c==="cli"||el.dataset.c==="marca"||el.id==="fCli"||/marca|cliente/i.test(el.placeholder||"")))n="JOHN HOLDEN";
+  if(n!==v){el.value=n;el.dispatchEvent(new Event("input",{bubbles:true}));el.dispatchEvent(new Event("change",{bubbles:true}));toast("Corregido a JOHN HOLDEN")}}
+document.addEventListener("focusout",e=>jhFix(e.target),true);
 /* ================= inicio ================= */
 (async function init(){
   S.form=blankForm();renderCola();
