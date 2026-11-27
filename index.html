@@ -2921,6 +2921,21 @@ $("procTodas").onclick=async()=>{if(!procLib()||PROC_TODAS)return;libFlush();
   finally{PROC_TODAS=false;b.disabled=false;procTodasUI()}
   const od=$("okDlg");if(od&&!mal.length)okSubido(false,`${ok} hoja${ok===1?"":"s"} guardada${ok===1?"":"s"}`,`Auditoría de Proceso: ${ok} hoja${ok===1?"":"s"} con tu firma, enviada${ok===1?"":"s"} a firma del supervisor.`);
   if(mal.length){if(od)od.hidden=true;const e=$("mfErr");e.innerHTML=`⚠ Se guardaron ${ok} de ${n}. Esta hoja no se pudo guardar: `+mal.map(esc).join("<br>")+`<br>Corrígela y vuelve a tocar «Guardar y enviar todas».`;e.hidden=false;e.scrollIntoView({block:"center"})}};
+/* ================= v75: el cliente se elige de una lista (JOHN HOLDEN primero) para no equivocarse; «PATRICK» se corrige a JOHN HOLDEN */
+CLI_FIX.push([/^\s*patrick\s*$/i,"JOHN HOLDEN"]);
+const CLI_TOP=["JOHN HOLDEN"];
+function cliPicker(el){if($("cliPick"))return;const L=cliTodos(),top=CLI_TOP.slice(),resto=L.filter(x=>!top.includes(x));
+  const d=document.createElement("div");d.className="okdlg";d.id="cliPick";d.setAttribute("role","dialog");d.setAttribute("aria-modal","true");
+  d.innerHTML=`<div class="okbox" style="text-align:left;max-height:90vh;display:flex;flex-direction:column;gap:8px"><h3 style="margin:0">Elige el cliente</h3><input id="cliPickQ" placeholder="Buscar cliente…" autocomplete="off"><div id="cliPickL" style="overflow:auto;max-height:55vh;display:flex;flex-direction:column;gap:6px"></div><button type="button" class="btn ghost block" data-cpo="1">✏ Escribir otro cliente</button><button type="button" class="btn ghost block" data-cpx="1">Cerrar</button></div>`;
+  document.body.appendChild(d);
+  const pinta=()=>{const q=up($("cliPickQ").value||"").trim(),f=x=>!q||x.includes(q);const T=top.filter(f),R=resto.filter(f),act=up(el.value||"");
+    $("cliPickL").innerHTML=T.map(x=>`<button type="button" class="btn gold block" data-cpv="${esc(x)}" style="justify-content:flex-start;text-align:left">⭐ ${esc(x)}${act===x?" ✔":""}</button>`).join("")+R.map(x=>`<button type="button" class="btn ghost block" data-cpv="${esc(x)}" style="justify-content:flex-start;text-align:left">${esc(x)}${act===x?" ✔":""}</button>`).join("")||`<p class="sub">No hay clientes con «${esc(q)}». Toca «✏ Escribir otro cliente».</p>`};
+  pinta();$("cliPickQ").addEventListener("input",pinta);
+  d.addEventListener("click",e=>{const v=e.target.closest("[data-cpv]"),o=e.target.closest("[data-cpo]"),x=e.target.closest("[data-cpx]");
+    if(v){el.value=v.dataset.cpv;el.dispatchEvent(new Event("input",{bubbles:true}));el.dispatchEvent(new Event("change",{bubbles:true}));d.remove();toast("Cliente: "+v.dataset.cpv)}
+    else if(o){d.remove();el._libre=1;setTimeout(()=>{try{el.focus()}catch(x){}},50)}else if(x)d.remove()})}
+document.addEventListener("focusin",e=>{const el=e.target;if(!cliEs(el)||el.readOnly||el.disabled||el._libre||S.inv)return;el.blur();setTimeout(()=>cliPicker(el),0)},true);
+document.addEventListener("focusout",e=>{const el=e.target;if(cliEs(el)&&el._libre)setTimeout(()=>{if(document.activeElement!==el)el._libre=0},400)},true);
 /* ================= inicio ================= */
 (async function init(){
   S.form=blankForm();renderCola();
