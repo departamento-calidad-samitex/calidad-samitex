@@ -1054,12 +1054,15 @@ const HF={f:"",d:"",aud:"",lin:"",fir:"",sup:"",open:false};
 const isoD=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 const isoMas=n=>{const d=new Date();d.setDate(d.getDate()+n);return isoD(d)};
 const hfLin=r=>String((r&&((typeof r.lin==="string"&&r.lin)||(r.f&&r.f.c&&r.f.c.lin)||(r.c&&r.c.lin)))||"");
+/* v68: líneas agrupadas: solo Camisa, Saco, Pantalón, Reproceso y Acabado para filtrar */
+const LIN_GRP=[["CAMISA",/CAMIS|MARIA\s*ELENA/],["SACO",/SACO|TERNO|(^|[^A-Z])ANA([^A-Z]|$)/],["PANTALÓN",/PANTAL|DORIS/],["REPROCESO",/REPROC/],["ACABADO",/ACABAD/]];
+const linGrp=v=>{const u=up(v||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"");const g=LIN_GRP.find(([,re])=>re.test(u));return g?g[0]:""};
 function hfDia(){return HF.f==="hoy"?today():HF.f==="ayer"?isoMas(-1):HF.f==="d"&&HF.d?HF.d:""}
 const fwMsg=d=>`Este reporte tiene fecha ${dmy(d)} y hoy es ${dmy(today())}. ¿La fecha es correcta?`;
 const envD=r=>r&&r.ts?isoD(new Date(r.ts)):"";
 function hfAplicar(A){const dia=hfDia(),sem=isoMas(-6);return A.filter(r=>{
   if(dia&&r.fecha!==dia&&envD(r)!==dia)return false;if(HF.f==="sem"&&!(String(r.fecha||"")>=sem)&&!(envD(r)>=sem))return false;
-  if(HF.aud&&up(r.aud||"")!==HF.aud)return false;if(HF.lin&&up(hfLin(r))!==HF.lin)return false;if(HF.sup){const f=r.firmaSup||{},v=!f.estado?"SIN":f.supNom?up(f.supNom):"LIN";if(v!==HF.sup)return false}
+  if(HF.aud&&up(r.aud||"")!==HF.aud)return false;if(HF.lin&&linGrp(hfLin(r))!==HF.lin)return false;if(HF.sup){const f=r.firmaSup||{},v=!f.estado?"SIN":f.supNom?up(f.supNom):"LIN";if(v!==HF.sup)return false}
   if(HF.fir){const e=(r.firmaSup||{}).estado||"";if(HF.fir==="SIN"?!!e:e!==HF.fir)return false}return true})}
 const hfN=()=>["f","aud","lin","fir","sup"].filter(k=>HF[k]).length;
 function hfRender(nT){const B=HI_MOD==="all"?HIS:HIS.filter(r=>(r.mod||"af")===HI_MOD),uq=a=>[...new Set(a.filter(Boolean))].sort((x,y)=>x.localeCompare(y,"es",{numeric:true}));
@@ -1068,7 +1071,7 @@ function hfRender(nT){const B=HI_MOD==="all"?HIS:HIS.filter(r=>(r.mod||"af")===H
   $("hiFil").innerHTML=`<div class="card" style="padding:10px 12px;gap:8px"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><button type="button" class="btn ghost sm" data-hfo="1" aria-expanded="${HF.open}">${HF.open?"▾":"▸"} Filtros${n?` (${n})`:""}</button><span class="sub">${fmt(nT)} reporte${nT===1?"":"s"}${n?` · <a href="#" data-hfx="1">Quitar filtros</a>`:""}</span></div>
   <div class="row" style="gap:8px">${S.admin||S.jef?`<label class="fld" style="flex:1 1 150px"><span>Auditora</span><select id="hfAud"><option value="">Todas</option>${auds.map(a=>`<option value="${esc(a)}"${HF.aud===a?" selected":""}>${esc(title(a))}</option>`).join("")}</select></label>`:""}<label class="fld" style="flex:1 1 150px"><span>Supervisor</span><select id="hfSup"><option value="">Todos</option>${sups.map(a=>`<option value="${esc(a)}"${HF.sup===a?" selected":""}>${esc(title(a))}</option>`).join("")}<option value="LIN"${HF.sup==="LIN"?" selected":""}>Cualquiera de la línea</option><option value="SIN"${HF.sup==="SIN"?" selected":""}>Sin enviar a firma</option></select></label></div>
   ${HF.open?`<div class="sub">Fecha</div><div class="row" style="gap:6px">${ch("f","","Todas")}${ch("f","hoy","Hoy")}${ch("f","ayer","Ayer")}${ch("f","sem","Esta semana")}<input type="date" id="hfDate" value="${esc(HF.f==="d"?HF.d:"")}" aria-label="Elegir día" style="flex:0 1 170px"></div>
-  <div class="row" style="gap:8px"><label class="fld" style="flex:1 1 120px"><span>Línea</span><select id="hfLin"><option value="">Todas</option>${lins.map(a=>`<option value="${esc(a)}"${HF.lin===a?" selected":""}>${esc(a)}</option>`).join("")}</select></label></div>
+  <div class="row" style="gap:8px"><label class="fld" style="flex:1 1 120px"><span>Línea</span><select id="hfLin"><option value="">Todas</option>${LIN_GRP.map(([g])=>{const n=B.filter(r=>linGrp(hfLin(r))===g).length;return`<option value="${g}"${HF.lin===g?" selected":""}>${g} (${n})</option>`}).join("")}</select></label></div>
   <div class="sub">Firma de supervisor</div><div class="row" style="gap:6px">${ch("fir","","Todas")}${ch("fir","PENDIENTE","Pendiente")}${ch("fir","FIRMADO","Firmado")}${ch("fir","DEVUELTO","Devuelto")}${ch("fir","SIN","Sin enviar")}</div>`:""}
   ${!S.prueba&&HI_MOD!=="all"&&MODULOS[HI_MOD]?`<button type="button" class="btn block" id="hfPaq">✍ Enviar línea a firma</button>`:""}${S.admin&&!S.prueba&&HI_MOD!=="all"&&MODULOS[HI_MOD]?`<button type="button" class="btn gold block" id="hfPdf">📅 PDF del día · ${esc(MODULOS[HI_MOD].n.replace(/^(Auditoría de |Reporte de )/,""))} · ${dmy(dia||today())}</button>`:""}</div>`}
 $("hiFil").addEventListener("click",e=>{const b=e.target.closest("[data-hf],[data-hfo],[data-hfx],#hfPdf");if(!b)return;
@@ -1098,10 +1101,11 @@ async function pdfDia(btn){const mod=HI_MOD;if(mod==="all"||!S.admin||!MODULOS[m
     pdfDiaListo(file,`${nom} · ${dmy(dia)}: resumen + ${L.length-fal} reporte${L.length-fal===1?"":"s"} completo${L.length-fal===1?"":"s"}${fal?` (${fal} no se pudo agregar)`:""}.${drive?` Copia guardada en Drive › PDF › ${nom} › Diario.`:""}`)}
   catch(e){toast(String(e&&e.message||e))}finally{bt.disabled=false;bt.textContent=t0}}
 function pdfDiaListo(file,msg){const d=document.createElement("div");d.className="okdlg";d.setAttribute("role","dialog");d.setAttribute("aria-modal","true");
-  d.innerHTML=`<div class="okbox"><div class="okic">✔</div><h3>PDF del día listo</h3><p class="sub">${esc(msg)}</p><button type="button" class="btn gold block" id="pdBaj">⬇ Descargar PDF</button><button type="button" class="btn block" id="pdWa">📲 Compartir por WhatsApp</button><button type="button" class="btn ghost block" id="pdOk">Cerrar</button></div>`;document.body.appendChild(d);const url=URL.createObjectURL(file);
+  d.innerHTML=`<div class="okbox"><div class="okic">✔</div><h3>PDF del día listo</h3><p class="sub">${esc(msg)}</p><button type="button" class="btn gold block" id="pdVer">👁 Ver PDF</button><button type="button" class="btn block" id="pdBaj">⬇ Descargar PDF</button><button type="button" class="btn block" id="pdWa">📲 Compartir por WhatsApp</button><button type="button" class="btn ghost block" id="pdOk">Cerrar</button></div>`;document.body.appendChild(d);const url=URL.createObjectURL(file);
   $("pdBaj").onclick=()=>{const a=document.createElement("a");a.href=url;a.download=file.name;document.body.appendChild(a);a.click();a.remove()};
   $("pdWa").onclick=async()=>{const o={files:[file],text:file.name.replace(/\.pdf$/,"")};try{if(navigator.canShare&&navigator.canShare(o)){await navigator.share(o);return}}catch(e){if(e&&e.name==="AbortError")return}$("pdBaj").click();toast("Tu equipo no permite compartir directo: se descargó el PDF para adjuntarlo en WhatsApp.")};
-  $("pdOk").onclick=()=>{d.remove();setTimeout(()=>URL.revokeObjectURL(url),60000)}}
+  $("pdOk").onclick=()=>{d.remove();setTimeout(()=>URL.revokeObjectURL(url),60000)};
+  $("pdVer").onclick=()=>{const fr=new FileReader();fr.onload=()=>pdfVisor({b64:String(fr.result).split(",")[1],nombre:file.name});fr.readAsDataURL(file)}}
 let FS_T=0;
 async function fsCargar(force){const c=$("fsCard");if(!c)return;const on=!!(S.admin&&!S.prueba&&S.tab==="home");c.hidden=!on;if(!on)return;
   if(!force&&Date.now()-FS_T<60000&&HIS.length){fsRender();return}FS_T=Date.now();$("fsSub").textContent="Cargando…";
@@ -2031,7 +2035,7 @@ function renderAsisAdm(){const f=asisFecha(),by={};ASD.forEach(r=>{const x=by[r.
     const k=Object.keys(tl);if(k.length)out.push("Talleres: "+k.map(t=>`${title(t)} ${hm(tl[t])}`).join(" · "));if(abierto)out.push(`Aún en ${title(abierto)} (sin salida)`);
     return out.length?`<p class="sub" style="margin:4px 0 0">${esc(out.join(" | "))}</p>`:""};
   $("asList").innerHTML=L.length?L.map(x=>{const t=x.ing[0]&&x.ing[0].estado==="TARDE";
-    return`<article class="item${t?" rej":""}"><div class="t"><b>${esc(title(x.aud))}${/^ADM-/.test(x.dni)?' <span class="pill wait">ADM</span>':""}</b><span class="sub">entra ${limDe(x)} · ${x.ing.length?"":"sin ingreso · "}${x.sal.length?hrs(x):"sin salida"}</span></div>${resum(x)}<div class="acts"><button type="button" class="btn gold sm" data-apdf="${esc(x.dni)}">⬇ PDF del día</button></div>${x.all.map(mk).join("")}<div class="areg"></div><div class="afoto"></div></article>`}).join(""):`<div class="empty">Nadie marcó asistencia este día.</div>`;aSelUI()}
+    return`<article class="item${t?" rej":""}"><div class="t"><b>${esc(title(x.aud))}${/^ADM-/.test(x.dni)?' <span class="pill wait">ADM</span>':""}</b><span class="sub">entra ${limDe(x)} · ${x.ing.length?"":"sin ingreso · "}${x.sal.length?hrs(x):"sin salida"}</span></div>${resum(x)}<div class="acts"><button type="button" class="btn gold sm" data-apdf="${esc(x.dni)}">👁 Ver PDF del día</button></div>${x.all.map(mk).join("")}<div class="areg"></div><div class="afoto"></div></article>`}).join(""):`<div class="empty">Nadie marcó asistencia este día.</div>`;aSelUI()}
 /* v7: etiquetas de cada marca (sin señal, ubicación aproximada, alerta de hora, regularizada) */
 function asTags(r){let t="";
   if(r.sin)t+=` <span class="pill wait" title="Marcada sin señal; llegó al servidor ${esc(r.rec||"")}">OFFLINE${r.rec?" · recibida "+esc(r.rec):""}</span>`;
@@ -2477,7 +2481,7 @@ $("fiClr").addEventListener("click",()=>{if(FI)FI.usedSaved=false});
 document.head.insertAdjacentHTML("beforeend",`<style>#supList .item[hidden]{display:none}#paqBar{gap:8px}#paqBar[hidden]{display:none}.pqrow{display:flex;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px;cursor:pointer}.pqrow input{width:auto;min-height:0}</style>`);
 let PQ=null;
 async function paqEnviar(){const mod=HI_MOD;if(!MODULOS[mod])return;const base=HIS.filter(r=>(r.mod||"af")===mod),lins=[...new Set(base.map(r=>up(hfLin(r))).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es",{numeric:true}));
-  let lin=HF.lin&&lins.includes(HF.lin)?HF.lin:(lins[0]||""),dia=hfDia()||today();
+  let lin=(HF.lin&&lins.find(l=>linGrp(l)===HF.lin))||lins[0]||"",dia=hfDia()||today();
   const d=document.createElement("div");d.className="okdlg";d.setAttribute("role","dialog");d.setAttribute("aria-modal","true");
   d.innerHTML=`<div class="okbox" style="text-align:left;max-height:92vh;overflow:auto"><h3>✍ Enviar línea a firma</h3><p class="sub">${esc(MODULOS[mod].n)} · todos los reportes de la línea en un solo paquete</p>
     <div class="row" style="gap:8px;flex-wrap:nowrap"><label class="fld" style="flex:1"><span>Línea</span><select id="pqLin">${lins.map(l=>`<option value="${esc(l)}"${l===lin?" selected":""}>${esc(l)}</option>`).join("")||'<option value="">—</option>'}</select></label><label class="fld" style="flex:1"><span>Día</span><input type="date" id="pqDia" value="${esc(dia)}"></label></div>
