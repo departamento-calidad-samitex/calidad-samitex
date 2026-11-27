@@ -2829,33 +2829,35 @@ document.head.insertAdjacentHTML("beforeend",`<style>.infKpi{display:grid;grid-t
 /* ================= v38: invitados de almacén por cliente (solo ven y descargan los PDF de Auditoría Final de su cliente) */
 S.inv=false;S.invCli="";{const v=ls.get("af_inv",null);if(v&&v.inv){S.inv=true;S.invCli=v.cli||""}}
 const invOn=()=>!!(S.inv&&S.token&&!S.admin&&!S.prueba);
+const invTodos=()=>up(S.invCli||"")==="TODOS";
 const INV_FN=["estado","invReportes","descargarPdf","cambiarPin","pinSeguir","registrarUso","procesos","ingresar","ingresarPin"];
 {const _c=call;call=async function(fn,...a){if(invOn()&&!INV_FN.includes(fn))return{ok:false,msg:"Sin acceso para invitados."};return _c.call(this,fn,...a)}}
 {const _ss=setSesion;setSesion=function(r){S.inv=!!(r&&r.inv);S.invCli=(r&&r.invCli)||"";ls.set("af_inv",S.inv?{inv:true,cli:S.invCli}:null);INV.t=0;return _ss.apply(this,arguments)}}
 {const _cs=cerrarSesion;cerrarSesion=function(){S.inv=false;S.invCli="";ls.set("af_inv",null);INV={rows:[],t:0};return _cs.apply(this,arguments)}}
 {const _tf=tabsFor;tabsFor=function(){if(invOn()&&!["gate","pend","adm"].includes(S.tab))return["home"];return _tf.apply(this,arguments)}}
 {const _ca=cargarAsis;cargarAsis=async function(){if(invOn()){const c=$("asisCard");if(c)c.hidden=true;return}return _ca.apply(this,arguments)}}
-{const _su=sbUser;sbUser=function(){_su.apply(this,arguments);if(invOn()&&$("sbRol"))$("sbRol").textContent="Invitado · "+title(S.invCli||"")}}
+{const _su=sbUser;sbUser=function(){_su.apply(this,arguments);if(invOn()&&$("sbRol"))$("sbRol").textContent="Invitado · "+(invTodos()?"Despacho":title(S.invCli||""))}}
 $("jpCard").insertAdjacentHTML("afterend",`<div class="card" id="invCard" hidden><div class="hd"><h3 id="invTit">📦 Auditoría Final</h3><span class="sub" id="invSub"></span></div>
- <p class="sub" style="margin:0 0 8px">Hojas de Auditoría Final de tu cliente. Toca <b>👁 Ver PDF</b> para abrirla; dentro puedes descargarla con <b>⬇ Descargar</b>.</p>
- <div class="row" style="gap:8px;margin-bottom:8px;flex-wrap:wrap"><input id="invQ" placeholder="Buscar OF, artículo, color o fecha" style="flex:1 1 200px;min-width:0"><select id="invRes" style="flex:0 1 150px"><option value="">Todos</option><option value="A">Aprobados</option><option value="R">Rechazados</option></select><button type="button" class="btn ghost sm" id="invAct">↻ Actualizar</button></div>
+ <p class="sub" style="margin:0 0 8px">Hojas de Auditoría Final (solo lectura). Toca <b>👁 Ver PDF</b> para abrirla; dentro puedes descargarla con <b>⬇ Descargar</b>.</p>
+ <div class="row" style="gap:8px;margin-bottom:8px;flex-wrap:wrap"><input id="invQ" placeholder="Buscar OF, cliente, artículo, color o fecha" style="flex:1 1 200px;min-width:0"><select id="invRes" style="flex:0 1 150px"><option value="">Todos</option><option value="A">Aprobados</option><option value="R">Rechazados</option></select><select id="invCli" hidden style="flex:0 1 220px"><option value="">Todos los clientes</option></select><button type="button" class="btn ghost sm" id="invAct">↻ Actualizar</button></div>
  <div class="list" id="invList"></div><button type="button" class="btn ghost block" id="invMas" hidden>Ver más</button></div>`);
 let INV={rows:[],t:0},INV_N=60;
 async function invCargar(forzar){const c=$("invCard");if(!c)return;const on=invOn();c.hidden=!on;if(!on)return;
   ["procList","fsCard","asisCard","vbAudCard","supCard","jpCard","clvCard"].forEach(k=>{const e=$(k);if(e)e.hidden=true});
-  $("homeSub").textContent="Invitado · almacén "+title(S.invCli||"")+" · solo lectura";$("invTit").textContent="📦 Auditoría Final · "+(S.invCli||"");
+  $("homeSub").textContent=invTodos()?"Invitado · Despacho · todos los clientes · solo lectura":"Invitado · almacén "+title(S.invCli||"")+" · solo lectura";$("invTit").textContent="📦 Auditoría Final · "+(invTodos()?"TODOS LOS CLIENTES":(S.invCli||""));
   invRender();if(!forzar&&INV.t&&Date.now()-INV.t<60000)return;$("invSub").textContent="Cargando…";
   try{const r=await call("invReportes",S.token);if(r&&r.sesion){cerrarSesion("Tu sesión venció. Vuelve a ingresar con tu PIN.");return}
     if(!r||!r.ok){$("invSub").textContent=(r&&r.msg)||"No se pudo cargar.";return}if(r.cli)S.invCli=r.cli;INV={rows:r.rows||[],t:Date.now()};invRender()}
   catch(x){$("invSub").textContent=sesErr(x)?"Tu sesión venció.":"Sin conexión. Inténtalo otra vez."}}
-function invRender(){const q=up($("invQ").value||"").trim(),f=$("invRes").value,all=INV.rows||[];
-  const L=all.filter(r=>(!f||(f==="R")===!!r.rej)&&(!q||up([r.of,r.art,r.color,r.tal,r.proc,r.lin,dmy(r.fecha)].join(" ")).includes(q)));
+function invRender(){const q=up($("invQ").value||"").trim(),f=$("invRes").value,all=INV.rows||[],sc=$("invCli"),cs={};all.forEach(r=>{const k=up(r.cli||"")||"(SIN CLIENTE)";cs[k]=(cs[k]||0)+1});const ks=Object.keys(cs).sort((a,b)=>a.localeCompare(b,"es"));
+  sc.hidden=ks.length<2;const cv=ks.includes(sc.value)?sc.value:"";sc.innerHTML=`<option value="">Todos los clientes (${ks.length})</option>`+ks.map(k=>`<option value="${esc(k)}"${k===cv?" selected":""}>${esc(k)} (${cs[k]})</option>`).join("");const fc=cv;
+  const L=all.filter(r=>(!f||(f==="R")===!!r.rej)&&(!fc||(up(r.cli||"")||"(SIN CLIENTE)")===fc)&&(!q||up([r.of,r.art,r.cli,r.color,r.tal,r.proc,r.lin,dmy(r.fecha)].join(" ")).includes(q)));
   const nr=all.filter(r=>r.rej).length;$("invSub").textContent=INV.t?`${all.length} hoja${all.length===1?"":"s"} · ${all.length-nr} aprobada${all.length-nr===1?"":"s"} · ${nr} rechazada${nr===1?"":"s"}`:"";
   $("invList").innerHTML=L.length?L.slice(0,INV_N).map(r=>`<article class="item${r.rej?" rej":""}"><div class="t"><b>OF ${esc(r.of||"—")} · ${esc(r.art||"—")}</b> <span class="pill ${r.rej?"bad":"ok"}">${r.rej?"RECHAZADO":"APROBADO"}</span></div>
-   <div class="m">${dmy(r.fecha)}${r.color?" · "+esc(title(r.color)):""}${r.tal||r.proc?" · "+esc(title(r.tal||r.proc)):""}${r.lin?" · Línea "+esc(title(r.lin)):""}${r.lote?" · Lote "+esc(r.lote):""}${r.mue?" · Muestra "+esc(r.mue):""}</div>
-   <div class="acts"><button type="button" class="btn sm" data-invv="${esc(r.id)}">👁 Ver PDF</button></div></article>`).join(""):`<div class="empty">${INV.t?(all.length?"No hay hojas con ese filtro.":"Aún no hay hojas de Auditoría Final de tu cliente."):"Cargando…"}</div>`;
+   <div class="m">${ks.length>1?"<b>"+esc(r.cli||"")+"</b> · ":""}${dmy(r.fecha)}${r.color?" · "+esc(title(r.color)):""}${r.tal||r.proc?" · "+esc(title(r.tal||r.proc)):""}${r.lin?" · Línea "+esc(title(r.lin)):""}${r.lote?" · Lote "+esc(r.lote):""}${r.mue?" · Muestra "+esc(r.mue):""}</div>
+   <div class="acts"><button type="button" class="btn sm" data-invv="${esc(r.id)}">👁 Ver PDF</button></div></article>`).join(""):`<div class="empty">${INV.t?(all.length?"No hay hojas con ese filtro.":"Aún no hay hojas de Auditoría Final."):"Cargando…"}</div>`;
   $("invMas").hidden=L.length<=INV_N}
-$("invQ").addEventListener("input",()=>{INV_N=60;invRender()});$("invRes").onchange=()=>{INV_N=60;invRender()};
+$("invQ").addEventListener("input",()=>{INV_N=60;invRender()});$("invRes").onchange=()=>{INV_N=60;invRender()};$("invCli").onchange=()=>{INV_N=60;invRender()};
 $("invAct").onclick=()=>invCargar(true);$("invMas").onclick=()=>{INV_N+=60;invRender()};
 $("invList").addEventListener("click",e=>{const v=e.target.closest("[data-invv]");if(v)bajarPdf(v.dataset.invv,v)});
 {const _rh=renderHome;renderHome=function(){_rh.apply(this,arguments);try{invCargar()}catch(e){}}}
