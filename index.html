@@ -3228,6 +3228,41 @@ function plegable(id){const c=$(id);if(!c||c.classList.contains("plg"))return;co
   const t=()=>{c.classList.toggle("cerrado");hd.setAttribute("aria-expanded",String(!c.classList.contains("cerrado")))};
   hd.addEventListener("click",t);hd.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();t()}})}
 ["pruebaCard","procAdm"].forEach(plegable);
+/* ================= v88: los Excel de la PC se SINCRONIZAN sin borrar nada:
+   se leen tal como están (con lo que la administradora escribió a mano) y solo se agregan al final los reportes nuevos de la app (por «ID APP"). */
+function excelJsCargar(){return window.ExcelJS?Promise.resolve():new Promise((ok,no)=>{const x=document.createElement("script");x.src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js";x.onload=ok;x.onerror=()=>no(new Error("No se pudo cargar la herramienta de Excel. Revisa tu conexión."));document.head.appendChild(x)})}
+const pcN=v=>String(v==null?"":(typeof v==="object"&&v.text!=null?v.text:typeof v==="object"&&v.result!=null?v.result:v)).normalize("NFD").replace(/[̀-ͯ]/g,"").trim().toUpperCase();
+const pcVal=v=>{const t=String(v==null?"":v);return /^-?\d+(\.\d+)?$/.test(t)&&t.length<15&&!/^0\d/.test(t)?Number(t):t};
+async function pcSyncUno(h,k,n,v){const H=v[0]||[],iId=H.findIndex(x=>pcN(x)==="ID APP"),datos=v.slice(1);
+  const f=await h.getFile(),buf=await f.arrayBuffer(),wb=new ExcelJS.Workbook();
+  if(buf.byteLength){try{await wb.xlsx.load(buf)}catch(e){throw new Error(`No se pudo leer «${h.name}». Si está abierto, ciérralo.`)}}
+  const nom=(PC_NOM[k]||k).slice(0,31);
+  const tieneId=w=>{for(let r=1;r<=Math.min(10,w.rowCount);r++){const vals=w.getRow(r).values||[];if(vals.some(c=>pcN(c)==="ID APP"))return r}return 0};
+  let ws=wb.worksheets.find(w=>pcN(w.name)===pcN(nom))||wb.worksheets.find(w=>tieneId(w))||(wb.worksheets.length===1?wb.worksheets[0]:null);
+  let nuevos=0;
+  const llenarTodo=w=>{w.addRow(H.map(String));w.getRow(w.rowCount).font={bold:true};datos.forEach(r=>w.addRow(r.map(pcVal)));nuevos=datos.length;
+    try{w.columns.forEach((c,j)=>{c.width=Math.min(45,Math.max(8,...v.slice(0,200).map(f=>String(f[j]==null?"":f[j]).length+1)))})}catch(e){}};
+  if(!ws){ws=wb.addWorksheet(nom);llenarTodo(ws)}
+  else if(ws.actualRowCount===0)llenarTodo(ws);
+  else{const hr=tieneId(ws);if(!hr)throw new Error(`«${h.name}» no tiene la columna «ID APP». Agrégala en la fila de títulos (o elige otro Excel) para saber qué reportes ya están y no repetir ni borrar nada.`);
+    const fila=ws.getRow(hr),cols={};let maxC=Math.max(fila.cellCount,ws.columnCount);
+    for(let c=1;c<=maxC;c++){const t=pcN(fila.getCell(c).value);if(t&&cols[t]==null)cols[t]=c}
+    H.forEach(x=>{const t=pcN(x);if(t&&cols[t]==null){maxC++;fila.getCell(maxC).value=String(x);fila.getCell(maxC).font={bold:true};cols[t]=maxC}});fila.commit&&fila.commit();
+    const cId=cols["ID APP"],ya=new Set();for(let r=hr+1;r<=ws.rowCount;r++){const x=pcN(ws.getRow(r).getCell(cId).value);if(x)ya.add(x)}
+    const hayDatos=ws.rowCount>hr;
+    datos.forEach(r=>{const id=pcN(iId>=0?r[iId]:"");if(id?ya.has(id):hayDatos)return;const arr=[];H.forEach((x,j)=>{const c=cols[pcN(x)];if(c)arr[c-1]=pcVal(r[j])});ws.addRow(arr);nuevos++})}
+  if(nuevos){const out=await wb.xlsx.writeBuffer();try{const w=await h.createWritable();await w.write(out);await w.close()}catch(e){throw new Error(`No se pudo escribir «${h.name}». Si lo tienes abierto, ciérralo y vuelve a intentar.`)}}
+  return nuevos}
+pcExcels=async function(X,st){st("Trayendo los datos para los Excel…");const r=await admin("adminExcelHojas");if(!r||!r.ok)throw new Error((r&&r.msg)||"No se pudieron traer los datos.");
+  await excelJsCargar();const hechos=[],mal=[];
+  for(const [k,n] of PCX){const h=X[k];if(!h)continue;st(`Sincronizando el Excel de ${n}…`);
+    try{const c=await pcSyncUno(h,k,n,(r.hojas&&r.hojas[k])||[]);hechos.push(`${n} (${c?"+"+c+" nuevo"+(c===1?"":"s"):"al día"})`)}catch(e){mal.push(String(e&&e.message||e))}}
+  return {hechos,mal}};
+{const _pg=pcGuardar;pcGuardar=async function(){const r=await _pg.apply(this,arguments);const m=$("pcMsg");if(m)m.textContent=m.textContent.replace("No se pudo escribir: ","⚠ ").replace("Excel actualizados:","Excel sincronizados:");return r}}
+(function(){const c=$("pcCard");if(!c)return;const p=c.querySelector("p.sub");if(p)p.innerHTML="Tú eliges dónde se guarda. Cada formato va a <b>su propio Excel</b> (Telas, Avíos, Corte, Final, Primera Muestra y Segundas). Se <b>sincroniza sin borrar nada</b>: lo que tú escribas o cambies en el Excel se queda, y la app solo agrega al final los reportes nuevos (los reconoce por la columna «ID APP»). En la <b>carpeta</b> se guarda un PDF por día con todas las Auditorías de Proceso juntas.";
+  c.querySelectorAll(".pcRow small").forEach(s=>{if(/se sobrescribe/.test(s.textContent))s.textContent="Elige el archivo de cada uno. Se agregan solo los reportes nuevos; nada de lo que tú escribas se borra."});
+  const g=$("pcGo");if(g)g.textContent="💾 Sincronizar ahora con mi PC";const l=$("pcAuto")&&$("pcAuto").closest("label");if(l){const t=l.querySelector(".t");if(t)t.textContent="Sincronizar solo al abrir la app en esta PC y cada 30 minutos mientras esté abierta"}})();
+setInterval(()=>{try{const g=pcCfg();if(g.auto&&S.admin&&S.principal&&document.visibilityState==="visible"&&!PC_RUN)pcGuardar(false)}catch(e){}},30*60000);
 /* ================= v83: la administradora principal corrige el tipo de una marca de asistencia (con motivo) */
 const ACOR_MOT=["Se equivocó de botón al marcar","Marcó ingreso de jornada en vez de llegada a taller","Marcó llegada a taller en vez de ingreso de jornada","Marcó salida en vez de salida de taller","Marcó llegada en vez de salida de taller","Falla de señal o GPS al marcar","Olvidó marcar a tiempo"];
 function acorTalleres(cur){const L=[...new Set([...document.querySelectorAll("#lTal option")].map(o=>up(o.value||"")).concat(ASD.map(x=>up(x.taller||""))).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));if(cur&&!L.includes(up(cur)))L.unshift(up(cur));
