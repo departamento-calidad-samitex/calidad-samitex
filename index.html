@@ -3107,5 +3107,41 @@ async function pcGuardar(usuario){if(PC_RUN||!PC_OK)return;const xh=await pcGet(
   const tog=()=>{c.classList.toggle("cerrado");lbl()};
   $("corHTog").onclick=tog;c.querySelector(".hd").onclick=tog;
   const _r=corHRender;corHRender=function(){_r.apply(this,arguments);lbl()};lbl()})();
+/* ================= v81: un Excel distinto por formato (Telas, Avíos, Corte, Final, Primera Muestra, Segundas) */
+const PCX=[["TELAS","Auditoría de Telas"],["AVIOS","Auditoría de Avíos"],["CORTE","Auditoría de Corte"],["FINAL","Auditoría Final"],["PRIMERA MUESTRA","Primera Muestra"],["SEGUNDAS","Reporte de Segundas"]];
+(function(){const row=$("pcXls")&&$("pcXls").closest(".pcRow");if(!row)return;
+  row.outerHTML=`<div class="pcRow" style="border-bottom:0;padding-bottom:0"><div class="t"><b>📊 Un Excel para cada formato</b><small>Elige el archivo de cada uno. Cada vez que guardas, ese Excel se sobrescribe con todos los reportes de su formato.</small></div></div>`+PCX.map(([k,n])=>`<div class="pcRow" style="padding-left:14px"><div class="t"><b>${esc(n)}</b><small data-pcxn="${esc(k)}">Sin elegir</small></div><button type="button" class="btn ghost sm" data-pcx="${esc(k)}">Elegir Excel</button><button type="button" class="btn ghost sm" data-pcxq="${esc(k)}" title="Quitar este Excel" aria-label="Quitar el Excel de ${esc(n)}" hidden>✕</button></div>`).join("");
+  const p=$("pcCard").querySelector("p.sub");if(p)p.innerHTML="Tú eliges dónde se guarda. Cada formato va a <b>su propio Excel</b> (Telas, Avíos, Corte, Final, Primera Muestra y Segundas), que se sobrescribe cada vez. En la <b>carpeta</b> se guarda un PDF por día con todas las Auditorías de Proceso juntas.";
+  $("pcCard").addEventListener("click",async e=>{const b=e.target.closest("[data-pcx]"),q=e.target.closest("[data-pcxq]");
+    if(b){const k=b.dataset.pcx,n=(PCX.find(x=>x[0]===k)||[k,k])[1];try{const h=await showSaveFilePicker({suggestedName:n+".xlsx",id:"cs_xls",types:[{description:"Libro de Excel",accept:{"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":[".xlsx"]}}]});await pcSet("xls_"+k,h);toast(n+": "+h.name);pcCargar()}catch(x){if(x&&x.name!=="AbortError")toast("No se pudo elegir el archivo.")}}
+    if(q){const k=q.dataset.pcxq;await pcSet("xls_"+k,null);pcCargar()}})})();
+async function pcXlsMap(){const m={};for(const [k] of PCX){const h=await pcGet("xls_"+k);if(h)m[k]=h}return m}
+pcCargar=async function(){const c=$("pcCard");if(!c)return;const on=!!(S.admin&&S.principal&&!S.prueba&&S.tab==="home");c.hidden=!on;if(!on)return;
+  $("pcNo").hidden=PC_OK;$("pcBox").hidden=!PC_OK;if(!PC_OK)return;const g=pcCfg();
+  $("pcDias").value=String(g.dias);$("pcAuto").checked=!!g.auto;$("pcSub").textContent=g.last?"Último guardado: "+dt(g.last):"";
+  const X=await pcXlsMap(),dh=await pcGet("dir");
+  PCX.forEach(([k])=>{const s=c.querySelector(`[data-pcxn="${k}"]`),q=c.querySelector(`[data-pcxq="${k}"]`);if(s)s.textContent=X[k]?X[k].name:"Sin elegir";if(q)q.hidden=!X[k]});
+  $("pcDir").textContent=dh?dh.name:"Sin elegir";
+  if(g.auto&&!PC_AUTO_HECHO&&!PC_RUN&&(Object.keys(X).length||dh)){PC_AUTO_HECHO=true;setTimeout(()=>pcGuardar(false),1500)}};
+async function pcExcels(X,st){st("Trayendo los datos para los Excel…");const r=await admin("adminExcelHojas");if(!r||!r.ok)throw new Error((r&&r.msg)||"No se pudieron traer los datos.");
+  await xlsxCargar();const hechos=[],mal=[];
+  for(const [k,n] of PCX){const h=X[k];if(!h)continue;st(`Guardando el Excel de ${n}…`);const v=(r.hojas&&r.hojas[k])||[];
+    const wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(v.length?v:[["Sin reportes todavía"]]);
+    if(v.length){ws["!cols"]=(v[0]||[]).map((_,j)=>({wch:Math.min(45,Math.max(8,...v.slice(0,200).map(f=>String(f[j]==null?"":f[j]).length+1)))}));if(v.length>1)ws["!autofilter"]={ref:ws["!ref"]}}
+    XLSX.utils.book_append_sheet(wb,ws,(PC_NOM[k]||k).slice(0,31));const buf=XLSX.write(wb,{bookType:"xlsx",type:"array"});
+    try{const w=await h.createWritable();await w.write(buf);await w.close();hechos.push(`${n} (${Math.max(0,v.length-1)} filas)`)}catch(e){mal.push(h.name)}}
+  return {hechos,mal}}
+pcGuardar=async function(usuario){if(PC_RUN||!PC_OK)return;const X0=await pcXlsMap(),dh=await pcGet("dir");
+  if(!Object.keys(X0).length&&!dh){if(usuario)toast("Primero elige tus Excel o tu carpeta.");return}
+  const X={};let falta=false;for(const k of Object.keys(X0)){if(await pcPermiso(X0[k],usuario))X[k]=X0[k];else falta=true}
+  const okD=dh?await pcPermiso(dh,usuario):false;if(dh&&!okD)falta=true;
+  if(falta){$("pcMsg").textContent="Toca «💾 Guardar ahora en mi PC» y acepta el permiso de Chrome/Edge para guardar.";if(!usuario)return}
+  if(!Object.keys(X).length&&!okD)return;
+  PC_RUN=true;const bt=$("pcGo"),t0=bt.textContent;bt.disabled=true;const st=x=>{bt.textContent=x;$("pcMsg").textContent=x};const res=[];let aviso="";
+  try{if(Object.keys(X).length){const x=await pcExcels(X,st);if(x.hechos.length)res.push("Excel actualizados: "+x.hechos.join(", ")+".");if(x.mal.length)aviso="No se pudo escribir: "+x.mal.join(", ")+". Si está abierto, ciérralo y vuelve a intentar."}
+    if(dh&&okD){const p=await pcProceso(dh,st);res.push(p.dias?`Proceso: ${p.hechos} PDF guardado${p.hechos===1?"":"s"} en «${dh.name}»${p.saltados?`, ${p.saltados} día${p.saltados===1?"":"s"} ya estaba${p.saltados===1?"":"n"}`:""}${p.fal?` (${p.fal} reporte${p.fal===1?"":"s"} no se pudo agregar)`:""}.`:"Proceso: no hay reportes en esos días.")}
+    pcCfgSet({last:Date.now()});$("pcSub").textContent="Último guardado: "+dt(Date.now());$("pcMsg").textContent="✔ "+res.join(" ")+(aviso?" ⚠ "+aviso:"");toast(aviso?"Guardado, pero un Excel estaba abierto.":"✔ Guardado en tu PC")}
+  catch(e){$("pcMsg").textContent=(res.length?"✔ "+res.join(" ")+" ":"")+"⚠ "+String(e&&e.message||e);toast("No se pudo terminar de guardar.")}
+  finally{PC_RUN=false;bt.disabled=false;bt.textContent=t0}};
 </script>
 </body></html>
