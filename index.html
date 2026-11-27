@@ -3099,5 +3099,13 @@ async function pcGuardar(usuario){if(PC_RUN||!PC_OK)return;const xh=await pcGet(
   catch(e){$("pcMsg").textContent=(res.length?"✔ "+res.join(" ")+" ":"")+"⚠ "+String(e&&e.message||e);toast("No se pudo terminar de guardar.")}
   finally{PC_RUN=false;bt.disabled=false;bt.textContent=t0}}
 {const _rh=renderHome;renderHome=function(){_rh.apply(this,arguments);try{pcCargar()}catch(e){}}}
+/* ================= v80: «Correcciones y actualizaciones» como desplegable (cerrado al abrir) */
+(function(){const c=$("corHCard");if(!c)return;c.classList.add("cerrado");
+  $("corHAct").insertAdjacentHTML("beforebegin",`<button type="button" class="btn sm" id="corHTog" aria-expanded="false" aria-controls="corHList">▾ Ver movimientos</button>`);
+  document.head.insertAdjacentHTML("beforeend",`<style>#corHCard.cerrado #corHList,#corHCard.cerrado #corHMas{display:none!important}#corHCard .hd{cursor:pointer;user-select:none}</style>`);
+  const lbl=()=>{const n=(CORH.rows||[]).length,ab=!c.classList.contains("cerrado"),b=$("corHTog");b.textContent=ab?"▴ Ocultar movimientos":`▾ Ver ${CORH.t?(n===1?"el movimiento":`los ${n} movimientos`):"movimientos"}`;b.setAttribute("aria-expanded",String(ab))};
+  const tog=()=>{c.classList.toggle("cerrado");lbl()};
+  $("corHTog").onclick=tog;c.querySelector(".hd").onclick=tog;
+  const _r=corHRender;corHRender=function(){_r.apply(this,arguments);lbl()};lbl()})();
 </script>
 </body></html>
