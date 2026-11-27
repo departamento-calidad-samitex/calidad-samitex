@@ -1055,7 +1055,7 @@ const isoD=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+Str
 const isoMas=n=>{const d=new Date();d.setDate(d.getDate()+n);return isoD(d)};
 const hfLin=r=>String((r&&((typeof r.lin==="string"&&r.lin)||(r.f&&r.f.c&&r.f.c.lin)||(r.c&&r.c.lin)))||"");
 /* v68: líneas agrupadas: solo Camisa, Saco, Pantalón, Reproceso y Acabado para filtrar */
-const LIN_GRP=[["CAMISA",/CAMIS|MARIA\s*ELENA/],["SACO",/SACO|TERNO|(^|[^A-Z])ANA([^A-Z]|$)/],["PANTALÓN",/PANTAL|DORIS/],["REPROCESO",/REPROC/],["ACABADO",/ACABAD/]];
+const LIN_GRP=[["CAMISAS",/CAMIS|MARIA\s*ELENA/],["SACOS",/SACO|TERNO|(^|[^A-Z])ANA([^A-Z]|$)/],["PANTALONES",/PANTAL|DORIS/],["REPROCESO",/REPROC/],["ACABADO",/ACABAD/]];
 const linGrp=v=>{const u=up(v||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"");const g=LIN_GRP.find(([,re])=>re.test(u));return g?g[0]:""};
 function hfDia(){return HF.f==="hoy"?today():HF.f==="ayer"?isoMas(-1):HF.f==="d"&&HF.d?HF.d:""}
 const fwMsg=d=>`Este reporte tiene fecha ${dmy(d)} y hoy es ${dmy(today())}. ¿La fecha es correcta?`;
@@ -1590,9 +1590,9 @@ let SUPS=ls.get("sups",[]),SUPS_T=0;
 async function supsCargar(){if(!S.token||Date.now()-SUPS_T<90000)return SUPS;SUPS_T=Date.now();try{const r=await call("supLista",S.token);if(r&&r.ok){SUPS=r.sups||[];ls.set("sups",SUPS)}}catch(e){}return SUPS}
 const linDe=r=>(r&&((typeof r.lin==="string"&&r.lin)||(r.f&&r.f.c&&r.f.c.lin)||(r.c&&r.c.lin)))||"";
 const supDeLin=(x,lin)=>{const L=(x.lineas||[]).map(NORM);return L.includes("TODAS")||(!!lin&&L.includes(NORM(lin)))};
-function supOpts(lin,cur,conNo){const A=SUPS.slice().sort((a,b)=>(supDeLin(b,lin)-supDeLin(a,lin))||String(a.nombre).localeCompare(String(b.nombre)));
-  return(conNo?`<option value="">No enviar a firma</option>`:"")+`<option value="LINEA"${cur==="LINEA"?" selected":""}>Cualquier supervisor de la línea${lin?" "+esc(up(lin)):""}</option>`+
-    A.map(x=>`<option value="${esc(x.dni)}"${String(cur)===String(x.dni)?" selected":""}>${supDeLin(x,lin)?"★ ":""}${esc(title(x.nombre))}${(x.lineas||[]).length?" · "+esc(x.lineas.join(", ")):""}</option>`).join("")}
+/* v78: área del supervisor con su nombre oficial: SACOS, PANTALONES, CAMISAS, ACABADO, REPROCESO */ const supArea=L=>{const g=[...new Set((L||[]).map(linGrp).filter(Boolean))];return g.length?g.join(", "):(L||[]).join(", ")}; function supOpts(lin,cur,conNo){const A=SUPS.slice().sort((a,b)=>(supDeLin(b,lin)-supDeLin(a,lin))||String(a.nombre).localeCompare(String(b.nombre)));
+  return(conNo?`<option value="">No enviar a firma</option>`:"")+`<option value="LINEA"${cur==="LINEA"?" selected":""}>Cualquier supervisor de la línea${lin?" "+esc(linGrp(lin)||up(lin)):""}</option>`+
+    A.map(x=>`<option value="${esc(x.dni)}"${String(cur)===String(x.dni)?" selected":""}>${supDeLin(x,lin)?"★ ":""}${esc(title(x.nombre))}${(x.lineas||[]).length?" · "+esc(supArea(x.lineas)):""}</option>`).join("")}
 function supElegir(r,cur){return new Promise(res=>{const lin=linDe(r),d=document.createElement("div");d.className="okdlg";d.setAttribute("role","dialog");d.setAttribute("aria-modal","true");
   d.innerHTML=`<div class="okbox" style="text-align:left"><h3>✍ Enviar a firma</h3><p class="sub">${esc(MODULOS[r.mod||"af"].n)} · ${esc(resumen(r))}${lin?" · Línea "+esc(up(lin)):""}</p><label class="fld full"><span>Supervisor que firma</span><select id="seSel">${supOpts(lin,cur||"LINEA",false)}</select></label><p class="sub" id="seInfo">Cargando supervisores…</p><button type="button" class="btn block" id="seOk">✍ Enviar a firma</button><button type="button" class="btn ghost block" id="seNo">Cancelar</button></div>`;
   document.body.appendChild(d);const fin=v=>{d.remove();res(v)};$("seNo").onclick=()=>fin(null);$("seOk").onclick=()=>fin($("seSel").value||"LINEA");
