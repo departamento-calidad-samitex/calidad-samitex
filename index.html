@@ -2892,6 +2892,12 @@ function procFirmaTodas(){if(!procLib())return 0;const f=S.mf;let n=0;LIB.ids.fo
 $("mfSave").insertAdjacentHTML("beforebegin",`<button type="button" class="btn gold block" id="procTodas" hidden style="margin-bottom:8px">✍ Guardar y enviar todas mis hojas</button>`);
 {const p=$("procTodas").parentElement;if(p&&p.classList.contains("row")){p.style.flexWrap="wrap";$("procTodas").style.flex="1 1 100%"}}
 let PROC_TODAS=false;
+function procIrFalta(id,fal,sinF){LIB.act=id;libIdx();S.mf=LIB.h[id];$("mfDone").hidden=true;renderMF();
+  setTimeout(()=>{const nom=libNom(S.mf),txt=[...fal.map(x=>x[1]),...(sinF?["firma del auditor"]:[])];
+    const e=$("mfErr");e.innerHTML=`⚠ La hoja <b>${esc(nom)}</b> está incompleta. Falta: <b>${esc(txt.join(", "))}</b>.<br>Corrígela aquí y vuelve a tocar «Guardar y enviar todas». No se envió ninguna hoja.`;e.hidden=false;
+    let primero=null;fal.forEach(([k])=>{const x=document.querySelector(`#mfBody [data-c="${k}"]`);if(x){x.style.outline="2px solid var(--crit,#c0392b)";x.style.outlineOffset="1px";x.addEventListener("input",()=>{x.style.outline=""},{once:true});x.addEventListener("change",()=>{x.style.outline=""},{once:true});if(!primero)primero=x}});
+    if(primero){primero.scrollIntoView({block:"center",behavior:"smooth"});setTimeout(()=>{try{primero.focus()}catch(x){}},400)}else{const c=$("mfA");if(c)c.scrollIntoView({block:"center",behavior:"smooth"})}
+    toast("Falta completar: "+txt.join(", "))},350)}
 {const _pr=preguntar;preguntar=function(t){if(PROC_TODAS&&t==="Revisa la fecha")return Promise.resolve(true);return _pr.apply(this,arguments)}}
 function procTodasUI(){const b=$("procTodas");if(!b)return;const on=procLib()&&!S.mfEdit&&LIB.ids.length>1;b.hidden=!on;if(on)b.textContent=`✍ Guardar y enviar todas mis hojas (${LIB.ids.length}) al supervisor`}
 {const _lb=libBarRender;libBarRender=function(){const r=_lb.apply(this,arguments);try{procTodasUI()}catch(e){}return r}}
@@ -2899,6 +2905,10 @@ const procEsp=ms=>new Promise(r=>setTimeout(r,ms));
 $("procTodas").onclick=async()=>{if(!procLib()||PROC_TODAS)return;libFlush();
   if(!isSig(S.mf.firmaA)&&!String(S.mf.firmaA||"").startsWith("drive:")){toast("Firma una sola vez en el recuadro del auditor (o «✍ Usar mi firma») y vuelve a tocar el botón.");const c=$("mfA");if(c)c.scrollIntoView({block:"center",behavior:"smooth"});return}
   procFirmaTodas();libFlush();const ids=LIB.ids.slice(),n=ids.length;
+  /* v73: antes de guardar nada, revisa todas las hojas; si una está incompleta te lleva a ella y te pide corregir */
+  const PREQ=[["cli","Cliente"],["lin","Línea"],["fecha","Fecha"],["cant","Cant. total"],["aud","Auditor"]];
+  for(const id of ids){const h=LIB.h[id];if(!h)continue;const c=h.c||{};const fal=PREQ.filter(([k])=>!String(c[k]||"").trim());if(!String(c.of||"").trim()&&!String(c.art||"").trim())fal.unshift(["of","OF o artículo"]);
+    const sinF=!isSig(h.firmaA)&&!String(h.firmaA||"").startsWith("drive:");if(fal.length||sinF){procIrFalta(id,fal,sinF);return}}
   const otras=ids.filter(id=>{const c=(LIB.h[id]||{}).c||{};return c.fecha&&c.fecha!==today()}).length;
   if(!(await preguntar("Guardar y enviar todas",`Se guardarán ${n} hojas de Auditoría de Proceso con tu firma y se enviarán a firma del supervisor elegido en cada hoja.${otras?` ${otras} hoja${otras===1?"":"s"} tiene${otras===1?"":"n"} fecha distinta a hoy.`:""}`,`Sí, guardar y enviar ${n}`,"Cancelar")))return;
   const b=$("procTodas"),bt=$("mfSave");PROC_TODAS=true;b.disabled=true;let ok=0;const mal=[];
@@ -2906,10 +2916,10 @@ $("procTodas").onclick=async()=>{if(!procLib()||PROC_TODAS)return;libFlush();
       LIB.act=id;libIdx();S.mf=LIB.h[id];$("mfDone").hidden=true;$("mfErr").hidden=true;renderMF();await procEsp(250);
       const nom=libNom(S.mf);$("mfForm").requestSubmit();await procEsp(120);
       const t0=Date.now();while(Date.now()-t0<180000){if(!bt.disabled&&(!$("mfDone").hidden||!$("mfErr").hidden))break;await procEsp(200)}
-      if(!$("mfErr").hidden){mal.push(nom+": "+$("mfErr").textContent)}else ok++}}
+      if(!$("mfErr").hidden){mal.push(nom+": "+$("mfErr").textContent);break}else ok++}}
   finally{PROC_TODAS=false;b.disabled=false;procTodasUI()}
   const od=$("okDlg");if(od&&!mal.length)okSubido(false,`${ok} hoja${ok===1?"":"s"} guardada${ok===1?"":"s"}`,`Auditoría de Proceso: ${ok} hoja${ok===1?"":"s"} con tu firma, enviada${ok===1?"":"s"} a firma del supervisor.`);
-  if(mal.length){if(od)od.hidden=true;const e=$("mfErr");e.innerHTML=`Se guardaron ${ok} de ${n}. Faltan ${mal.length}:<br>`+mal.map(esc).join("<br>");e.hidden=false;e.scrollIntoView({block:"center"})}};
+  if(mal.length){if(od)od.hidden=true;const e=$("mfErr");e.innerHTML=`⚠ Se guardaron ${ok} de ${n}. Esta hoja no se pudo guardar: `+mal.map(esc).join("<br>")+`<br>Corrígela y vuelve a tocar «Guardar y enviar todas».`;e.hidden=false;e.scrollIntoView({block:"center"})}};
 /* ================= inicio ================= */
 (async function init(){
   S.form=blankForm();renderCola();
