@@ -3184,6 +3184,43 @@ async function gpFirmarDlg(ids,que){if(!ids.length)return;const d=document.creat
       d.remove();toast(fal.length?`Validados ${n} de ${ids.length}. ${fal.length} no se pudieron: inténtalo otra vez.`:`✔ Validaste ${n} reporte${n===1?"":"s"}.`);gpCargar()}
     catch(x){er.textContent=x&&x.message||"No se pudo firmar. Revisa tu conexión.";er.hidden=false;busy=false;ok.disabled=false;$("gpNo").disabled=false;ok.textContent=`✔ Validar ${ids.length} reporte${ids.length===1?"":"s"}`}}}
 {const _rh=renderHome;renderHome=function(){_rh.apply(this,arguments);try{gpCargar()}catch(e){}}}
+/* ================= v87: supervisoras, Jefatura de Planta, Gerencia de Producción e invitados también trabajan sin señal
+   - Lo que vieron con señal queda guardado en el equipo (lista de pendientes, reportes, PDF) y se muestra sin señal.
+   - Las firmas / devoluciones / validaciones hechas sin señal se guardan en cola y se envían solas al volver la señal. */
+const OFF_R=["supPendientes","supVer","supMiFirma","supLista","invReportes","descargarPdf","gpPendientes","gpVer"],OFF_W=["supFirmar","supDevolver","gpFirmar","jpFirmar","supGuardarFirma"];
+const offOn=()=>!!(S.token&&!S.admin&&!S.prueba&&(S.sup||S.jp||S.gp||S.inv));
+function offDb(){return new Promise((ok,no)=>{const r=indexedDB.open("cs_off",1);r.onupgradeneeded=()=>{r.result.createObjectStore("c");r.result.createObjectStore("q",{autoIncrement:true})};r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)})}
+async function offTx(st,modo,f){const db=await offDb();return new Promise((ok,no)=>{const t=db.transaction(st,modo),o=t.objectStore(st);let res;const q=f(o);if(q)q.onsuccess=()=>{res=q.result};t.oncomplete=()=>ok(res);t.onerror=()=>no(t.error)})}
+const offKey=(fn,a)=>fn+"|"+JSON.stringify(a.slice(1));
+const offGet=k=>offTx("c","readonly",o=>o.get(k)).catch(()=>null),offPut=(k,v)=>offTx("c","readwrite",o=>o.put({v,t:Date.now()},k)).catch(()=>{});
+let OFF_AVISO=0,OFF_FLUSH=false,OFF_C=null;
+function offAviso(t){if(Date.now()-OFF_AVISO>60000){OFF_AVISO=Date.now();toast(t)}}
+async function offQuitar(fnLista,id){const k=offKey(fnLista,[S.token]),x=await offGet(k);if(x&&x.v&&x.v.pend){x.v.pend=x.v.pend.filter(r=>r.id!==id);await offPut(k,x.v)}}
+async function offPrefetch(fn,ids){for(const id of ids.slice(0,40)){if(!navigator.onLine)return;const a=fn==="descargarPdf"?[S.token,id]:fn==="supVer"?[S.token,id,null]:[S.token,id];const k=offKey(fn,a),x=await offGet(k);if(x&&Date.now()-x.t<6*3600e3)continue;try{await call(fn,...a)}catch(e){return}}}
+{const _c=call;OFF_C=_c;call=async function(fn,...a){if(!offOn())return _c.call(this,fn,...a);
+  if(OFF_R.includes(fn)){const k=offKey(fn,a);try{const r=await _c.call(this,fn,...a);if(r&&r.ok!==false){await offPut(k,r);
+        if(fn==="supPendientes"&&r.pend)setTimeout(()=>offPrefetch("supVer",r.pend.map(x=>x.id)),1500);
+        if(fn==="gpPendientes"&&r.pend)setTimeout(()=>offPrefetch("gpVer",r.pend.map(x=>x.id)),1500);
+        if(fn==="invReportes"&&r.rows)setTimeout(()=>offPrefetch("descargarPdf",r.rows.slice(0,15).map(x=>x.id)),2500)}return r}
+      catch(e){if(!netErr(e))throw e;const x=await offGet(k);if(x){offAviso("📴 Sin señal: estás viendo lo último guardado en este equipo.");return x.v}throw e}}
+  if(OFF_W.includes(fn)){try{return await _c.call(this,fn,...a)}catch(e){if(!netErr(e))throw e;
+      await offTx("q","readwrite",o=>o.add({fn,a:a.slice(1),t:Date.now()}));
+      const id=a[1];if(fn==="supFirmar"||fn==="supDevolver"){await offQuitar("supPendientes",id)}if(fn==="gpFirmar")await offQuitar("gpPendientes",id);
+      offContar();toast("📴 Sin señal: quedó guardado en este equipo y se enviará solo al volver la señal.");
+      return {ok:true,offline:true,por:(S.me&&S.me.nombre)||"",ts:Date.now()}}}
+  return _c.call(this,fn,...a)}}
+async function offCola(){try{return await offTx("q","readonly",o=>o.getAll())||[]}catch(e){return[]}}
+async function offContar(){const n=(await offCola()).length;let b=$("offBan");if(!n){if(b)b.remove();return}
+  if(!b){document.querySelector("main")?.insertAdjacentHTML("afterbegin",`<div class="note" id="offBan" style="margin:8px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span id="offTx" style="flex:1"></span><button type="button" class="btn sm" id="offGo">Enviar ahora</button></div>`);b=$("offBan");if(!b)return;$("offGo").onclick=()=>offEnviar(true)}
+  $("offTx").textContent=`📴 ${n} firma${n===1?"":"s"} hecha${n===1?"":"s"} sin señal, por enviar.`}
+async function offEnviar(manual){if(OFF_FLUSH||!S.token)return;if(!navigator.onLine){if(manual)toast("Aún no hay señal.");return}OFF_FLUSH=true;let ok=0,mal=[];
+  try{const db=await offDb();const items=await new Promise(res=>{const out=[];const t=db.transaction("q");t.objectStore("q").openCursor().onsuccess=e=>{const c=e.target.result;if(c){out.push([c.key,c.value]);c.continue()}};t.oncomplete=()=>res(out)});
+    for(const [key,it] of items){let r;try{r=await OFF_C(it.fn,S.token,...it.a)}catch(e){if(netErr(e))break;if(sesErr(e)){toast("Ingresa de nuevo con tu PIN para enviar lo firmado sin señal.");break}r={ok:false,msg:String(e&&e.message||e)}}
+      if(!(r&&(r.ok||r.ya)))mal.push(r&&r.msg||"error");else ok++;
+      await offTx("q","readwrite",o=>o.delete(key))}}
+  catch(e){}finally{OFF_FLUSH=false}
+  offContar();if(ok||mal.length){toast(`✔ Se enviaron ${ok} firma${ok===1?"":"s"} hecha${ok===1?"":"s"} sin señal.`+(mal.length?` ${mal.length} no se pudo: ${mal[0]}`:""));try{renderHome()}catch(e){}}}
+addEventListener("online",()=>setTimeout(()=>offEnviar(false),1500));setInterval(()=>offEnviar(false),90000);setTimeout(()=>{offContar();offEnviar(false)},4000);
 /* ================= v82: tarjetas desplegables (cerradas al abrir): Ver como auditor y Procesos del menú */
 document.head.insertAdjacentHTML("beforeend",`<style>.card.plg>.hd{cursor:pointer;user-select:none}.card.plg.cerrado>:not(.hd){display:none!important}.card.plg>.hd h3::after{content:" ▾";color:var(--muted);font-size:.85em}.card.plg:not(.cerrado)>.hd h3::after{content:" ▴"}.card.plg>.hd:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:8px}</style>`);
 function plegable(id){const c=$(id);if(!c||c.classList.contains("plg"))return;const hd=c.querySelector(":scope>.hd");if(!hd)return;c.classList.add("plg","cerrado");
