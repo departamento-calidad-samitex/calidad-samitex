@@ -2883,6 +2883,33 @@ function admRestaurar(AD){S.token=AD.tok;S.admin=true;S.principal=!!AD.principal
   $("fAud").readOnly=false;loadForm(ls.get("draft3",null)||blankForm());go("home");
   call("adminLista",AD.tok).catch(x=>{if(sesErr(x)){ls.set("af_adm",null);S.admin=false;S.token=null;go("adm");toast("Tu sesión de administradora venció. Ingresa de nuevo con tu código.")}})}
 {const _cs=cerrarSesion;cerrarSesion=function(){if(S.admin)ls.set("af_adm",null);return _cs.apply(this,arguments)}}
+/* ================= v72: Auditoría de Proceso — la auditora firma una vez (se copia a todas sus hojas) y guarda/envía todas con un solo botón */
+const procLib=()=>!!(S.mf&&S.mf.mod==="proceso"&&typeof libOn==="function"&&libOn());
+function procFirmaTodas(){if(!procLib())return 0;const f=S.mf;let n=0;LIB.ids.forEach(id=>{const h=LIB.h[id];if(!h||id===f.id)return;let ch=false;
+  if(isSig(f.firmaA)&&!isSig(h.firmaA)&&!String(h.firmaA||"").startsWith("drive:")){h.firmaA=f.firmaA;ch=true}
+  if(f.supDni&&!h.supDni){h.supDni=f.supDni;ch=true}if(ch){n++;try{libPut(h)}catch(e){}}});return n}
+{const _sm=saveMF;saveMF=function(){const r=_sm.apply(this,arguments);try{if(procLib())procFirmaTodas()}catch(e){}return r}}
+$("mfSave").insertAdjacentHTML("beforebegin",`<button type="button" class="btn gold block" id="procTodas" hidden style="margin-bottom:8px">✍ Guardar y enviar todas mis hojas</button>`);
+{const p=$("procTodas").parentElement;if(p&&p.classList.contains("row")){p.style.flexWrap="wrap";$("procTodas").style.flex="1 1 100%"}}
+let PROC_TODAS=false;
+{const _pr=preguntar;preguntar=function(t){if(PROC_TODAS&&t==="Revisa la fecha")return Promise.resolve(true);return _pr.apply(this,arguments)}}
+function procTodasUI(){const b=$("procTodas");if(!b)return;const on=procLib()&&!S.mfEdit&&LIB.ids.length>1;b.hidden=!on;if(on)b.textContent=`✍ Guardar y enviar todas mis hojas (${LIB.ids.length}) al supervisor`}
+{const _lb=libBarRender;libBarRender=function(){const r=_lb.apply(this,arguments);try{procTodasUI()}catch(e){}return r}}
+const procEsp=ms=>new Promise(r=>setTimeout(r,ms));
+$("procTodas").onclick=async()=>{if(!procLib()||PROC_TODAS)return;libFlush();
+  if(!isSig(S.mf.firmaA)&&!String(S.mf.firmaA||"").startsWith("drive:")){toast("Firma una sola vez en el recuadro del auditor (o «✍ Usar mi firma») y vuelve a tocar el botón.");const c=$("mfA");if(c)c.scrollIntoView({block:"center",behavior:"smooth"});return}
+  procFirmaTodas();libFlush();const ids=LIB.ids.slice(),n=ids.length;
+  const otras=ids.filter(id=>{const c=(LIB.h[id]||{}).c||{};return c.fecha&&c.fecha!==today()}).length;
+  if(!(await preguntar("Guardar y enviar todas",`Se guardarán ${n} hojas de Auditoría de Proceso con tu firma y se enviarán a firma del supervisor elegido en cada hoja.${otras?` ${otras} hoja${otras===1?"":"s"} tiene${otras===1?"":"n"} fecha distinta a hoy.`:""}`,`Sí, guardar y enviar ${n}`,"Cancelar")))return;
+  const b=$("procTodas"),bt=$("mfSave");PROC_TODAS=true;b.disabled=true;let ok=0;const mal=[];
+  try{for(let i=0;i<ids.length;i++){const id=ids[i];if(!LIB.h[id])continue;b.textContent=`Guardando hoja ${i+1} de ${n}…`;
+      LIB.act=id;libIdx();S.mf=LIB.h[id];$("mfDone").hidden=true;$("mfErr").hidden=true;renderMF();await procEsp(250);
+      const nom=libNom(S.mf);$("mfForm").requestSubmit();await procEsp(120);
+      const t0=Date.now();while(Date.now()-t0<180000){if(!bt.disabled&&(!$("mfDone").hidden||!$("mfErr").hidden))break;await procEsp(200)}
+      if(!$("mfErr").hidden){mal.push(nom+": "+$("mfErr").textContent)}else ok++}}
+  finally{PROC_TODAS=false;b.disabled=false;procTodasUI()}
+  const od=$("okDlg");if(od&&!mal.length)okSubido(false,`${ok} hoja${ok===1?"":"s"} guardada${ok===1?"":"s"}`,`Auditoría de Proceso: ${ok} hoja${ok===1?"":"s"} con tu firma, enviada${ok===1?"":"s"} a firma del supervisor.`);
+  if(mal.length){if(od)od.hidden=true;const e=$("mfErr");e.innerHTML=`Se guardaron ${ok} de ${n}. Faltan ${mal.length}:<br>`+mal.map(esc).join("<br>");e.hidden=false;e.scrollIntoView({block:"center"})}};
 /* ================= inicio ================= */
 (async function init(){
   S.form=blankForm();renderCola();
