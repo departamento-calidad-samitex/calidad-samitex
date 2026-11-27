@@ -2415,6 +2415,9 @@ function progAplicar(el,alerta){const x=progBuscar(el.value);const host=el.close
   const lin1=Array.isArray(x.l)&&x.l.length?String(x.l[0]).replace(/\s*\(taller\)$/,""):"";const val={cli:x.c,art:x.a,color:x.co,desc:x.m,lin:lin1};let n=0;
   if(el.id==="fOf"){const ids={cli:"fCli",art:"fArt",color:"fColor",desc:"fDesc",lin:"fLin"};for(const k in ids){if(val[k]&&!String(S.form[k]||"").trim()){S.form[k]=String(val[k]);$(ids[k]).value=S.form[k];n++}}if(n)saveDraft()}
   else if(S.mf){for(const k in val){const inp=document.querySelector(`#mfBody [data-c="${k}"]`);if(inp&&val[k]&&!String(S.mf.c[k]||"").trim()){S.mf.c[k]=String(val[k]);inp.value=S.mf.c[k];n++}}if(n){saveMF();try{libBarRender()}catch(e){}try{mfFixUpd()}catch(e){}}}
+  /* v71: el lote (cantidad de la OF en el programa) también se llena solo */
+  const caN=Math.round(parseFloat(String(x.ca||"").replace(/,/g,"")));const ponL=inp=>{if(!inp||inp.readOnly||String(inp.value||"").trim())return;inp.value=caN;inp.dispatchEvent(new Event("input",{bubbles:true}));inp.dispatchEvent(new Event("change",{bubbles:true}));n++};
+  if(caN>0){if(el.id==="fOf")ponL($("fLote"));else if(S.mf)["lote","cant"].forEach(k=>ponL(document.querySelector(`#mfBody [data-c="${k}"]`)))}
   if(n)toast(`Datos de la OF cargados del programa (${n})`);
   if(x.sin&&alerta&&!PRG_AV.has(x.k)){PRG_AV.add(x.k);preguntar("⚠ OF en SINERCORP",`La OF ${x.f||x.k}${x.a?" · "+x.a:""}${x.co?" · "+x.co:""} está en SINERCORP: pasará revisión 100% por SINERCORP.`,"Entendido","Cerrar")}}
 const prgEsOf=t=>t&&(t.id==="fOf"||(t.dataset&&t.dataset.c==="of"&&t.closest("#mfBody")));let PRG_DB=null;
