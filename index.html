@@ -3229,6 +3229,39 @@ function plegable(id){const c=$(id);if(!c||c.classList.contains("plg"))return;co
   const t=()=>{c.classList.toggle("cerrado");hd.setAttribute("aria-expanded",String(!c.classList.contains("cerrado")))};
   hd.addEventListener("click",t);hd.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();t()}})}
 ["pruebaCard","procAdm"].forEach(plegable);
+/* ================= v92: aviso «Hay una versión nueva» + ventana de novedades */
+const APP_VER="cs-v92";
+const verN=v=>parseInt(String(v||"").replace(/\D/g,""),10)||0;
+function updBanner(){if($("updBan"))return;document.body.insertAdjacentHTML("beforeend",`<div id="updBan" role="status" style="position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:9999;display:flex;gap:10px;align-items:center;background:var(--surface);color:var(--fg);border:1px solid var(--gold);border-radius:14px;padding:10px 12px 10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);max-width:calc(100vw - 24px)"><span style="font-weight:600;flex:1;min-width:0;line-height:1.2">🔄 Hay una versión nueva</span><button type="button" class="btn gold sm" id="updGo" style="white-space:nowrap;flex:none">Actualizar ahora</button><button type="button" class="btn ghost sm" id="updNo" aria-label="Después">✕</button></div>`);
+  $("updGo").onclick=()=>{$("updGo").textContent="Actualizando…";location.reload()};$("updNo").onclick=()=>{$("updBan").remove();setTimeout(updBanner,30*60000)}}
+if("serviceWorker" in navigator){const habia=!!navigator.serviceWorker.controller;navigator.serviceWorker.addEventListener("controllerchange",()=>{if(habia)updBanner()})}
+async function updChk(){if(!navigator.onLine)return;try{const r=navigator.serviceWorker&&await navigator.serviceWorker.getRegistration();if(r)r.update().catch(()=>{})}catch(e){}
+  try{const t=await (await fetch("sw.js?c="+Date.now(),{cache:"no-store"})).text(),m=t.match(/VERSION\s*=\s*'([^']+)'/);if(m&&verN(m[1])>verN(APP_VER))updBanner()}catch(e){}}
+setTimeout(updChk,15000);setInterval(updChk,10*60000);document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")updChk()});
+/* novedades por versión: p = a quién le sirve (todos, adm, jef, aud, sup, gp, inv) */
+const NOVEDADES=[
+ {v:"cs-v92",f:"28/11/2026",it:[["todos","🔄 Cuando haya una versión nueva verás abajo el botón «Actualizar ahora». Tócalo para tener siempre lo último."],["todos","✨ Después de cada actualización verás esta ventana con lo nuevo."]]},
+ {v:"cs-v91",f:"28/11/2026",it:[[["adm","jef"],"✔ En Inicio, la bandeja «Por mi V°B° de Calidad» junta todo lo que espera tu V°B°, con el botón «Dar V°B° a todos»."],[["adm","jef","aud"],"📋 En Reportes puedes ordenar por estado: primero pendientes, luego firmados y al final completos."],["adm","📧 Cada tarde te llega un correo con los pendientes de firma."]]},
+ {v:"cs-v90",f:"28/11/2026",it:[[["adm","jef","aud"],"📋 Reportes más ordenado, con filas más delgadas."]]},
+ {v:"cs-v89",f:"28/11/2026",it:[["adm","🗺 El PDF de asistencia trae la foto más grande y el link «Ver foto»."]]},
+ {v:"cs-v88",f:"27/11/2026",it:[["adm","💾 Tus Excel de la PC se sincronizan: solo se agregan los reportes nuevos y no se borra lo que escribas a mano."]]},
+ {v:"cs-v87",f:"27/11/2026",it:[["sup","📴 Puedes revisar y firmar sin señal. Lo firmado se guarda en tu celular y se envía solo cuando vuelve la señal."],["gp","📴 Puedes validar sin señal; se envía solo cuando vuelve la señal."],["inv","📴 Sin señal puedes ver la lista y los PDF que ya abriste con señal."]]},
+ {v:"cs-v86",f:"27/11/2026",it:[["aud","📄 El aviso «hoja abierta» solo sale cuando tienes una hoja con datos sin enviar."]]},
+ {v:"cs-v85",f:"27/11/2026",it:[["gp","🏢 En tu Inicio están las Auditorías de Corte. Puedes validarlas cuando ya firmaron el Auditor, el Jefe de Corte y Calidad."],["aud","🏢 La Auditoría de Corte ahora también lleva la validación de Gerencia de Producción."]]},
+ {v:"cs-v84",f:"27/11/2026",it:[["todos","✔ El V°B° de Calidad lo dan solo la Jefatura de Calidad o Karina Uscubilca Aguilar."]]},
+ {v:"cs-v79",f:"27/11/2026",it:[["todos","☀️/🌙 Arriba a la derecha puedes cambiar a fondo claro u oscuro."]]},
+ {v:"cs-v78",f:"27/11/2026",it:[["aud","✍ Al enviar a firma, las supervisoras salen por área (SACOS, PANTALONES, CAMISAS, ACABADO, REPROCESO). También puedes elegir a Jefatura de Planta (Maycool Vega o Julio Maldonado)."]]},
+ {v:"cs-v77",f:"27/11/2026",it:[["sup","✍ Después de tu firma ya no firma Jefatura de Planta: solo falta el V°B° de Calidad."]]},
+];
+const novRol=()=>S.admin?"adm":S.inv?"inv":S.gp?"gp":(S.sup||S.jp)?"sup":S.jef?"jef":"aud";
+function novItems(desde,rol){const out=[];NOVEDADES.filter(n=>verN(n.v)>verN(desde)&&verN(n.v)<=verN(APP_VER)).forEach(n=>n.it.forEach(([p,t])=>{const P=Array.isArray(p)?p:[p];if(P.includes("todos")||P.includes(rol))out.push([n.f,t])}));return out}
+function novMostrar(L,titulo){if(!L.length)return;const d=document.createElement("div");d.className="okdlg";d.setAttribute("role","dialog");d.setAttribute("aria-modal","true");
+  d.innerHTML=`<div class="okbox" style="text-align:left;max-width:460px;max-height:88vh;overflow:auto"><div class="okic">✨</div><h3 style="text-align:center">${esc(titulo||"Novedades de la app")}</h3><ul style="padding-left:18px;margin:8px 0 12px;display:flex;flex-direction:column;gap:8px">${L.slice(0,8).map(([f,t])=>`<li>${esc(t)}</li>`).join("")}</ul>${L.length>8?`<p class="sub">Y ${L.length-8} cambio${L.length-8===1?"":"s"} más.</p>`:""}<button type="button" class="btn block" id="novOk">Entendido</button></div>`;
+  document.body.appendChild(d);$("novOk").onclick=()=>d.remove();setTimeout(()=>$("novOk")&&$("novOk").focus(),50)}
+function novCheck(){if(!(S.admin||S.token)||S.prueba)return;const rol=novRol(),k="cs_nov_"+rol,visto=ls.get(k,"");
+  if(visto===APP_VER)return;if(document.querySelector(".okdlg:not([hidden])")){setTimeout(novCheck,4000);return}
+  const L=novItems(visto||"cs-v83",rol);ls.set(k,APP_VER);if(L.length)novMostrar(L,"Novedades de la app")}
+{const _rh=renderHome;renderHome=function(){_rh.apply(this,arguments);setTimeout(()=>{try{novCheck()}catch(e){}},1500)}}
 /* ================= v91: bandeja «Por mi V°B°» (administradora principal y Jefatura de Calidad) */
 $("vbAudCard").insertAdjacentHTML("beforebegin",`<div class="card" id="bvCard" hidden><div class="hd"><h3>✔ Por mi V°B° de Calidad</h3><span class="sub" id="bvSub"></span></div>
 <div id="bvRes" class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:8px"></div>
