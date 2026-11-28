@@ -3230,7 +3230,7 @@ function plegable(id){const c=$(id);if(!c||c.classList.contains("plg"))return;co
   hd.addEventListener("click",t);hd.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();t()}})}
 ["pruebaCard","procAdm"].forEach(plegable);
 /* ================= v92: aviso «Hay una versión nueva» + ventana de novedades */
-const APP_VER="cs-v93";
+const APP_VER="cs-v94";
 const verN=v=>parseInt(String(v||"").replace(/\D/g,""),10)||0;
 function updBanner(){if($("updBan"))return;document.body.insertAdjacentHTML("beforeend",`<div id="updBan" role="status" style="position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:9999;display:flex;gap:10px;align-items:center;background:var(--surface);color:var(--fg);border:1px solid var(--gold);border-radius:14px;padding:10px 12px 10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);max-width:calc(100vw - 24px)"><span style="font-weight:600;flex:1;min-width:0;line-height:1.2">🔄 Hay una versión nueva</span><button type="button" class="btn gold sm" id="updGo" style="white-space:nowrap;flex:none">Actualizar ahora</button><button type="button" class="btn ghost sm" id="updNo" aria-label="Después">✕</button></div>`);
   $("updGo").onclick=()=>{$("updGo").textContent="Actualizando…";location.reload()};$("updNo").onclick=()=>{$("updBan").remove();setTimeout(updBanner,30*60000)}}
@@ -3240,6 +3240,7 @@ async function updChk(){if(!navigator.onLine)return;try{const r=navigator.servic
 setTimeout(updChk,15000);setInterval(updChk,10*60000);document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")updChk()});
 /* novedades por versión: p = a quién le sirve (todos, adm, jef, aud, sup, gp, inv) */
 const NOVEDADES=[
+ {v:"cs-v94",f:"28/11/2026",it:[["adm","🔁 Tus Excel de la PC ahora van y vienen: lo que escribas o cambies a mano aparece en «Guardar en mi PC → Cambios de tu Excel» y tú eliges qué se sube a la app. Las correcciones hechas en la app también pasan a tu Excel."]]},
  {v:"cs-v93",f:"28/11/2026",it:[["adm","📦 Nuevo rol «Almacén» en Equipo: solo ve y descarga los PDF de su cliente."]]},
  {v:"cs-v92",f:"28/11/2026",it:[["todos","🔄 Cuando haya una versión nueva verás abajo el botón «Actualizar ahora». Tócalo para tener siempre lo último."],["todos","✨ Después de cada actualización verás esta ventana con lo nuevo."]]},
  {v:"cs-v91",f:"28/11/2026",it:[[["adm","jef"],"✔ En Inicio, la bandeja «Por mi V°B° de Calidad» junta todo lo que espera tu V°B°, con el botón «Dar V°B° a todos»."],[["adm","jef","aud"],"📋 En Reportes puedes ordenar por estado: primero pendientes, luego firmados y al final completos."],["adm","📧 Cada tarde te llega un correo con los pendientes de firma."]]},
@@ -3364,6 +3365,89 @@ pcExcels=async function(X,st){st("Trayendo los datos para los Excel…");const r
   c.querySelectorAll(".pcRow small").forEach(s=>{if(/se sobrescribe/.test(s.textContent))s.textContent="Elige el archivo de cada uno. Se agregan solo los reportes nuevos; nada de lo que tú escribas se borra."});
   const g=$("pcGo");if(g)g.textContent="💾 Sincronizar ahora con mi PC";const l=$("pcAuto")&&$("pcAuto").closest("label");if(l){const t=l.querySelector(".t");if(t)t.textContent="Sincronizar solo al abrir la app en esta PC y cada 30 minutos mientras esté abierta"}})();
 setInterval(()=>{try{const g=pcCfg();if(g.auto&&S.admin&&S.principal&&document.visibilityState==="visible"&&!PC_RUN)pcGuardar(false)}catch(e){}},30*60000);
+/* ================= v94: Excel de la PC ⇄ app en las dos direcciones
+   - App → Excel: agrega los reportes nuevos y pasa al Excel lo que se corrigió en la app (solo las celdas que cambiaron en la app).
+   - Excel → app: las filas que escribas a mano y los datos que cambies en tu Excel aparecen en «Cambios de tu Excel»; tú marcas qué se sube.
+   Se compara contra la «foto» de la última sincronización (guardada en esta PC) para saber quién cambió cada dato. */
+let PC_REV=[],PC_XH={};
+const pcT=v=>{if(v==null)return"";if(v instanceof Date){if(isNaN(v))return"";if(v.getUTCFullYear()<1901)return String(v.getUTCHours()).padStart(2,"0")+":"+String(v.getUTCMinutes()).padStart(2,"0");return String(v.getUTCDate()).padStart(2,"0")+"/"+String(v.getUTCMonth()+1).padStart(2,"0")+"/"+v.getUTCFullYear()}
+  if(typeof v==="object"){if(Array.isArray(v.richText))return v.richText.map(x=>x.text||"").join("").trim();if(v.text!=null)return pcT(v.text);if(v.result!==undefined)return pcT(v.result);return""}return String(v).trim()};
+const pcK=v=>{let t=pcT(v),m=t.match(/^(\d{4})-(\d{2})-(\d{2})$/);if(m)t=m[3]+"/"+m[2]+"/"+m[1];m=t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);if(m)t=m[1].padStart(2,"0")+"/"+m[2].padStart(2,"0")+"/"+m[3];
+  if(/^-?\d+([.,]\d+)?$/.test(t)&&!/^0\d/.test(t))t=String(Number(t.replace(",",".")));return t.normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/\s+/g," ").trim().toUpperCase()};
+const pcHdrRow=w=>{for(let r=1;r<=Math.min(10,w.rowCount);r++){const vals=w.getRow(r).values||[];if(vals.some(c=>pcN(c)==="ID APP"))return r}return 0};
+const pcHoja=(wb,k)=>{const nom=(PC_NOM[k]||k).slice(0,31);return wb.worksheets.find(w=>pcN(w.name)===pcN(nom))||wb.worksheets.find(w=>pcHdrRow(w))||(wb.worksheets.length===1?wb.worksheets[0]:null)};
+const pcColMap=(ws,hr)=>{const fila=ws.getRow(hr),cols={},maxC=Math.max(fila.cellCount,ws.columnCount);for(let c=1;c<=maxC;c++){const t=pcN(fila.getCell(c).value);if(t&&cols[t]==null)cols[t]=c}return cols};
+async function pcEscribirWb(h,wb){const b=await wb.xlsx.writeBuffer();try{const w=await h.createWritable();await w.write(b);await w.close()}catch(e){throw new Error(`No se pudo escribir «${h.name}». Si lo tienes abierto, ciérralo y vuelve a intentar.`)}}
+async function pcSync2(h,k,n,v){const H=(v[0]||[]).map(x=>String(x==null?"":x)),iId=H.findIndex(x=>pcN(x)==="ID APP"),datos=v.slice(1),out={nuevos:0,act:0,props:[],filas:[],viejas:0};
+  const f=await h.getFile(),buf=await f.arrayBuffer(),wb=new ExcelJS.Workbook();
+  if(buf.byteLength){try{await wb.xlsx.load(buf)}catch(e){throw new Error(`No se pudo leer «${h.name}». Si está abierto, ciérralo.`)}}
+  const srv={},cnt={};datos.forEach(r=>{const id=iId>=0?pcN(r[iId]):"";if(!id)return;const i=cnt[id]||0;cnt[id]=i+1;srv[id+"#"+i]=r});
+  const guardarBase=async()=>{const rows={};Object.keys(srv).forEach(key=>{const o={};H.forEach((x,j)=>{if(j!==iId)o[pcN(x)]=pcK(srv[key][j])});rows[key]=o});await pcSet("base_"+k,{ts:Date.now(),rows})};
+  let ws=pcHoja(wb,k),cambio=false;
+  if(!ws||ws.actualRowCount===0){if(!ws)ws=wb.addWorksheet((PC_NOM[k]||k).slice(0,31));
+    ws.addRow(H);ws.getRow(ws.rowCount).font={bold:true};datos.forEach(r=>ws.addRow(r.map(pcVal)));out.nuevos=datos.length;
+    try{ws.columns.forEach((c,j)=>{c.width=Math.min(45,Math.max(8,...v.slice(0,200).map(f=>String(f[j]==null?"":f[j]).length+1)))})}catch(e){}
+    if(out.nuevos)await pcEscribirWb(h,wb);await guardarBase();return out}
+  const hr=pcHdrRow(ws);if(!hr)throw new Error(`«${h.name}» no tiene la columna «ID APP». Agrégala en la fila de títulos (o elige otro Excel) para saber qué reportes ya están y no repetir ni borrar nada.`);
+  const cols=pcColMap(ws,hr),fila=ws.getRow(hr);let maxC=Math.max(fila.cellCount,ws.columnCount);
+  H.forEach(x=>{const t=pcN(x);if(t&&cols[t]==null){maxC++;fila.getCell(maxC).value=x;fila.getCell(maxC).font={bold:true};cols[t]=maxC;cambio=true}});
+  const cId=cols["ID APP"],sC=H.map((x,j)=>({j,h:x,c:cols[pcN(x)]})).filter(x=>x.j!==iId&&x.c&&pcN(x.h));
+  const base=await pcGet("base_"+k),B=(base&&base.rows)||null,primera=!B,ign=new Set((await pcGet("ign_"+k))||[]),viejas=new Set((await pcGet("sig_"+k))||[]),sigN=[],vistos={};
+  for(let r=hr+1;r<=ws.rowCount;r++){const row=ws.getRow(r),id=pcN(row.getCell(cId).value);
+    if(!id){const vals={};let alguno=false;sC.forEach(s=>{const t=pcT(row.getCell(s.c).value);vals[s.h]=t;if(t)alguno=true});if(!alguno)continue;
+      const sig=sC.map(s=>pcK(vals[s.h])).join("|");
+      if(primera){sigN.push(sig);out.viejas++;continue}
+      if(viejas.has(sig)||ign.has("F|"+sig))continue;
+      out.filas.push({fmt:k,n,sig,vals,fila:r});continue}
+    const i=vistos[id]||0;vistos[id]=i+1;const key=id+"#"+i,s=srv[key];if(!s)continue;const b=B&&B[key];
+    sC.forEach(sc=>{const cell=row.getCell(sc.c),p=pcK(cell.value),sv=pcK(s[sc.j]);if(p===sv)return;
+      const bv=b?b[pcN(sc.h)]:undefined;
+      if((bv!==undefined&&p===bv)||(!p&&bv===undefined)){cell.value=pcVal(s[sc.j]);cambio=true;out.act++;return}
+      if(ign.has("C|"+key+"|"+pcN(sc.h)+"|"+p))return;
+      out.props.push({fmt:k,n,id:String(s[iId]),idx:i,key,col:sc.h,app:pcT(s[sc.j]),xl:pcT(cell.value),conf:bv!==undefined&&sv!==bv})})}
+  if(sigN.length)await pcSet("sig_"+k,[...viejas,...sigN]);
+  const c2={};datos.forEach(r=>{const id=iId>=0?pcN(r[iId]):"";if(!id)return;const i=c2[id]||0;c2[id]=i+1;if(i<(vistos[id]||0))return;
+    const arr=[];H.forEach((x,j)=>{const c=cols[pcN(x)];if(c)arr[c-1]=pcVal(r[j])});ws.addRow(arr);out.nuevos++;cambio=true});
+  if(cambio)await pcEscribirWb(h,wb);await guardarBase();return out}
+pcExcels=async function(X,st){st("Trayendo los datos para los Excel…");const r=await admin("adminExcelHojas");if(!r||!r.ok)throw new Error((r&&r.msg)||"No se pudieron traer los datos.");
+  await excelJsCargar();const hechos=[],mal=[];PC_REV=[];PC_XH=X;
+  for(const [k,n] of PCX){const h=X[k];if(!h)continue;st(`Sincronizando el Excel de ${n}…`);
+    try{const c=await pcSync2(h,k,n,(r.hojas&&r.hojas[k])||[]),p=[],rv=c.props.length+c.filas.length;
+      if(c.nuevos)p.push("+"+c.nuevos+" de la app");if(c.act)p.push(c.act+" dato"+(c.act===1?"":"s")+" corregido"+(c.act===1?"":"s")+" desde la app");if(rv)p.push(rv+" por revisar");
+      hechos.push(`${n} (${p.length?p.join(", "):"al día"}${c.viejas?` · ${c.viejas} fila${c.viejas===1?"":"s"} antigua${c.viejas===1?"":"s"} sin ID APP se quedan solo en tu Excel`:""})`);
+      PC_REV.push(...c.props.map(x=>Object.assign({t:"C"},x)),...c.filas.map(x=>Object.assign({t:"F"},x)))}
+    catch(e){mal.push(String(e&&e.message||e))}}
+  pcRevRender();return {hechos,mal}};
+document.head.insertAdjacentHTML("beforeend",`<style>#pcRev details{border:1px solid var(--line);border-radius:10px;padding:4px 10px;margin:6px 0}#pcRev summary{cursor:pointer;padding:4px 0}#pcRev .pcRow{border-bottom:1px solid var(--line)}#pcRev .pcRow:last-child{border-bottom:0}#pcRev s{color:var(--muted)}</style>`);
+(function(){const m=$("pcMsg");if(m&&!$("pcRev"))m.insertAdjacentHTML("afterend",`<div id="pcRev" hidden style="margin-top:10px"></div>`)})();
+function pcRevRender(){const b=$("pcRev");if(!b)return;if(!PC_REV.length){b.hidden=true;b.innerHTML="";return}b.hidden=false;
+  const g={};PC_REV.forEach((x,i)=>{(g[x.n]=g[x.n]||[]).push([x,i])});
+  b.innerHTML=`<div class="note" style="margin:0 0 6px"><b>✏ Cambios de tu Excel para subir a la app (${PC_REV.length})</b><br>Marca lo que quieres que pase a la app. Lo que no subas se queda igual en tu Excel.</div>`+
+    Object.keys(g).map(n=>`<details open><summary><b>${esc(n)}</b> · ${g[n].length}</summary>${g[n].map(([x,i])=>x.t==="F"
+      ?`<label class="pcRow" style="cursor:pointer"><input type="checkbox" data-rv="${i}" checked><span class="t"><b>➕ Fila nueva escrita a mano (fila ${x.fila} del Excel)</b><small>${esc(Object.entries(x.vals).filter(e=>e[1]).slice(0,6).map(e=>title(e[0])+": "+e[1]).join(" · "))}</small></span></label>`
+      :`<label class="pcRow" style="cursor:pointer"><input type="checkbox" data-rv="${i}"${x.conf?"":" checked"}><span class="t"><b>${esc(x.col.length<=4?x.col:title(x.col))}</b> <span class="sub">· ID ${esc(x.id)}${x.idx?" · fila "+(x.idx+1):""}</span><small>En la app: <s>${esc(x.app||"(vacío)")}</s> → en tu Excel: <b>${esc(x.xl||"(vacío)")}</b>${x.conf?" · ⚠ este dato también se corrigió en la app":""}</small></span></label>`).join("")}</details>`).join("")+
+    `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button type="button" class="btn sm" id="pcRevOk">⬆ Subir a la app lo marcado</button><button type="button" class="btn ghost sm" id="pcRevNo">No subir lo marcado</button></div><p class="sub" id="pcRevMsg" style="margin:6px 0 0"></p>`;
+  $("pcRevOk").onclick=()=>pcRevAplicar(true);$("pcRevNo").onclick=()=>pcRevAplicar(false)}
+async function pcIdsEscribir(k,FL){const h=PC_XH[k];if(!h)throw new Error("sin archivo");const f=await h.getFile(),wb=new ExcelJS.Workbook();await wb.xlsx.load(await f.arrayBuffer());
+  const ws=pcHoja(wb,k),hr=ws?pcHdrRow(ws):0;if(!hr)throw new Error("sin ID APP");const cols=pcColMap(ws,hr),cId=cols["ID APP"];
+  FL.forEach(x=>{const ks=Object.keys(x.vals),sig=r=>ks.map(hh=>{const c=cols[pcN(hh)];return pcK(c?ws.getRow(r).getCell(c).value:"")}).join("|"),libre=r=>!pcN(ws.getRow(r).getCell(cId).value);
+    let r=x.fila<=ws.rowCount&&libre(x.fila)&&sig(x.fila)===x.sig?x.fila:0;if(!r)for(let q=hr+1;q<=ws.rowCount;q++)if(libre(q)&&sig(q)===x.sig){r=q;break}
+    if(r)ws.getRow(r).getCell(cId).value=x.nid});
+  await pcEscribirWb(h,wb)}
+async function pcIgnorar(k,L){const ig=new Set((await pcGet("ign_"+k))||[]);L.forEach(x=>ig.add(x.t==="F"?"F|"+x.sig:"C|"+x.key+"|"+pcN(x.col)+"|"+pcK(x.xl)));await pcSet("ign_"+k,[...ig])}
+async function pcRevAplicar(subir){const sel=[...document.querySelectorAll("#pcRev [data-rv]")].filter(c=>c.checked).map(c=>PC_REV[+c.dataset.rv]);if(!sel.length){toast("Marca al menos uno.");return}
+  const m=$("pcRevMsg"),bs=[...document.querySelectorAll("#pcRev button")];bs.forEach(b=>b.disabled=true);const fmts=[...new Set(sel.map(x=>x.fmt))],res=[],avisos=[];
+  try{if(!subir){for(const k of fmts)await pcIgnorar(k,sel.filter(x=>x.fmt===k));PC_REV=PC_REV.filter(x=>!sel.includes(x));pcRevRender();toast("Listo: eso se queda solo en tu Excel.");return}
+    for(const k of fmts){const L=sel.filter(x=>x.fmt===k),n=L[0].n,FL=L.filter(x=>x.t==="F");m.textContent=`Subiendo ${n}…`;
+      FL.forEach(x=>{x.nid="XL-"+Date.now().toString(36).toUpperCase()+Math.random().toString(36).slice(2,6).toUpperCase()});
+      const r=await admin("adminExcelAplicar",k,L.filter(x=>x.t==="C").map(x=>({id:x.id,n:x.idx,col:x.col,val:x.xl})),FL.map(x=>Object.assign({},x.vals,{"ID APP":x.nid})));
+      if(!r||!r.ok)throw new Error((r&&r.msg)||"No se pudo subir "+n+".");
+      if(FL.length){try{await pcIdsEscribir(k,FL)}catch(e){await pcIgnorar(k,FL);avisos.push(`En ${n} no pude poner el «ID APP» de las filas nuevas en tu Excel (¿estaba abierto?). Ya están en la app; no se volverán a subir.`)}}
+      PC_REV=PC_REV.filter(x=>!L.includes(x));
+      res.push(`${n}: ${r.hechos} dato${r.hechos===1?"":"s"} cambiado${r.hechos===1?"":"s"}${r.agregadas?`, ${r.agregadas} fila${r.agregadas===1?"":"s"} nueva${r.agregadas===1?"":"s"}`:""}${r.mal&&r.mal.length?` (${r.mal.length} no se encontró)`:""}`)}
+    pcRevRender();const mm=$("pcMsg");if(mm)mm.textContent="✔ Subido a la app · "+res.join(" · ")+". Queda en Correcciones."+(avisos.length?" ⚠ "+avisos.join(" "):"");toast("✔ Cambios de tu Excel subidos a la app")}
+  catch(e){pcRevRender();const mm=$("pcRevMsg")||$("pcMsg");if(mm)mm.textContent=(res.length?"✔ "+res.join(" · ")+" · ":"")+"⚠ "+String(e&&e.message||e)}}
+(function(){const c=$("pcCard");if(!c)return;const p=c.querySelector("p.sub");if(p)p.innerHTML="Cada formato va a <b>su propio Excel</b> (Telas, Avíos, Corte, Final, Primera Muestra y Segundas) y se <b>sincroniza en las dos direcciones sin borrar nada</b>: los reportes nuevos y las correcciones de la app pasan a tu Excel, y lo que tú escribas o cambies en tu Excel aparece abajo para que elijas qué se sube a la app. En la <b>carpeta</b> se guarda un PDF por día con todas las Auditorías de Proceso juntas.";c.querySelectorAll("small").forEach(s=>{if(/Se agregan solo los reportes nuevos/.test(s.textContent))s.textContent="Elige el archivo de cada uno. Se sincroniza en las dos direcciones; nada de lo que tú escribas se borra."})})();
 /* ================= v83: la administradora principal corrige el tipo de una marca de asistencia (con motivo) */
 const ACOR_MOT=["Se equivocó de botón al marcar","Marcó ingreso de jornada en vez de llegada a taller","Marcó llegada a taller en vez de ingreso de jornada","Marcó salida en vez de salida de taller","Marcó llegada en vez de salida de taller","Falla de señal o GPS al marcar","Olvidó marcar a tiempo"];
 function acorTalleres(cur){const L=[...new Set([...document.querySelectorAll("#lTal option")].map(o=>up(o.value||"")).concat(ASD.map(x=>up(x.taller||""))).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));if(cur&&!L.includes(up(cur)))L.unshift(up(cur));
