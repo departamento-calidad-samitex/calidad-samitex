@@ -1071,6 +1071,7 @@ function hfRender(nT){const B=HI_MOD==="all"?HIS:HIS.filter(r=>(r.mod||"af")===H
   const ch=(k,v,t)=>`<button type="button" class="btn sm${HF[k]===v?"":" ghost"}" data-hf="${k}" data-v="${esc(v)}" aria-pressed="${HF[k]===v}">${esc(t)}</button>`;
   $("hiFil").innerHTML=`<div class="card" style="padding:10px 12px;gap:8px"><div class="row" style="justify-content:space-between;flex-wrap:nowrap"><button type="button" class="btn ghost sm" data-hfo="1" aria-expanded="${HF.open}">${HF.open?"▾":"▸"} Filtros${n?` (${n})`:""}</button><span class="sub">${fmt(nT)} reporte${nT===1?"":"s"}${n?` · <a href="#" data-hfx="1">Quitar filtros</a>`:""}</span></div>
   <div class="row" style="gap:8px">${S.admin||S.jef?`<label class="fld" style="flex:1 1 150px"><span>Auditora</span><select id="hfAud"><option value="">Todas</option>${auds.map(a=>`<option value="${esc(a)}"${HF.aud===a?" selected":""}>${esc(title(a))}</option>`).join("")}</select></label>`:""}<label class="fld" style="flex:1 1 150px"><span>Supervisor</span><select id="hfSup"><option value="">Todos</option>${sups.map(a=>`<option value="${esc(a)}"${HF.sup===a?" selected":""}>${esc(title(a))}</option>`).join("")}<option value="LIN"${HF.sup==="LIN"?" selected":""}>Cualquiera de la línea</option><option value="SIN"${HF.sup==="SIN"?" selected":""}>Sin enviar a firma</option></select></label></div>
+  <div class="row" style="gap:6px;align-items:center;flex-wrap:wrap"><span class="sub">Ordenar:</span>${ch("ord","","Por formato")}${ch("ord","estado","Por estado: pendientes → firmados → completos")}</div>
   ${HF.open?`<div class="sub">Fecha</div><div class="row" style="gap:6px">${ch("f","","Todas")}${ch("f","hoy","Hoy")}${ch("f","ayer","Ayer")}${ch("f","sem","Esta semana")}<input type="date" id="hfDate" value="${esc(HF.f==="d"?HF.d:"")}" aria-label="Elegir día" style="flex:0 1 170px"></div>
   <div class="row" style="gap:8px"><label class="fld" style="flex:1 1 120px"><span>Línea</span><select id="hfLin"><option value="">Todas</option>${LIN_GRP.map(([g])=>{const n=B.filter(r=>linGrp(hfLin(r))===g).length;return`<option value="${g}"${HF.lin===g?" selected":""}>${g} (${n})</option>`}).join("")}</select></label></div>
   <div class="sub">Firma de supervisor</div><div class="row" style="gap:6px">${ch("fir","","Todas")}${ch("fir","PENDIENTE","Pendiente")}${ch("fir","FIRMADO","Firmado")}${ch("fir","DEVUELTO","Devuelto")}${ch("fir","SIN","Sin enviar")}</div>`:""}
@@ -1122,18 +1123,18 @@ $("fsBody").addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.closest(
 $("fsRef").onclick=()=>fsCargar(true);
 {const _rh=renderHome;renderHome=function(){_rh.apply(this,arguments);fsCargar()}}
 let HI_MOD="all";const HCERR=new Set();let HI_Q="";
-function hiHdr(A,i){const k=A[i].mod||"af";if(i&&(A[i-1].mod||"af")===k)return"";const n=A.filter(r=>(r.mod||"af")===k).length,op=!!HI_Q||!HCERR.has(k);
-  return`<button type="button" class="hiGrp" data-hgrp="${k}" aria-expanded="${op}"><span>${op?"▾":"▸"} ${esc(MODULOS[k]?MODULOS[k].n:k)}</span><b>${fmt(n)}</b></button>`}
+function hiHdr(A,i){const k=hiKey(A[i]);if(i&&hiKey(A[i-1])===k)return"";const n=A.filter(r=>hiKey(r)===k).length,op=!!HI_Q||!HCERR.has(k);
+  return`<button type="button" class="hiGrp" data-hgrp="${k}" aria-expanded="${op}"><span>${op?"▾":"▸"} ${esc(HI_EST[k]||(MODULOS[k]?MODULOS[k].n:k))}</span><b>${fmt(n)}</b></button>`}
 function renderHist(){if(S.tab!=="hist")return;const q=NORM($("hiQ").value);
   const mods=MOD_IDS.filter(k=>S.admin||puedeE(k)||puedeL(k)||HIS.some(r=>(r.mod||"af")===k)),cnt=k=>hfAplicar(HIS).filter(r=>(r.mod||"af")===k).length;if(HI_MOD!=="all"&&!mods.includes(HI_MOD))HI_MOD="all";
   $("hiTabs").innerHTML=[["all","Todos",hfAplicar(HIS).length],...mods.map(k=>[k,MODULOS[k].n.replace(/^(Auditoría de |Reporte de )/,""),cnt(k)])].map(([k,n,c])=>`<button type="button" role="tab" class="btn sm${HI_MOD===k?"":" ghost"}" data-hm="${k}" aria-selected="${HI_MOD===k}">${esc(n)} (${fmt(c)})</button>`).join("");
   let T=HIS.slice();if(HI_MOD!=="all")T=T.filter(r=>(r.mod||"af")===HI_MOD);if(S.hiMode==="R")T=T.filter(r=>r.rej);T=hfAplicar(T);
   if(q)T=T.filter(r=>NORM([r.of,r.art,r.color,r.cli,r.tal,r.lin,r.aud,...(r.obs||[]).map(o=>o.t),...Object.keys(r.d||{}),...Object.values(r.nombres||{}),JSON.stringify(r.cab||[]),MODULOS[r.mod||"af"].n,dmy(r.fecha),r.fecha].join(" ")).includes(q));
-  HI_Q=q;if(HI_MOD==="all"){const o=k=>{const i=MOD_IDS.indexOf(k);return i<0?99:i};T=T.map((r,i)=>[r,i]).sort((a,b)=>o(a[0].mod||"af")-o(b[0].mod||"af")||a[1]-b[1]).map(x=>x[0])}
+  HI_Q=q;if(HF.ord==="estado"){T=T.map((r,i)=>[r,i]).sort((a,b)=>hiEst(a[0])-hiEst(b[0])||a[1]-b[1]).map(x=>x[0])}else if(HI_MOD==="all"){const o=k=>{const i=MOD_IDS.indexOf(k);return i<0?99:i};T=T.map((r,i)=>[r,i]).sort((a,b)=>o(a[0].mod||"af")-o(b[0].mod||"af")||a[1]-b[1]).map(x=>x[0])}
   hfRender(T.length);$("hiTitle").textContent=S.admin||S.jef?"Reportes":"Mis reportes";
   $("hiSub").textContent=S.admin?`${fmt(T.length)} reportes registrados en la app · PDF, fotos y firmas en tu Drive`:S.jef?`${fmt(T.length)} reportes de todas las auditoras · últimos 60 días`:`${fmt(T.length)} reportes tuyos de los últimos 60 días`;
   const selOn=S.admin&&S.principal;HSEL.forEach(id=>{if(!HIS.some(x=>x.id===id))HSEL.delete(id)});HVIS=T.slice(0,200).map(r=>r.id);
-  $("hiList").innerHTML=T.length?T.slice(0,HI_MOD==="all"?600:200).map((r,i,A)=>`${HI_MOD==="all"?hiHdr(A,i):""}<article class="item${r.rej?" rej":""}${HSEL.has(r.id)?" sel":""}"${HI_MOD==="all"&&!HI_Q&&HCERR.has(r.mod||"af")?" hidden":""}>
+  $("hiList").innerHTML=T.length?T.slice(0,HI_MOD==="all"||HF.ord==="estado"?600:200).map((r,i,A)=>`${HI_MOD==="all"||HF.ord==="estado"?hiHdr(A,i):""}<article class="item${r.rej?" rej":""}${HSEL.has(r.id)?" sel":""}"${(HI_MOD==="all"||HF.ord==="estado")&&!HI_Q&&HCERR.has(hiKey(r))?" hidden":""}>
     ${selOn?`<label class="selck"><input type="checkbox" data-hsel="${esc(r.id)}"${HSEL.has(r.id)?" checked":""}> Seleccionar para borrar</label>`:""}
     <div class="t"><b>${(r.mod||"af")!=="af"?`<span class="pill wait">${esc(MODULOS[r.mod].n)}</span> `:""}${esc((r.mod||"af")==="af"?`OF ${r.of||"—"} · ${r.art||"—"}`:resumen(r))}</b><span class="pill ${r.rej?"bad":"ok"}">${esc(title(r.res||(r.rej?"Rechazado":"Aprobado")))}</span></div>
     ${(r.mod||"af")!=="af"?`<div class="m">${dmy(r.fecha)}${hRep(r)} · Auditor ${esc(title(r.aud))}</div>`:`<div class="m">${dmy(r.fecha)}${hRep(r)} · ${esc(title(r.tipo||"Aud. final"))} · ${esc(title(r.op))} · ${esc(title(r.cli))} · ${esc(title(r.lin))} · ${esc(title(r.tal||r.proc))}</div>
@@ -3228,6 +3229,59 @@ function plegable(id){const c=$(id);if(!c||c.classList.contains("plg"))return;co
   const t=()=>{c.classList.toggle("cerrado");hd.setAttribute("aria-expanded",String(!c.classList.contains("cerrado")))};
   hd.addEventListener("click",t);hd.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();t()}})}
 ["pruebaCard","procAdm"].forEach(plegable);
+/* ================= v91: bandeja «Por mi V°B°» (administradora principal y Jefatura de Calidad) */
+$("vbAudCard").insertAdjacentHTML("beforebegin",`<div class="card" id="bvCard" hidden><div class="hd"><h3>✔ Por mi V°B° de Calidad</h3><span class="sub" id="bvSub"></span></div>
+<div id="bvRes" class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:8px"></div>
+<div class="row" style="gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:8px"><label class="fld" style="flex:1 1 200px"><span>Formato</span><select id="bvMod"></select></label><button type="button" class="btn gold" id="bvTodos" hidden>✔ Dar V°B° a todos</button><button type="button" class="btn ghost sm" id="bvAct">↻ Actualizar</button></div>
+<div class="list" id="bvList"></div><button type="button" class="btn ghost block" id="bvMas" hidden>Ver más</button></div>`);
+let BV={rows:[],res:null,t:0},BV_N=30;
+const bvOn=()=>!!(S.token&&!S.prueba&&S.tab==="home"&&((S.admin&&S.principal)||(S.jef&&!S.admin)));
+const bvListo=r=>{const f=r.firmaSup||{};return !r.vb&&(!f.estado||f.estado==="FIRMADO")};
+async function bvCargar(forzar){const c=$("bvCard");if(!c)return;const on=bvOn();c.hidden=!on;if(!on)return;if(S.jef&&!S.admin&&$("vbAudList"))$("vbAudList").hidden=true;
+  bvRender();if(!forzar&&BV.t&&Date.now()-BV.t<60000)return;$("bvSub").textContent="Cargando…";
+  try{if(S.admin){const r=await admin("adminVBPend");if(!r||!r.ok){$("bvSub").textContent=(r&&r.msg)||"";return}BV={rows:r.rows||[],res:r.res,t:Date.now()}}
+    else{const r=await call("audFirmasPend",S.token);if(!r||!r.ok){$("bvSub").textContent=(r&&r.msg)||"";return}BV={rows:r.rows||[],res:null,t:Date.now()}}
+    bvRender()}catch(x){$("bvSub").textContent="Sin conexión."}}
+function bvFiltro(){const m=$("bvMod").value;return BV.rows.filter(r=>bvListo(r)&&(!m||(r.mod||"af")===m))}
+function bvRender(){const L=BV.rows.filter(bvListo),esp=BV.rows.length-L.length,sel=$("bvMod"),cur=sel.value;
+  const mods=[...new Set(L.map(r=>r.mod||"af"))];sel.innerHTML=`<option value="">Todos (${L.length})</option>`+mods.map(m=>`<option value="${m}"${cur===m?" selected":""}>${esc(MODULOS[m]?MODULOS[m].n:m)} (${L.filter(r=>(r.mod||"af")===m).length})</option>`).join("");
+  const F=bvFiltro();$("bvSub").textContent=BV.t?`${L.length} listo${L.length===1?"":"s"} para tu V°B°`:"";
+  const p=BV.res;const chip=(t,cl)=>`<span class="pill ${cl||"wait"}">${t}</span>`;
+  $("bvRes").innerHTML=BV.t?chip(`✔ ${L.length} por tu V°B°`,"ok")+chip(`⏳ ${p?p.esperandoSup:esp} esperando supervisor`)+(p?Object.entries(p.porSup||{}).sort((a,b)=>b[1]-a[1]).map(([n,k])=>chip(`${esc(title(n))}: ${k}`)).join(""):"")+(p?chip(`🏢 ${p.corteGP} Corte esperan Gerencia`):"")+(p&&p.devueltos?chip(`💬 ${p.devueltos} devueltos`,"bad"):""):"";
+  const b=$("bvTodos");b.hidden=!F.length;b.textContent=`✔ Dar V°B° a todos (${F.length})`;
+  $("bvList").innerHTML=BV.t?(F.length?F.slice(0,BV_N).map(r=>{const f=r.firmaSup||{},tit=(r.mod||"af")==="af"?`OF ${r.of||"—"} · ${r.art||"—"}`:resumen(r);
+    return`<article class="item${r.rej?" rej":""}" style="padding:7px 12px;gap:2px"><div class="t"><b><span class="pill wait">${esc(MODULOS[r.mod||"af"]?MODULOS[r.mod||"af"].n:"")}</span> ${esc(tit)}</b><span class="pill ${r.rej?"bad":"ok"}">${esc(title(r.res||(r.rej?"Rechazado":"Aprobado")))}</span></div>
+    <div class="m">${dmy(r.fecha)} · Auditor ${esc(title(r.aud||""))}${f.estado==="FIRMADO"?` · ✔ ${esc(title(f.por||""))}`:""}</div>
+    <div class="acts"><button type="button" class="btn ghost sm" data-bvp="${esc(r.id)}">👁 Ver PDF</button><button type="button" class="btn sm" data-bvv="${esc(r.id)}">✔ V°B°</button></div></article>`}).join(""):'<div class="empty">✔ No tienes reportes pendientes de V°B°.</div>'):'<div class="empty">Cargando…</div>';
+  $("bvMas").hidden=F.length<=BV_N}
+$("bvMod").onchange=()=>{BV_N=30;bvRender()};$("bvAct").onclick=()=>bvCargar(true);$("bvMas").onclick=()=>{BV_N+=30;bvRender()};
+$("bvCard").addEventListener("click",e=>{const p=e.target.closest("[data-bvp]"),v=e.target.closest("[data-bvv]");if(p)bajarPdf(p.dataset.bvp,p);
+  if(v){const r=BV.rows.find(x=>x.id===v.dataset.bvv);if(r){darVB(r,v);const iv=setInterval(()=>{if(r.vb){clearInterval(iv);BV.rows=BV.rows.filter(x=>x.id!==r.id);bvRender()}},1500);setTimeout(()=>clearInterval(iv),300000)}}});
+$("bvTodos").onclick=async()=>{const L=bvFiltro();if(!L.length)return;let mf={};try{mf=await apiX(S.admin?"adminMiFirma":"audMiFirma")||{}}catch(x){}
+  const d=document.createElement("div");d.className="okdlg";d.setAttribute("role","dialog");d.setAttribute("aria-modal","true");let pad=null,busy=false;
+  d.innerHTML=`<div class="okbox" style="text-align:left;max-width:460px;max-height:92vh;overflow:auto"><h3>✔ Dar V°B° a ${L.length} reporte${L.length===1?"":"s"}</h3><p class="sub">Tu firma sale en el espacio de V°B° de Calidad de cada PDF.</p><div id="bvF"></div>
+   <label class="fld" style="margin-top:10px"><span>Comentario (opcional, sale en todos los PDF)</span><textarea id="bvObs" rows="2" maxlength="500"></textarea></label><p class="note err" id="bvErr" hidden></p>
+   <button type="button" class="btn block" id="bvOk" style="margin-top:10px">✔ Firmar ${L.length} V°B°</button><button type="button" class="btn ghost block" id="bvNo">Cancelar</button></div>`;document.body.appendChild(d);
+  const dib=()=>{$("bvF").innerHTML=`<p class="sub" style="margin:0 0 6px">Dibuja tu firma (se guarda para la próxima vez):</p><canvas id="bvCv" style="width:100%;height:130px;background:#fff;border:1px solid #ccc;border-radius:10px;touch-action:none;display:block"></canvas><button type="button" class="btn ghost sm" id="bvClr" style="margin-top:6px">Borrar</button>`;pad=vbPad($("bvCv"));requestAnimationFrame(()=>pad.init());$("bvClr").onclick=()=>pad.init()};
+  if(mf.firma){$("bvF").innerHTML=`<p class="sub" style="margin:0 0 6px">Tu firma guardada:</p><div style="background:#fff;border:1px solid #ddd;border-radius:10px;padding:6px;text-align:center"><img src="${mf.firma}" style="max-height:90px;max-width:100%"></div><button type="button" class="btn ghost sm" id="bvOtra" style="margin-top:6px">Firmar con otra</button>`;$("bvOtra").onclick=dib}else dib();
+  $("bvNo").onclick=()=>{if(!busy)d.remove()};
+  $("bvOk").onclick=async()=>{const er=$("bvErr"),ok=$("bvOk"),obs=($("bvObs").value||"").trim();er.hidden=true;let firma=mf.firma||"";
+    if(pad){if(!pad.dirty){er.textContent="Dibuja tu firma en el recuadro blanco.";er.hidden=false;return}firma=pad.png()}
+    busy=true;ok.disabled=true;$("bvNo").disabled=true;let n=0,fal=0;
+    try{if(pad){try{await apiX(S.admin?"adminGuardarFirma":"audGuardarFirma",firma)}catch(x){}}
+      const nom=mf.nombre||(S.me&&S.me.nombre)||"";
+      for(let i=0;i<L.length;i++){const r=L[i];ok.textContent=`Firmando ${i+1} de ${L.length}…`;
+        try{const srv=await apiX("imagenes",r.id),ts=Date.now();const im={firmaA:srv.firmaA||"",firmaT:srv.firmaT||"",fotos:(srv.fotos||[]).map(x=>x.src).filter(Boolean),...supIm(r),firmaVB:firma,vbNom:nom,vbObs:obs};
+          const pdf=await pdfDe({...r,vb:ts,vbObs:obs},im);const x=await apiX(S.admin?"adminVB":"audVB",r.id,pdf,obs);if(x&&x.ok){n++;r.vb=ts}else fal++}catch(x){fal++}}
+      d.remove();toast(fal?`V°B° dado a ${n} de ${L.length}. ${fal} no se pudo: inténtalo otra vez.`:`✔ V°B° dado a ${n} reporte${n===1?"":"s"}.`);BV.rows=BV.rows.filter(x=>!x.vb);bvRender();try{if(S.admin)cargarHist()}catch(e){}bvCargar(true)}
+    catch(x){er.textContent="No se pudo terminar. Revisa tu conexión.";er.hidden=false;busy=false;ok.disabled=false;$("bvNo").disabled=false;ok.textContent=`✔ Firmar ${L.length} V°B°`}}};
+{const _rh=renderHome;renderHome=function(){_rh.apply(this,arguments);try{bvCargar()}catch(e){}}}
+/* ================= v91: Reportes ordenados por estado (pendientes → firmados → completos) */
+const HI_EST={E1:"⏳ Pendientes · falta firma del supervisor",E2:"✍ Firmados · falta V°B° de Calidad o Gerencia",E3:"✔ Completos"};
+function hiEst(r){const f=r.firmaSup||{};if(f.estado==="PENDIENTE"||f.estado==="DEVUELTO")return 1;if(r.vb&&((r.mod||"af")!=="corte"||(r.firmaGP&&r.firmaGP.estado==="FIRMADO")))return 3;return 2}
+function hiKey(r){return HF.ord==="estado"?"E"+hiEst(r):(r.mod||"af")}
+HF.ord=ls.get("hf_ord","")||"";
+{const _rh=renderHist;renderHist=function(){ls.set("hf_ord",HF.ord||"");return _rh.apply(this,arguments)}}
 /* ================= v90: Reportes más ordenado y con líneas más delgadas (filas compactas tipo lista) */
 document.head.insertAdjacentHTML("beforeend",`<style>
 #hiList{gap:3px}
